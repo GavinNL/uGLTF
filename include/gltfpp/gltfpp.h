@@ -326,10 +326,7 @@ public:
     }
     Accessor& getAccessor(PrimitiveAttribute attr);
 
-    // attributes	object	A dictionary object, where each key corresponds to mesh attribute semantic and each value is the index of the accessor containing attribute's data.	white_check_mark Yes
-    // indices	integer	The index of the accessor that contains the indices.	No
-    // material	integer	The index of the material to apply to this primitive when rendering.	No
-    // mode	integer	The type of primitives to render.	No, default: 4
+
     // targets	object [1-*]	An array of Morph Targets, each Morph Target is a dictionary mapping attributes (only POSITION, NORMAL, and TANGENT supported) to their deviations in the Morph Target.	No
     // extensions	object	Dictionary object with extension-specific objects.	No
     // extras	any	Application-specific data.	No
@@ -403,6 +400,126 @@ inline void from_json(const nlohmann::json & j, Scene & B)
     //B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
 
     B.nodes        = _getValue(j, "nodes", std::vector<int32_t>());
+}
+
+class Skin
+{
+public:
+    int32_t              inverseBindMatrices = -1;
+    std::vector<int32_t> joints;	//integer [1-*]	The indices of each root node.	No
+    std::string          name;          //The user-defined name of this object.	No
+    int32_t              skeleton=-1;
+    //extensions	object	Dictionary object with extension-specific objects.	No
+    //extras	any	Application-specific data.	No
+
+    Node* getRootNode();
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, Skin & B)
+{
+    B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", -1);
+    B.name                = _getValue(j, "name", std::string(""));
+    B.joints              = _getValue(j, "joints", std::vector<int32_t>());
+    B.skeleton            = _getValue(j, "skeleton", -1);
+    //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
+
+}
+
+
+enum class AnimationInterpolation : int32_t
+{
+    STEP,
+    LINEAR,
+    CUBIC
+};
+
+class AnimationSampler
+{
+public:
+    int32_t                input  = -1;
+    int32_t                output = -1;
+    AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
+
+    Accessor& getTimeAccessor();
+    Accessor& getOutputAccessor();
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, AnimationSampler & B)
+{
+    B.input = _getValue(j, "input", -1);
+    B.output = _getValue(j, "output", -1);
+
+    auto interpolation = _getValue( j, "interpolation", std::string() );
+
+    if( interpolation == "STEP")   B.interpolation = AnimationInterpolation::STEP;
+    if( interpolation == "LINEAR") B.interpolation = AnimationInterpolation::LINEAR;
+    if( interpolation == "CUBIC")  B.interpolation = AnimationInterpolation::CUBIC;
+}
+
+enum class AnimationPath
+{
+    TRANSLATE,
+    ROTATION,
+    SCALE,
+    WEIGHTS
+};
+
+class AnimationChannel
+{
+public:
+    int32_t              sampler = -1;
+
+    struct
+    {
+        int32_t       node;
+        AnimationPath path;
+    } target;
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, AnimationChannel & B)
+{
+    B.sampler = _getValue(j, "sampler", -1);
+
+    auto path = _getValue(j["target"], "path", std::string() );
+
+    if( path == "translation") B.target.path = AnimationPath::TRANSLATE;
+    if( path == "rotation")    B.target.path = AnimationPath::ROTATION;
+    if( path == "scale")       B.target.path = AnimationPath::SCALE;
+    if( path == "weights")     B.target.path = AnimationPath::WEIGHTS;
+
+    B.target.node = _getValue(j["target"], "node", -1);
+    //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
+
+}
+
+class Animation
+{
+public:
+    std::vector<AnimationChannel> channels;
+    std::vector<AnimationSampler> samplers;
+    std::string                   name;          //The user-defined name of this object.	No
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, Animation & B)
+{
+    B.channels            = _getValue(j, "channels", std::vector<AnimationChannel>());
+    B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
+    B.name                = _getValue(j, "name", std::string(""));
 }
 
 class GLTFModel
@@ -497,6 +614,30 @@ public:
 
                 scenes.emplace_back( std::move(B) );
                 scenes.back()._parent = this;
+            }
+        }
+
+        if(J.count("skins") == 1)
+        {
+            for(auto & b : J["skins"] )
+            {
+                std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Skin>();
+               //
+                skins.emplace_back( std::move(B) );
+                skins.back()._parent = this;
+            }
+        }
+
+        if(J.count("animations") == 1)
+        {
+            for(auto & b : J["animations"] )
+            {
+                std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Animation>();
+               //
+                animations.emplace_back( std::move(B) );
+                animations.back()._parent = this;
             }
         }
     }
@@ -620,6 +761,8 @@ public:
     std::vector<Node>       nodes;
     std::vector<Mesh>       meshes;
     std::vector<Scene>      scenes;
+    std::vector<Skin>       skins;
+    std::vector<Animation>  animations;
 };
 
 
