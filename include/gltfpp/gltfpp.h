@@ -136,6 +136,11 @@ inline T _getValue(nlohmann::json const & obj, const std::string & key, T const 
     return default_val;
 }
 
+std::vector<uint8_t> _parseURI(const std::string & uri)
+{
+
+}
+
 class Buffer
 {
     public:
@@ -936,6 +941,144 @@ inline void from_json(const nlohmann::json & j, Sampler & B)
     B.name       = _getValue(j, "name", std::string(""));
 }
 
+class NormalTextureInfo
+{
+public:
+    int32_t index = -1;
+    int32_t texCoord;
+    float   scale;
+
+    operator bool() const
+    {
+        return index!=-1;
+    }
+};
+
+class OcclusionTextureInfo
+{
+public:
+    int32_t index = -1;
+    int32_t texCoord;
+    float   strength;
+
+    operator bool() const
+    {
+        return index!=-1;
+    }
+};
+
+inline void from_json(const nlohmann::json & j, NormalTextureInfo & B)
+{
+    B.index    = _getValue(j, "index", -1);
+    B.texCoord = _getValue(j, "texCoord", 0 );
+    B.scale    = _getValue(j, "scale", 1.0f);
+}
+inline void from_json(const nlohmann::json & j, OcclusionTextureInfo & B)
+{
+    B.index    = _getValue(j, "index", -1);
+    B.texCoord = _getValue(j, "texCoord", 0 );
+    B.strength = _getValue(j, "strength", 1.0f);
+}
+
+enum class MaterialAlphaMode
+{
+    OPAQUE,
+    MASK,
+    BLEND
+};
+
+class Material
+{
+public:
+
+    struct
+    {
+        std::array<float, 4> baseColorFactor;
+        NormalTextureInfo baseColorTexture;
+        float             metallicFactor;
+        float             roughnessFactor;
+        NormalTextureInfo metallicRoughnessTexture;
+
+        operator bool() const
+        {
+            return _has;
+        }
+
+        bool hasBaseColorTexture() const
+        {
+            return static_cast<bool>(baseColorTexture);
+        }
+        bool hasMetallicRoughnessTexture() const
+        {
+            return static_cast<bool>(metallicRoughnessTexture);
+        }
+    private:
+        bool              _has=false;
+        friend void from_json(const nlohmann::json & j, Material & B);
+    } pbrMetallicRoughness;
+
+    NormalTextureInfo    normalTexture;
+    OcclusionTextureInfo occlusionTexture;
+    NormalTextureInfo    emissiveTexture;
+    std::array<float,3>  emissiveFactor;
+
+    MaterialAlphaMode alphaMode;
+    float alphaCutoff = 0.5f;
+    bool  doubleSided = false;
+
+    bool hasPBR() const
+    {
+        return static_cast<bool>(pbrMetallicRoughness);
+    }
+    bool hasNormalTexture() const
+    {
+        return static_cast<bool>(normalTexture);
+    }
+    bool hasOcclusionTexture() const
+    {
+        return static_cast<bool>(occlusionTexture);
+    }
+    bool hasEmissiveTexture() const
+    {
+        return static_cast<bool>(emissiveTexture);
+    }
+private:
+  //  GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, Material & B)
+{
+    if( j.count("pbrMetallicRoughness")==1)
+    {
+        B.pbrMetallicRoughness.baseColorFactor = _getValue(j["pbrMetallicRoughness"], "baseColorFactor", std::array<float,4>({1,1,1,1}));
+        B.pbrMetallicRoughness.metallicFactor  = _getValue( j["pbrMetallicRoughness"], "metallicFactor", 1.0f);
+        B.pbrMetallicRoughness.roughnessFactor = _getValue( j["pbrMetallicRoughness"], "roughnessFactor", 1.0f);
+
+        B.pbrMetallicRoughness.baseColorTexture  = _getValue(j["pbrMetallicRoughness"], "baseColorTexture", NormalTextureInfo{});
+        B.pbrMetallicRoughness.metallicRoughnessTexture  = _getValue(j["pbrMetallicRoughness"], "metallicRoughnessTexture", NormalTextureInfo{});
+        B.pbrMetallicRoughness._has = true;
+    }
+
+    B.emissiveFactor = _getValue(j, "emissiveFactor", std::array<float,3>({0,0,0}));
+    B.emissiveTexture = _getValue(j, "emissiveTexture", NormalTextureInfo{});
+
+    B.normalTexture    = _getValue(j, "normalTexture", NormalTextureInfo{});
+    B.occlusionTexture = _getValue(j, "occlusionTexture", OcclusionTextureInfo{});
+
+    B.alphaCutoff        = _getValue(j, "alphaCutoff", 0.5f);
+    B.doubleSided        = _getValue(j, "doubleSided", false);
+
+    auto alphaMode = _getValue(j, "alphaMode", std::string("OPAQUE"));
+
+    if( alphaMode == "OPAQUE")
+        B.alphaMode = MaterialAlphaMode::OPAQUE;
+    if( alphaMode == "MASK")
+        B.alphaMode = MaterialAlphaMode::MASK;
+    if( alphaMode == "BLEND")
+        B.alphaMode = MaterialAlphaMode::BLEND;
+
+}
 
 
 class GLTFModel
@@ -1104,6 +1247,16 @@ public:
                 cameras.emplace_back( std::move(B) );
             }
         }
+        if(J.count("materials") == 1)
+        {
+            for(auto & b : J["materials"] )
+            {
+                std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Material>();
+               ////
+                materials.emplace_back( std::move(B) );
+            }
+        }
     }
 
     static header_t _readHeader(std::istream & in)
@@ -1231,6 +1384,7 @@ public:
     std::vector<Texture>    textures;
     std::vector<Sampler>    samplers;
     std::vector<Camera>     cameras;
+    std::vector<Material>   materials;
 };
 
 
