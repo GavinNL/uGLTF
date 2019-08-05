@@ -7,6 +7,43 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+SCENARIO("Aspan")
+{
+    gltfpp::GLTFModel M;
+
+    std::vector<uint8_t> data;
+    data.resize(24);
+
+    struct Vec3
+    {
+        float x,y,z;
+    };
+
+    gltfpp::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
+
+    REQUIRE( span.size() == 2);
+    REQUIRE( static_cast<void*>(&span[0]) == static_cast<void*>(&data[0]) );
+
+    REQUIRE( static_cast<void*>(&span.front()) == static_cast<void*>(&data.front()) );
+    REQUIRE( static_cast<void*>(&span.back())  == static_cast<void*>(&data[12]) );
+
+    REQUIRE( static_cast<void*>(&span[0].x) == static_cast<void*>(&data[0]) );
+    REQUIRE( static_cast<void*>(&span[0].y) == static_cast<void*>(&data[4]) );
+    REQUIRE( static_cast<void*>(&span[0].z) == static_cast<void*>(&data[8]) );
+
+    REQUIRE( static_cast<void*>(&span[1].x) == static_cast<void*>(&data[12]) );
+    REQUIRE( static_cast<void*>(&span[1].y) == static_cast<void*>(&data[16]) );
+    REQUIRE( static_cast<void*>(&span[1].z) == static_cast<void*>(&data[20]) );
+
+    uint32_t count=0;
+    for(auto & b : span)
+    {
+        count++;
+    }
+    REQUIRE(count==2);
+
+}
+
 SCENARIO("Buffer View")
 {
     gltfpp::GLTFModel M;
