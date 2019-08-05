@@ -213,6 +213,120 @@ enum class ComponentType : int32_t
     DOUBLE          = 5130
 };
 
+enum class CameraType
+{
+    PERSPECTIVE,
+    ORTHOGRAPHIC
+};
+
+class Camera
+{
+public:
+    std::string name;//	string	The user-defined name of this object.	No
+    CameraType type;//	string	Specifies if the camera uses a perspective or orthographic projection.	white_check_mark Yes
+
+    union
+    {
+        struct
+        {
+            float aspectRatio;
+            float yfov;
+            float zfar;
+            float znear;
+        } perspective;
+
+        struct
+        {
+            float xmag;
+            float ymag;
+            float zfar;
+            float znear;
+        } orthographic;
+
+    } matrix;
+
+    void writeMatrix(float * _mat4)
+    {
+        std::array< std::array<float, 4>, 4> & M = *reinterpret_cast<std::array< std::array<float, 4>, 4>*>(_mat4);
+
+        M[0][1] = M[0][2] = M[0][3] =
+        M[1][0] = M[1][2] = M[1][3] =
+        M[2][0] = M[2][1] =
+        M[3][0] = M[3][1] = M[3][2] = 0.0f;
+
+        if( type == CameraType::PERSPECTIVE)
+        {
+            auto a = matrix.perspective.aspectRatio;
+            auto y = matrix.perspective.yfov;
+            auto n = matrix.perspective.znear;
+            auto inv_tan = 1.0f / ( a * std::tan(0.5 * y) );
+
+            M[0][0] = inv_tan / a;
+            M[1][1] = inv_tan;
+
+            M[3][3] = 0;
+            M[3][2] = -1;
+
+            if( std::isinf( matrix.perspective.zfar ))
+            {
+                M[2][2] = -1;
+                M[3][2] = -2*n;
+            }
+            else
+            {
+                auto f = matrix.perspective.zfar;
+                M[2][2] = 1.0f / (n-f);
+                M[3][2] = -2*f*n / M[2][2];
+                M[2][2] *= f+n;
+            }
+        }
+        else
+        {
+            auto r = matrix.orthographic.xmag;
+            auto t = matrix.orthographic.ymag;
+            auto f = matrix.orthographic.zfar;
+            auto n = matrix.orthographic.znear;
+
+            auto inv_nf = 1.0f / (n-f);
+
+            M[0][0] = 1.0f / r;
+            M[1][1] = 1.0f / t;
+            M[2][2] = 2.0f * inv_nf;
+            M[2][3] = (f+n)*inv_nf;
+
+            M[3][3] = -1;
+        }
+    }
+};
+
+inline void from_json(const nlohmann::json & j, Camera & B)
+{
+    auto type        = _getValue(j, "type", std::string(""));
+    B.name        = _getValue(j, "name", std::string(""));
+
+    if( type == "perspective")
+    {
+        B.type = CameraType::PERSPECTIVE;
+        B.matrix.perspective.aspectRatio = _getValue(j["perspective"], "aspectRatio", 0.0f);
+        B.matrix.perspective.yfov        = _getValue(j["perspective"], "yfov", 0.0f);
+        B.matrix.perspective.zfar        = _getValue(j["perspective"], "zfar", INFINITY);
+        B.matrix.perspective.znear       = _getValue(j["perspective"], "znear", 0.0f);
+    }
+    else if( type == "orthographic")
+    {
+        B.type = CameraType::ORTHOGRAPHIC;
+        B.matrix.orthographic.xmag  = _getValue(j["orthographic"], "xmag", 0.0f);
+        B.matrix.orthographic.ymag  = _getValue(j["orthographic"], "ymag", 0.0f);
+        B.matrix.orthographic.zfar  = _getValue(j["orthographic"], "zfar", INFINITY);
+        B.matrix.orthographic.znear = _getValue(j["orthographic"], "znear", 0.0f);
+    }
+    else
+    {
+        throw std::runtime_error("Camera type is not defined in the gltf asset");
+    }
+
+}
+
 class Accessor
 {
     public:
@@ -980,6 +1094,16 @@ public:
                 samplers.back()._parent = this;
             }
         }
+        if(J.count("cameras") == 1)
+        {
+            for(auto & b : J["cameras"] )
+            {
+               // std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Camera>();
+               //
+                cameras.emplace_back( std::move(B) );
+            }
+        }
     }
 
     static header_t _readHeader(std::istream & in)
@@ -1106,6 +1230,7 @@ public:
     std::vector<Image>      images;
     std::vector<Texture>    textures;
     std::vector<Sampler>    samplers;
+    std::vector<Camera>     cameras;
 };
 
 

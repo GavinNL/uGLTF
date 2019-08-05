@@ -174,6 +174,17 @@ SCENARIO( "Loading " )
             }
         }
 
+        THEN("We can read the Cameras")
+        {
+            for(auto & C : M.cameras)
+            {
+                REQUIRE( C.type == gltfpp::CameraType::PERSPECTIVE);
+
+                float M[16];
+                C.writeMatrix(M);
+            }
+        }
+
         THEN("We can extract image data")
         {
             for(auto & I : M.images)
@@ -475,11 +486,6 @@ SCENARIO( "Loading " )
                     }
 
                     auto nodes_size = nodes.size();
-
-                    for(auto & n : nodes)
-                    {
-                        std::cout << "Node: " << n << std::endl;
-                    }
 
                     auto & T = M.animations[0].samplers[0].getInputAccessor();
 
