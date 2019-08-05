@@ -28,6 +28,8 @@ SCENARIO("Buffer View")
     M.accessors[0].componentType = gltfpp::ComponentType::FLOAT;
 
 
+   // auto & B = M.bufferViews[0].getBuffer();
+   // REQUIRE( &B == &M.buffers[0] );
 
 
 }
@@ -155,6 +157,119 @@ SCENARIO( "Loading " )
     GIVEN("A GLTFModel and an input stream")
     {
 
+        THEN("We can read the buffers")
+        {
+            for(auto & B : M.buffers)
+            {
+                REQUIRE( B.byteLength != 0);
+                REQUIRE( B.byteLength == B.m_data.size() );
+            }
+        }
+
+        THEN("We can read the bufferViews")
+        {
+            for(auto & B : M.bufferViews)
+            {
+                REQUIRE( B.byteLength != 0);
+            }
+        }
+
+        THEN("We can extract image data")
+        {
+            for(auto & I : M.images)
+            {
+                auto img = I.data();
+
+                REQUIRE( I.bufferView != 0 );
+
+                THEN("We can get the bufferView")
+                {
+                    auto & Bv = I.getBufferView();
+
+                    REQUIRE( Bv.buffer != -1 );
+
+                    THEN("We can get the buffer")
+                    {
+                        auto & B = Bv.getBuffer();
+
+                        REQUIRE(B.byteLength != 0);
+                    }
+                }
+            }
+
+          //  REQUIRE(img.size()==40);
+
+        }
+
+        THEN("We can access the meshes")
+        {
+
+
+            THEN("We can access the accesssors of the mesh primitives")
+            {
+                gltfpp::PrimitiveAttribute attrs[] = {
+                    gltfpp::PrimitiveAttribute::POSITION  ,
+                    gltfpp::PrimitiveAttribute::NORMAL	  ,
+                    gltfpp::PrimitiveAttribute::TANGENT	  ,
+                    gltfpp::PrimitiveAttribute::TEXCOORD_0,
+                    gltfpp::PrimitiveAttribute::TEXCOORD_1,
+                    gltfpp::PrimitiveAttribute::COLOR_0	  ,
+                    gltfpp::PrimitiveAttribute::JOINTS_0  ,
+                    gltfpp::PrimitiveAttribute::WEIGHTS_0
+                };
+                for(auto & mesh : M.meshes)
+                {
+
+                    std::set<size_t> vertexCounts;
+                    for(auto & primitive : mesh.primitives)
+                    {
+                        if( primitive.hasIndices() )
+                        {
+                            auto & acc = primitive.getIndexAccessor();
+
+                            auto span = acc.getSpan<uint8_t>();
+
+                            if( acc.accessorSize() == 2 )
+                            {
+                                REQUIRE( span.stride() >= 2 );
+                            }
+                            else if( acc.accessorSize() == 4 )
+                            {
+                                REQUIRE( span.stride() >= 4);
+                            }
+                            else {
+                                REQUIRE(false);
+                            }
+                        }
+
+
+                        for(auto & a : attrs)
+                        {
+                            if( primitive.has(a) )
+                            {
+                                auto & p  =  primitive.getAccessor(a);
+
+                                auto span = primitive.getSpan<uint8_t>(a);
+
+                                THEN("The stride must be larger than the accessorSize...otherwise data will be aliased")
+                                {
+                                    REQUIRE( span.stride() >= p.accessorSize() );
+                                }
+                                vertexCounts.insert( span.size() );
+                            }
+                        }
+                        THEN("All attriubutes must have the same count")
+                        {
+                            REQUIRE( vertexCounts.size() == 1 );
+                        }
+                    }
+
+                }
+
+
+            }
+        }
+
         THEN("We can access the meshes")
         {
             REQUIRE( M.meshes.size() == 1);
@@ -190,7 +305,7 @@ SCENARIO( "Loading " )
                 {
                     using value_type = std::array<float,3>;
 
-                    auto P = p.data<value_type>();
+                    auto P = p.getSpan<value_type>();
 
                     auto &  bufferView = M.bufferViews[ p.bufferView ];
                     auto &  buffer = M.buffers[ M.bufferViews[ p.bufferView ].buffer].m_data;
@@ -203,7 +318,7 @@ SCENARIO( "Loading " )
                 {
                     using value_type = std::array<float,3>;
 
-                    auto P = n.data<value_type>();
+                    auto P = n.getSpan<value_type>();
 
                     auto &  bufferView = M.bufferViews[ n.bufferView ];
                     auto &  buffer     = M.buffers[ M.bufferViews[ n.bufferView ].buffer].m_data;
@@ -216,7 +331,7 @@ SCENARIO( "Loading " )
                 {
                     using value_type = std::array<float,2>;
 
-                    auto P = t.data<value_type>();
+                    auto P = t.getSpan<value_type>();
 
                     auto &  bufferView = M.bufferViews[ t.bufferView ];
                     auto &  buffer     = M.buffers[ M.bufferViews[ n.bufferView ].buffer].m_data;
@@ -229,7 +344,7 @@ SCENARIO( "Loading " )
                 {
                     using value_type = std::array<float,4>;
 
-                    auto P = w.data<value_type>();
+                    auto P = w.getSpan<value_type>();
 
                     auto &  bufferView = M.bufferViews[ w.bufferView ];
                     auto &  buffer = M.buffers[ M.bufferViews[ w.bufferView ].buffer].m_data;
@@ -242,7 +357,7 @@ SCENARIO( "Loading " )
                 {
                     using value_type = std::array<uint16_t,4>;
 
-                    auto P = j.data<value_type>();
+                    auto P = j.getSpan<value_type>();
 
                     auto &  bufferView = M.bufferViews[ j.bufferView ];
                     auto &  buffer = M.buffers[ M.bufferViews[ j.bufferView ].buffer].m_data;
@@ -285,6 +400,7 @@ SCENARIO( "Loading " )
 
                 }
 
+
                 THEN("We can extract animations")
                 {
                     auto & A = M.animations[0];
@@ -306,8 +422,8 @@ SCENARIO( "Loading " )
                         {
                             case gltfpp::AnimationPath::TRANSLATE:
                             {
-                                auto  T = S.getInputData();
-                                auto  V = S.getOutputData< std::array<float,3> >();
+                                auto  T = S.getInputSpan();
+                                auto  V = S.getOutputSpan< std::array<float,3> >();
 
                                 // We want to find the transformation T(t), where t is
                                 // some floating point value T <= t <= T.back()
@@ -325,8 +441,8 @@ SCENARIO( "Loading " )
                             break;
                             case gltfpp::AnimationPath::SCALE:
                             {
-                                auto  T = S.getInputData();
-                                auto  V = S.getOutputData< std::array<float,3> >();
+                                auto  T = S.getInputSpan();
+                                auto  V = S.getOutputSpan< std::array<float,3> >();
 
                                 REQUIRE(T.size() == V.size());
                             }
@@ -334,8 +450,8 @@ SCENARIO( "Loading " )
 
                             case gltfpp::AnimationPath::ROTATION:
                             {
-                                auto  T = S.getInputData();
-                                auto  V = S.getOutputData< std::array<float,4> >();
+                                auto  T = S.getInputSpan();
+                                auto  V = S.getOutputSpan< std::array<float,4> >();
 
                                 // We want to find the transformation T(t), where t is
                                 // some floating point value T <= t <= T.back()
@@ -368,7 +484,7 @@ SCENARIO( "Loading " )
                     auto & T = M.animations[0].samplers[0].getInputAccessor();
 
 
-                    auto t = M.animations[0].samplers[0].getInputData();
+                    auto t = M.animations[0].samplers[0].getInputSpan();
 
                     t.size();
 

@@ -103,6 +103,12 @@ public:
     {
         return _size;
     }
+
+    size_t stride() const
+    {
+        return _stride;
+    }
+
 public:
     unsigned char* _begin;
     size_t         _size;
@@ -124,6 +130,13 @@ inline T _getValue(nlohmann::json const & obj, const std::string & key, T const 
     return default_val;
 }
 
+class Buffer
+{
+    public:
+        int32_t              byteLength;
+        std::vector<uint8_t> m_data;
+};
+
 enum class BufferViewTarget : int32_t
 {
     UNKNOWN              = 0,
@@ -139,6 +152,19 @@ public:
     int32_t          byteOffset = 0;
     int32_t          byteStride = 0;
     BufferViewTarget target;
+
+    /**
+     * @brief getBuffer
+     * @return
+     *
+     * Returns a reference to the buffer.
+     * The buffer is just a vector of raw uint8
+     */
+    Buffer & getBuffer();
+    Buffer const & getBuffer() const;
+
+    template<typename T>
+    aspan<T> getSpan();
 
     void* data();
 
@@ -156,12 +182,7 @@ inline void from_json(const nlohmann::json & j, BufferView & B)
     B.byteStride = _getValue(j, "byteStride", 0u);
 }
 
-class Buffer
-{
-    public:
-        int32_t              byteLength;
-        std::vector<uint8_t> m_data;
-};
+
 
 enum class AccessorType : int32_t
 {
@@ -202,7 +223,7 @@ class Accessor
         std::string  name;
 
         template<typename T>
-        aspan<T> data();
+        aspan<T> getSpan();
 
 
 
@@ -446,8 +467,20 @@ public:
     {
         return indices!=-1;
     }
-    Accessor& getAccessor(PrimitiveAttribute attr);
 
+    Accessor& getAccessor(PrimitiveAttribute attr);
+    Accessor const & getAccessor(PrimitiveAttribute attr) const;
+
+    Accessor& getIndexAccessor();
+    Accessor const & getIndexAccessor() const;
+
+    template<typename T>
+    aspan<T> getSpan(PrimitiveAttribute attr)
+    {
+        auto & A = getAccessor(attr);
+
+        return A.getSpan<T>();
+    }
 
     // targets	object [1-*]	An array of Morph Targets, each Morph Target is a dictionary mapping attributes (only POSITION, NORMAL, and TANGENT supported) to their deviations in the Morph Target.	No
     // extensions	object	Dictionary object with extension-specific objects.	No
@@ -594,15 +627,15 @@ public:
      * Returns the span of data for the input (eg time)
      * This value is always a floating point balue
      */
-    aspan<float> getInputData()
+    aspan<float> getInputSpan()
     {
-        return getInputAccessor().data<float>();
+        return getInputAccessor().getSpan<float>();
     }
 
     template<typename T>
-    aspan<T> getOutputData()
+    aspan<T> getOutputSpan()
     {
-        return getOutputAccessor().data<T>();
+        return getOutputAccessor().getSpan<T>();
     }
 
     Accessor& getInputAccessor();
@@ -692,6 +725,98 @@ inline void from_json(const nlohmann::json & j, Animation & B)
     B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
     B.name                = _getValue(j, "name", std::string(""));
 }
+
+
+class Image
+{
+public:
+    // mimeType	string	The image's MIME type.	No
+    // bufferView	integer	The index of the bufferView that contains the image. Use this instead of the image's uri property.	No
+
+    std::string uri;
+    std::string mimeType;
+    int32_t     bufferView;
+    std::string name;
+
+    aspan<uint8_t> data();
+
+    BufferView       & getBufferView();
+    BufferView const & getBufferView() const;
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+
+};
+
+inline void from_json(const nlohmann::json & j, Image & B)
+{
+    B.uri         = _getValue(j, "uri", std::string(""));
+    B.mimeType    = _getValue(j, "mimeType", std::string(""));
+    B.bufferView  = _getValue(j, "bufferView", -1);
+    B.name        = _getValue(j, "name", std::string(""));
+}
+
+class Texture
+{
+public:
+    int32_t     sampler;
+    int32_t     source;
+    std::string name;
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, Texture & B)
+{
+    B.source  = _getValue(j, "source", -1);
+    B.sampler  = _getValue(j, "sampler", -1);
+    B.name        = _getValue(j, "name", std::string(""));
+}
+
+enum class Filter
+{
+    UNKNOWN                = -1,
+    NEAREST                =  9728,
+    LINEAR                 =  9729,
+    NEAREST_MIPMAP_NEAREST =  9984,
+    LINEAR_MIPMAP_NEAREST  =  9985,
+    NEAREST_MIPMAP_LINEAR  =  9986,
+    LINEAR_MIPMAP_LINEAR   =  9987
+};
+
+enum class WrapMode
+{
+    CLAMP_TO_EDGE   = 33071,
+    MIRRORED_REPEAT = 33648,
+    REPEAT          = 10497
+};
+
+class Sampler
+{
+public:
+    Filter magFilter;
+    Filter minFilter;
+    WrapMode wrapS;
+    WrapMode wrapT;
+    std::string name;
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
+};
+
+inline void from_json(const nlohmann::json & j, Sampler & B)
+{
+    B.magFilter  = static_cast<Filter>(_getValue(j, "magFilter", -1) );
+    B.minFilter  = static_cast<Filter>(_getValue(j, "minFilter", -1) );
+    B.wrapS      = static_cast<WrapMode>(_getValue(j, "wrapS", 10497));
+    B.wrapT      = static_cast<WrapMode>(_getValue(j, "wrapT", 10497));
+    B.name       = _getValue(j, "name", std::string(""));
+}
+
+
 
 class GLTFModel
 {
@@ -816,6 +941,39 @@ public:
                     s._parent = this;
             }
         }
+        if(J.count("images") == 1)
+        {
+            for(auto & b : J["images"] )
+            {
+               // std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Image>();
+               //
+                images.emplace_back( std::move(B) );
+                images.back()._parent = this;
+            }
+        }
+        if(J.count("textures") == 1)
+        {
+            for(auto & b : J["textures"] )
+            {
+               // std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Texture>();
+               //
+                textures.emplace_back( std::move(B) );
+                textures.back()._parent = this;
+            }
+        }
+        if(J.count("samplers") == 1)
+        {
+            for(auto & b : J["samplers"] )
+            {
+               // std::cout << b.dump(4) << std::endl;
+                auto B = b.get<Sampler>();
+               //
+                samplers.emplace_back( std::move(B) );
+                samplers.back()._parent = this;
+            }
+        }
     }
 
     static header_t _readHeader(std::istream & in)
@@ -883,7 +1041,7 @@ public:
                 {
                     Buffer B;
                     B.m_data.resize( b["byteLength"].get<uint32_t>() );
-
+                    B.byteLength = b["byteLength"].get<int32_t>();
                     in.read( reinterpret_cast<char*>(B.m_data.data()), B.m_data.size());
 
                     outputBuffers.emplace_back( std::move(B) );
@@ -939,6 +1097,9 @@ public:
     std::vector<Scene>      scenes;
     std::vector<Skin>       skins;
     std::vector<Animation>  animations;
+    std::vector<Image>      images;
+    std::vector<Texture>    textures;
+    std::vector<Sampler>    samplers;
 };
 
 
@@ -947,7 +1108,31 @@ inline Node* Node::getChild(int32_t childIndex)
     return &_parent->nodes[ children[childIndex] ];
 }
 
+Accessor& Primitive::getIndexAccessor()
+{
+    if( hasIndices() )
+    {
+        return _parent->accessors[ indices ];
+    }
+    throw std::runtime_error("This primitive does not have an index buffer");
+}
+
+Accessor const & Primitive::getIndexAccessor() const
+{
+    if( hasIndices() )
+    {
+        return _parent->accessors[ indices ];
+    }
+    throw std::runtime_error("This primitive does not have an index buffer");
+}
+
 inline Accessor& Primitive::getAccessor(PrimitiveAttribute attr)
+{
+    const auto acessorIndex = (&attributes.POSITION)[ static_cast<int32_t>(attr)];
+    return _parent->accessors[acessorIndex];
+}
+
+Accessor const & Primitive::getAccessor(PrimitiveAttribute attr) const
 {
     const auto acessorIndex = (&attributes.POSITION)[ static_cast<int32_t>(attr)];
     return _parent->accessors[acessorIndex];
@@ -969,6 +1154,15 @@ inline Accessor& AnimationSampler::getOutputAccessor()
 }
 
 
+Buffer &BufferView::getBuffer()
+{
+    return _parent->buffers[ buffer ];
+}
+
+Buffer const & BufferView::getBuffer() const
+{
+    return _parent->buffers[ buffer ];
+}
 
 void* BufferView::data()
 {
@@ -976,7 +1170,7 @@ void* BufferView::data()
 }
 
 template<typename T>
-aspan<T> Accessor::data()
+aspan<T> Accessor::getSpan()
 {
     auto & bv = _parent->bufferViews[ bufferView ];
 
@@ -991,6 +1185,48 @@ aspan<T> Accessor::data()
     aspan<T>( bv.data(),
               count,
               stride);
+}
+
+
+
+template<typename T>
+aspan<T> BufferView::getSpan()
+{
+    auto d  =  _parent->buffers[ buffer ].m_data.data() + byteOffset;
+
+    auto stride = sizeof(T);
+
+    // byteStride not given, so data is tightly packed
+    if( byteStride <= 0) // the stride is defined so its likely an attribute byffer
+    {
+        stride = sizeof(T);
+    }
+    else
+    {
+        if( static_cast<size_t>(byteStride) < sizeof(T) )
+        {
+            // warning: the defined byteStride is less than the requested
+            //          stride, consequitive data will overlap.
+        }
+    }
+
+    size_t count = byteLength / stride;
+    return aspan<T>(d, count, stride);
+}
+
+aspan<uint8_t> Image::data()
+{
+    return _parent->bufferViews[ bufferView ].getSpan<uint8_t>();
+}
+
+BufferView       & Image::getBufferView()
+{
+    return _parent->bufferViews[ bufferView ];
+}
+
+BufferView const & Image::getBufferView() const
+{
+    return _parent->bufferViews[ bufferView ];
 }
 
 }
