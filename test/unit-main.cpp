@@ -2,7 +2,35 @@
 #include <gltfpp/gltfpp.h>
 #include <iostream>
 #include <fstream>
+#include <set>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+SCENARIO("Buffer View")
+{
+    gltfpp::GLTFModel M;
+
+    M.buffers.emplace_back( gltfpp::Buffer() );
+    M.bufferViews.emplace_back( gltfpp::BufferView() );
+
+    M.buffers[0].m_data.resize(1024);
+    M.buffers[0].byteLength = 1024;
+
+    M.bufferViews[0].buffer = 0;
+    M.bufferViews[0].byteLength = 512;
+    M.bufferViews[0].byteOffset = 0;
+    M.bufferViews[0].byteStride = 3*sizeof(float);
+
+    M.accessors.emplace_back( gltfpp::Accessor() );
+    M.accessors[0].type = gltfpp::AccessorType::VEC3;
+    M.accessors[0].bufferView = 0;
+    M.accessors[0].componentType = gltfpp::ComponentType::FLOAT;
+
+
+
+
+}
 
 SCENARIO( "Read Header" )
 {
@@ -157,9 +185,71 @@ SCENARIO( "Loading " )
                 REQUIRE( p.count == t.count );
                 REQUIRE( p.count == j.count );
 
-                THEN("We can alias the buffer data")
-                {
 
+                THEN("We can alias the Position buffer Data")
+                {
+                    using value_type = std::array<float,3>;
+
+                    auto P = p.data<value_type>();
+
+                    auto &  bufferView = M.bufferViews[ p.bufferView ];
+                    auto &  buffer = M.buffers[ M.bufferViews[ p.bufferView ].buffer].m_data;
+
+                    REQUIRE( P.size() == p.count );
+                    REQUIRE( reinterpret_cast<unsigned char *>(&P[0])   == &buffer[ bufferView.byteOffset ] );
+                    REQUIRE( reinterpret_cast<unsigned char *>(P.end()) == &buffer[ bufferView.byteOffset + p.count * bufferView.byteStride] );
+                }
+                THEN("We can alias the Normal buffer Data")
+                {
+                    using value_type = std::array<float,3>;
+
+                    auto P = n.data<value_type>();
+
+                    auto &  bufferView = M.bufferViews[ n.bufferView ];
+                    auto &  buffer     = M.buffers[ M.bufferViews[ n.bufferView ].buffer].m_data;
+
+                    REQUIRE( P.size() == n.count );
+                    REQUIRE( reinterpret_cast<unsigned char *>(&P[0])   == &buffer[ bufferView.byteOffset ] );
+                    REQUIRE( reinterpret_cast<unsigned char *>(P.end()) == &buffer[ bufferView.byteOffset + p.count * bufferView.byteStride] );
+                }
+                THEN("We can alias the Texcoord buffer Data")
+                {
+                    using value_type = std::array<float,2>;
+
+                    auto P = t.data<value_type>();
+
+                    auto &  bufferView = M.bufferViews[ t.bufferView ];
+                    auto &  buffer     = M.buffers[ M.bufferViews[ n.bufferView ].buffer].m_data;
+
+                    REQUIRE( P.size() == n.count );
+                    REQUIRE( reinterpret_cast<unsigned char *>(&P[0])   == &buffer[ bufferView.byteOffset ] );
+                    REQUIRE( reinterpret_cast<unsigned char *>(P.end()) == &buffer[ bufferView.byteOffset + p.count * bufferView.byteStride] );
+                }
+                THEN("We can alias the Weights buffer Data")
+                {
+                    using value_type = std::array<float,4>;
+
+                    auto P = w.data<value_type>();
+
+                    auto &  bufferView = M.bufferViews[ w.bufferView ];
+                    auto &  buffer = M.buffers[ M.bufferViews[ w.bufferView ].buffer].m_data;
+
+                    REQUIRE( P.size() == w.count );
+                    REQUIRE( reinterpret_cast<unsigned char *>(&P[0])   == &buffer[ bufferView.byteOffset ] );
+                    REQUIRE( reinterpret_cast<unsigned char *>(P.end()) == &buffer[ bufferView.byteOffset + p.count * bufferView.byteStride] );
+                }
+                THEN("We can alias the Weights buffer Data")
+                {
+                    using value_type = std::array<uint16_t,4>;
+
+                    auto P = j.data<value_type>();
+
+                    auto &  bufferView = M.bufferViews[ j.bufferView ];
+                    auto &  buffer = M.buffers[ M.bufferViews[ j.bufferView ].buffer].m_data;
+
+                    REQUIRE( P.size() == j.count );
+                    REQUIRE( reinterpret_cast<unsigned char *>(&P[0])   == &buffer[ bufferView.byteOffset ] );
+                    REQUIRE( reinterpret_cast<unsigned char *>(P.end()) == &buffer[ bufferView.byteOffset + p.count * bufferView.byteStride] );
                 }
             }
 
@@ -171,28 +261,119 @@ SCENARIO( "Loading " )
                 {
                     for(auto & scene : M.scenes )
                     {
-                        std::cout << "Scene: " << scene.name << std::endl;
+                       // std::cout << "Scene: " << scene.name << std::endl;
                         uint32_t si=0;
                         for(auto & node : scene.nodes)
                         {
-                            std::cout << "  Root Node: " << node << std::endl;
+                           // std::cout << "  Root Node: " << node << std::endl;
                             auto * N = scene.getRootNode(si++);
 
-                            std::cout << "      Children: " << N->children.size() << std::endl;
+                           // std::cout << "      Children: " << N->children.size() << std::endl;
                             int i=0;
                             N->depthFirstTraverse( [&](gltfpp::Node & N)
                                          {
-                                            std::cout << N.name  << "  mesh: " << N.mesh  << "  skin: " << N.skin << std::endl;
+                                           // std::cout << N.name  << "  mesh: " << N.mesh  << "  skin: " << N.skin << std::endl;
                                          }
                                         );
 
 
-                            N->getChild()
-                            std::cout << "Total depth: " << i << std::endl;
+
+                         //   std::cout << "Total depth: " << i << std::endl;
 
                         }
                     }
 
+                }
+
+                THEN("We can extract animations")
+                {
+                    auto & A = M.animations[0];
+
+                    std::set<int32_t> nodes;
+
+                    // A channel is basically a spline for
+                    // a particular node's translation/scale/rotation property
+                    for(auto & C : A.channels)
+                    {
+                        // The node that this channel will be modifiying;
+                        auto & N = M.nodes[ C.target.node ];
+
+                        // The sampler is the spline data.
+                        auto & S = A.samplers[ C.sampler ];
+
+                        // what path of the node is it affecting? translation/scale/rotation/weights?
+                        switch( C.target.path )
+                        {
+                            case gltfpp::AnimationPath::TRANSLATE:
+                            {
+                                auto  T = S.getInputData();
+                                auto  V = S.getOutputData< std::array<float,3> >();
+
+                                // We want to find the transformation T(t), where t is
+                                // some floating point value T <= t <= T.back()
+                                //
+                                // let i be the index such that T[i] < t < T[i+1]
+                                //
+                                // then:
+                                //    mixValue = ( t - t[i] ) / ( t[i+1] - t[i] )
+                                //
+                                //    finalTranslation = lerp( V[i], V[i+1], mixValue);
+
+
+                                REQUIRE(T.size() == V.size());
+                            }
+                            break;
+                            case gltfpp::AnimationPath::SCALE:
+                            {
+                                auto  T = S.getInputData();
+                                auto  V = S.getOutputData< std::array<float,3> >();
+
+                                REQUIRE(T.size() == V.size());
+                            }
+                            break;
+
+                            case gltfpp::AnimationPath::ROTATION:
+                            {
+                                auto  T = S.getInputData();
+                                auto  V = S.getOutputData< std::array<float,4> >();
+
+                                // We want to find the transformation T(t), where t is
+                                // some floating point value T <= t <= T.back()
+                                //
+                                // let i be the index such that T[i] < t < T[i+1]
+                                //
+                                // then:
+                                //    mixValue = ( t - t[i] ) / ( t[i+1] - t[i] )
+                                //
+                                //    finalRotation = slerp( V[i], V[i+1], mixValue);
+
+                                REQUIRE(T.size() == V.size());
+                            }
+                            break;
+                            case gltfpp::AnimationPath::WEIGHTS:   break;
+                        }
+
+
+                        nodes.insert( C.target.node );
+
+                    }
+
+                    auto nodes_size = nodes.size();
+
+                    for(auto & n : nodes)
+                    {
+                        std::cout << "Node: " << n << std::endl;
+                    }
+
+                    auto & T = M.animations[0].samplers[0].getInputAccessor();
+
+
+                    auto t = M.animations[0].samplers[0].getInputData();
+
+                    t.size();
+
+                   // auto v = M.animations[0].samplers[0].getOutputData();
+                    std::cout << T.name << std::endl;
                 }
             }
 

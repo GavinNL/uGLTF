@@ -52,6 +52,64 @@ class GLTFModel;
 
 
 template<typename T>
+class aspan
+{
+public:
+    using value_type = T;
+
+    aspan(void * data, size_t size, size_t stride) : _begin( static_cast<unsigned char*>(data) ),
+        _size(size), _stride(stride)
+    {
+
+    }
+
+    value_type & operator[](size_t i) const
+    {
+        return *reinterpret_cast<value_type*>(_begin + _stride*i);
+    }
+    value_type & operator[](size_t i)
+    {
+        return *reinterpret_cast<value_type*>(_begin + _stride*i);
+    }
+
+    value_type* begin()
+    {
+        return reinterpret_cast<value_type*>(_begin);
+    }
+
+    value_type* end()
+    {
+        return &this->operator[](_size);
+    }
+
+    value_type & back()
+    {
+        return this->operator[](_size-1);
+    }
+    value_type const & back() const
+    {
+        return this->operator[](_size-1);
+    }
+    value_type & front()
+    {
+        return this->operator[](0);
+    }
+    value_type const & front() const
+    {
+        return this->operator[](0);
+    }
+
+    size_t size() const
+    {
+        return _size;
+    }
+public:
+    unsigned char* _begin;
+    size_t         _size;
+    size_t         _stride;
+};
+
+template<typename T>
 inline T _getValue(nlohmann::json const & obj, const std::string & key, T const &default_val)
 {
     try {
@@ -81,6 +139,9 @@ public:
     int32_t          byteOffset = 0;
     int32_t          byteStride = 0;
     BufferViewTarget target;
+
+    void* data();
+
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -139,6 +200,49 @@ class Accessor
         std::vector<double> max;
 
         std::string  name;
+
+        template<typename T>
+        aspan<T> data();
+
+
+
+        size_t componentSize() const
+        {
+            switch(componentType)
+            {
+                case ComponentType::BYTE          : return 1;
+                case ComponentType::UNSIGNED_BYTE : return 1;
+                case ComponentType::SHORT         : return 2;
+                case ComponentType::UNSIGNED_SHORT: return 2;
+                case ComponentType::UNSIGNED_INT  : return 4;
+                case ComponentType::FLOAT         : return 4;
+                case ComponentType::DOUBLE        : return 8;
+            }
+        }
+        /**
+         * @brief accessorSize
+         * @return
+         *
+         * Returns the size of the datatype stored in this accessor.. for example
+         * if this accessor is storing a 3-component vector of shorts, it will return
+         * 3*sizeof(short) = 6;
+         */
+        size_t accessorSize() const
+        {
+            auto actualDataSize = componentSize();
+            switch(type)
+            {
+                case AccessorType::UNKNOWN: return actualDataSize*0;
+                case AccessorType::SCALAR : return actualDataSize*1;
+                case AccessorType::VEC2   : return actualDataSize*2;
+                case AccessorType::VEC3   : return actualDataSize*3;
+                case AccessorType::VEC4   : return actualDataSize*4;
+                case AccessorType::MAT2   : return actualDataSize*4;
+                case AccessorType::MAT3   : return actualDataSize*9;
+                case AccessorType::MAT4   : return actualDataSize*16;
+            }
+        }
+
     private:
         GLTFModel * _parent;
         friend class GLTFModel;
@@ -176,16 +280,18 @@ struct Transform
 class Node
 {
 public:
-    std::vector<int32_t> children;
+    int32_t mesh=-1;
     int32_t camera=-1;
     int32_t skin=-1;
 
-    std::array<float,16> matrix     = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    std::array<float,16> matrix      = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     std::array<float,3>  scale       = {1,1,1};
     std::array<float,4>  rotation    = {0,0,0,1};
     std::array<float,3>  translation = {0,0,0};
 
-    int32_t mesh=-1;
+    std::vector<int32_t> children;
+
+
 
     std::vector<float> weights;
     std::string        name;
@@ -200,7 +306,10 @@ public:
     {
         return _hasMatrix;
     }
-
+    bool hasTransforms() const
+    {
+        return _hasTransforms;
+    }
     bool hasMesh() const
     {
         return mesh != -1;
@@ -212,6 +321,11 @@ public:
     bool hasSkin() const
     {
         return skin != -1;
+    }
+
+    size_t childCount() const
+    {
+        return children.size();
     }
     /**
      * @brief getChild
@@ -249,6 +363,7 @@ public:
     }
 private:
     bool _hasMatrix=false;
+    bool _hasTransforms=false;
     GLTFModel * _parent;
     friend void from_json(const nlohmann::json & j, Node & B);
     friend class GLTFModel;
@@ -267,6 +382,13 @@ inline void from_json(const nlohmann::json & j, Node & B)
 
     if( j.count("matrix") == 1)
         B._hasMatrix = true;
+
+    if( j.count("rotation") == 1)
+        B._hasTransforms = true;
+    if( j.count("scale") == 1)
+        B._hasTransforms = true;
+    if( j.count("translation") == 1)
+        B._hasTransforms = true;
 
     B.name           = _getValue(j, "name", std::string(""));
     B.weights        = _getValue(j, "weights", std::vector<float>());
@@ -436,6 +558,28 @@ enum class AnimationInterpolation : int32_t
     CUBIC
 };
 
+enum class AnimationPath
+{
+    TRANSLATE,
+    ROTATION,
+    SCALE,
+    WEIGHTS
+};
+
+/**
+ * @brief The AnimationSampler class
+ *
+ * An animation sampler is basically two arrays,
+ *
+ * a time array and a value array.
+ *
+ * The time/value arrays describe a linear spline
+ * to interpolate the value.
+ *
+ *
+ * t = [                         ]
+ * v = [                         ]
+ */
 class AnimationSampler
 {
 public:
@@ -443,7 +587,25 @@ public:
     int32_t                output = -1;
     AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
 
-    Accessor& getTimeAccessor();
+    /**
+     * @brief getInputData
+     * @return
+     *
+     * Returns the span of data for the input (eg time)
+     * This value is always a floating point balue
+     */
+    aspan<float> getInputData()
+    {
+        return getInputAccessor().data<float>();
+    }
+
+    template<typename T>
+    aspan<T> getOutputData()
+    {
+        return getOutputAccessor().data<T>();
+    }
+
+    Accessor& getInputAccessor();
     Accessor& getOutputAccessor();
 
 private:
@@ -463,13 +625,7 @@ inline void from_json(const nlohmann::json & j, AnimationSampler & B)
     if( interpolation == "CUBIC")  B.interpolation = AnimationInterpolation::CUBIC;
 }
 
-enum class AnimationPath
-{
-    TRANSLATE,
-    ROTATION,
-    SCALE,
-    WEIGHTS
-};
+
 
 class AnimationChannel
 {
@@ -510,9 +666,24 @@ public:
     std::vector<AnimationSampler> samplers;
     std::string                   name;          //The user-defined name of this object.	No
 
+
+    /**
+     * @brief getFrame
+     * @param nodeTransformations
+     * @param t
+     *
+     * This method will fill the nodeTransformations vector with
+     * the transformation matrices for this animation at time t.
+     *
+     * nodeTransformations.size() = 16 * GLTF.nodes.size()
+     *
+     * Note that not all nodes may be animated.
+     */
+    void getFrame( std::vector<float> & nodeTransformations, float t );
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
+
 };
 
 inline void from_json(const nlohmann::json & j, Animation & B)
@@ -568,7 +739,7 @@ public:
         {
             for(auto & b : J["accessors"] )
             {
-                std::cout << b.dump(4) << std::endl;
+              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Accessor>();
 
                 accessors.emplace_back( std::move(B) );
@@ -580,7 +751,7 @@ public:
         {
             for(auto & b : J["nodes"] )
             {
-                std::cout << b.dump(4) << std::endl;
+                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Node>();
 
                 nodes.emplace_back( std::move(B) );
@@ -592,7 +763,7 @@ public:
         {
             for(auto & b : J["meshes"] )
             {
-                std::cout << b.dump(4) << std::endl;
+              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Mesh>();
 
                 meshes.emplace_back( std::move(B) );
@@ -609,7 +780,7 @@ public:
         {
             for(auto & b : J["scenes"] )
             {
-                std::cout << b.dump(4) << std::endl;
+               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Scene>();
 
                 scenes.emplace_back( std::move(B) );
@@ -621,7 +792,7 @@ public:
         {
             for(auto & b : J["skins"] )
             {
-                std::cout << b.dump(4) << std::endl;
+              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Skin>();
                //
                 skins.emplace_back( std::move(B) );
@@ -633,11 +804,16 @@ public:
         {
             for(auto & b : J["animations"] )
             {
-                std::cout << b.dump(4) << std::endl;
+               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Animation>();
                //
                 animations.emplace_back( std::move(B) );
                 animations.back()._parent = this;
+
+                for(auto & s : animations.back().channels)
+                    s._parent = this;
+                for(auto & s : animations.back().samplers)
+                    s._parent = this;
             }
         }
     }
@@ -782,5 +958,42 @@ inline Node* Scene::getRootNode(int32_t rootSceneNode)
     return &_parent->nodes[ nodes[rootSceneNode] ];
 }
 
+inline Accessor& AnimationSampler::getInputAccessor()
+{
+    return _parent->accessors[input];
+}
+
+inline Accessor& AnimationSampler::getOutputAccessor()
+{
+    return _parent->accessors[output];
+}
+
+
+
+void* BufferView::data()
+{
+    return _parent->buffers[ buffer ].m_data.data() + byteOffset;
+}
+
+template<typename T>
+aspan<T> Accessor::data()
+{
+    auto & bv = _parent->bufferViews[ bufferView ];
+
+    auto stride = accessorSize();
+
+    if( stride < sizeof(T) )
+    {
+        throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+    }
+
+    return
+    aspan<T>( bv.data(),
+              count,
+              stride);
+}
 
 }
+
+
+
