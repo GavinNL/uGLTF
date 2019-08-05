@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-get_filename_component(folder_name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-string(REPLACE " " "_" folder_name ${folder_name})
-
-project(${folder_name})
+project(ugltf)
 
 add_library( ${PROJECT_NAME} src/myfile.cpp include/gltfpp/gltfpp.h )
 add_library( ${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME} )
@@ -28,3 +25,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test" AND IS_DIRECTORY "${CMAKE_CURRENT_S
     enable_testing()
     add_subdirectory(test)
 endif()
+
+
+add_executable(
+    scene
+    examples/scene.cpp
+)
+target_link_libraries(scene ${PROJECT_NAME}::${PROJECT_NAME} )
+
+
+if( NOT EXISTS "${CMAKE_SOURCE_DIR}/share/gltfpp/BoomBox.glb" )
+    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BoomBox/glTF-Binary/BoomBox.glb" "${CMAKE_SOURCE_DIR}/share/gltfpp/BoomBox.glb" )
+endif()
+

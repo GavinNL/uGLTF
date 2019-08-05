@@ -9,17 +9,17 @@
 
 SCENARIO("Aspan")
 {
-    gltfpp::GLTFModel M;
+    uGLTF::GLTFModel M;
 
     std::vector<uint8_t> data;
     data.resize(24);
 
     struct Vec3
     {
-        float x,y,z;
+        uint32_t x,y,z;
     };
 
-    gltfpp::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
+    uGLTF::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
 
     REQUIRE( span.size() == 2);
     REQUIRE( static_cast<void*>(&span[0]) == static_cast<void*>(&data[0]) );
@@ -35,6 +35,13 @@ SCENARIO("Aspan")
     REQUIRE( static_cast<void*>(&span[1].y) == static_cast<void*>(&data[16]) );
     REQUIRE( static_cast<void*>(&span[1].z) == static_cast<void*>(&data[20]) );
 
+    data[16] = 0xAA;
+    data[17] = 0xBB;
+    data[18] = 0xCC;
+    data[19] = 0xDD;
+
+    REQUIRE( span[1].y == 0xDDCCBBAA);
+
     uint32_t count=0;
     for(auto & b : span)
     {
@@ -44,39 +51,13 @@ SCENARIO("Aspan")
 
 }
 
-SCENARIO("Buffer View")
-{
-    gltfpp::GLTFModel M;
-
-    M.buffers.emplace_back( gltfpp::Buffer() );
-    M.bufferViews.emplace_back( gltfpp::BufferView() );
-
-    M.buffers[0].m_data.resize(1024);
-    M.buffers[0].byteLength = 1024;
-
-    M.bufferViews[0].buffer = 0;
-    M.bufferViews[0].byteLength = 512;
-    M.bufferViews[0].byteOffset = 0;
-    M.bufferViews[0].byteStride = 3*sizeof(float);
-
-    M.accessors.emplace_back( gltfpp::Accessor() );
-    M.accessors[0].type = gltfpp::AccessorType::VEC3;
-    M.accessors[0].bufferView = 0;
-    M.accessors[0].componentType = gltfpp::ComponentType::FLOAT;
-
-
-   // auto & B = M.bufferViews[0].getBuffer();
-   // REQUIRE( &B == &M.buffers[0] );
-
-
-}
 
 SCENARIO( "Read Header" )
 {
     #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
 
 
-    gltfpp::GLTFModel M;
+    uGLTF::GLTFModel M;
     std::ifstream in(TEST_MODEL);
     GIVEN("A GLTFModel and an input stream")
     {
@@ -103,9 +84,9 @@ SCENARIO( "Read Header" )
                     auto J = M._parseJson( reinterpret_cast<char*>(cJ.chunkData.data()) );
 
                     REQUIRE(J.count("asset") == 1 );
-                    std::cout << J["asset"].dump(4) << std::endl;
+                 //   std::cout << J["asset"].dump(4) << std::endl;
 
-                    std::cout << J["buffers"].dump(4) << std::endl;
+//                    std::cout << J["buffers"].dump(4) << std::endl;
                 }
 
                 THEN("We can read the Buffer chunk")
@@ -127,7 +108,7 @@ SCENARIO( "Extracting Buffers" )
 {
     #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
 
-    gltfpp::GLTFModel M;
+    uGLTF::GLTFModel M;
     std::ifstream in(TEST_MODEL);
     GIVEN("A GLTFModel and an input stream")
     {
@@ -185,7 +166,7 @@ SCENARIO( "Loading " )
 {
     #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/BoomBox.glb"
 
-    gltfpp::GLTFModel M;
+    uGLTF::GLTFModel M;
     std::ifstream in(TEST_MODEL);
     M.load(in);
     in.close();
@@ -215,7 +196,7 @@ SCENARIO( "Loading " )
         {
             for(auto & C : M.cameras)
             {
-                REQUIRE( C.type == gltfpp::CameraType::PERSPECTIVE);
+                REQUIRE( C.type == uGLTF::CameraType::PERSPECTIVE);
 
                 float M[16];
                 C.writeMatrix(M);
@@ -253,15 +234,15 @@ SCENARIO( "Loading " )
         {
             THEN("We can access the accesssors of the mesh primitives")
             {
-                gltfpp::PrimitiveAttribute attrs[] = {
-                    gltfpp::PrimitiveAttribute::POSITION  ,
-                    gltfpp::PrimitiveAttribute::NORMAL	  ,
-                    gltfpp::PrimitiveAttribute::TANGENT	  ,
-                    gltfpp::PrimitiveAttribute::TEXCOORD_0,
-                    gltfpp::PrimitiveAttribute::TEXCOORD_1,
-                    gltfpp::PrimitiveAttribute::COLOR_0	  ,
-                    gltfpp::PrimitiveAttribute::JOINTS_0  ,
-                    gltfpp::PrimitiveAttribute::WEIGHTS_0
+                uGLTF::PrimitiveAttribute attrs[] = {
+                    uGLTF::PrimitiveAttribute::POSITION  ,
+                    uGLTF::PrimitiveAttribute::NORMAL	  ,
+                    uGLTF::PrimitiveAttribute::TANGENT	  ,
+                    uGLTF::PrimitiveAttribute::TEXCOORD_0,
+                    uGLTF::PrimitiveAttribute::TEXCOORD_1,
+                    uGLTF::PrimitiveAttribute::COLOR_0	  ,
+                    uGLTF::PrimitiveAttribute::JOINTS_0  ,
+                    uGLTF::PrimitiveAttribute::WEIGHTS_0
                 };
                 for(auto & mesh : M.meshes)
                 {

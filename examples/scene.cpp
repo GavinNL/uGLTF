@@ -3,7 +3,7 @@
 
 using Transform = int;
 
-bool canDraw( gltfpp::Node * N)
+bool canDraw( uGLTF::Node * N)
 {
     bool thisNodeDraws=false;
 
@@ -20,7 +20,7 @@ bool canDraw( gltfpp::Node * N)
     return thisNodeDraws;
 }
 
-void drawNode( gltfpp::Node * N, Transform const & parentTransform, int indent=0)
+void drawNode( uGLTF::Node * N, Transform const & parentTransform, int indent=0)
 {
     // transformStack.back() is the transform of the parent node.
 
@@ -42,7 +42,7 @@ void drawNode( gltfpp::Node * N, Transform const & parentTransform, int indent=0
     }
 }
 
-void drawScene( gltfpp::GLTFModel & M, int sceneIndex, float t=0.0f)
+void drawScene( uGLTF::GLTFModel & M, int sceneIndex, float t=0.0f)
 {
     auto & S = M.scenes[sceneIndex];
 
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 {
     #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
 
-    gltfpp::GLTFModel M;
+    uGLTF::GLTFModel M;
 
     std::ifstream in(TEST_MODEL);
 

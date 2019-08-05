@@ -8,6 +8,10 @@
 #include JSON_INCLUDE
 #include <iostream>
 
+#ifndef UGLTF_NAMESPACE
+    #define UGLTF_NAMESPACE uGLTF
+#endif
+
 /*
 
 
@@ -51,7 +55,7 @@
 
 */
 
-namespace gltfpp
+namespace UGLTF_NAMESPACE
 {
 
 class GLTFModel;
@@ -180,7 +184,38 @@ inline T _getValue(nlohmann::json const & obj, const std::string & key, T const 
 
 std::vector<uint8_t> _parseURI(const std::string & uri)
 {
+#if 0
+    template<typename chartype=char>
+    static std::basic_string<chartype> Decode(const char * in, int size)
+    {
 
+        std::basic_string<chartype> out;
+        static bool init=false;
+        static std::vector<int> T(256,-1);
+        if(!init)
+        {
+            init = true;
+            for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+        }
+
+
+        int val=0, valb=-8;
+
+        //for (unsigned char c : in)
+        for(int i=0;i<size;i++)
+        {
+            unsigned char c = in[i];
+            if (T[c] == -1) break;
+            val = (val<<6) + T[c];
+            valb += 6;
+            if (valb>=0) {
+                out.push_back( static_cast<chartype>( (val>>valb)&0xFF) );
+                valb-=8;
+            }
+        }
+        return out;
+    }
+#endif
 }
 
 class Buffer
@@ -1415,7 +1450,7 @@ public:
         {
             for(auto & b : J["materials"] )
             {
-                std::cout << b.dump(4) << std::endl;
+                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Material>();
                ////
                 materials.emplace_back( std::move(B) );

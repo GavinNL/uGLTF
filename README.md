@@ -1,4 +1,20 @@
-# GLTF++
+# uGLTF - Micro GLTF
+
+uGLTF is a small header-only library with the only dependency being the json parser: [nlohmann/json](https://github.com/nlohmann/json) (not included).
+
+
+```C++
+
+uGLTF::GLTFModel M;
+std::ifstream in("mygltf.glb");
+M.load(in);
+
+```
+
+The GLTFModel class contains all the properties defined by the GLTF 2.0 Specification.
+They are public members and can be accessed without getters.
+
+Helper functions are created to get references to other objects which are normally defined only by an index.
 
 ## Enum Classes for integer/string constants
 
@@ -14,6 +30,15 @@
  * AccessorComponent
  * ImageFilter
  * ImageWrapMode
+
+## Optional Properties
+
+Most classes have a `operator bool()` specified so that you can check if that
+property is specified.
+
+Classes also have a `hasPROPERTY()` method specified.
+
+Properties with integer index values are set to -1 if they are not specified.
 
 ## aspan<T>
 
