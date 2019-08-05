@@ -27,21 +27,21 @@
 * [`sampler`](#reference-sampler)
 * [`texture`](#reference-texture)
 * [`skin`](#reference-skin)
-*
+* [`camera`](#reference-camera)
+   * [`orthographic`](#reference-orthographic)
+   * [`perspective`](#reference-perspective)
+* [`material`](#reference-material)
+   * [`normalTextureInfo`](#reference-normaltextureinfo)
+   * [`occlusionTextureInfo`](#reference-occlusiontextureinfo)
+   * [`pbrMetallicRoughness`](#reference-pbrmetallicroughness)
+* [`textureInfo`](#reference-textureinfo)
+
 ## To Do:
 * [`accessor`](#reference-accessor)
    * [`sparse`](#reference-sparse)
       * [`indices`](#reference-indices)
       * [`values`](#reference-values)
-* [`material`](#reference-material)
-   * [`normalTextureInfo`](#reference-normaltextureinfo)
-   * [`occlusionTextureInfo`](#reference-occlusiontextureinfo)
-   * [`pbrMetallicRoughness`](#reference-pbrmetallicroughness)
 
-* [`textureInfo`](#reference-textureinfo)
-* [`camera`](#reference-camera)
-   * [`orthographic`](#reference-orthographic)
-   * [`perspective`](#reference-perspective)
    *
 * [`extension`](#reference-extension)
 * [`extras`](#reference-extras)
@@ -63,6 +63,49 @@ class aspan
 public:
     using value_type = T;
 
+    class _iterator :  public std::iterator<std::random_access_iterator_tag, T>
+    {
+            using char_type = std::uint8_t;
+            char_type * p;
+            std::ptrdiff_t stride;
+          public:
+
+            _iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
+            _iterator(const _iterator& mit) : p(mit.p), stride(mit.stride) {}
+
+            // return the number of elements between two iterators
+            bool operator<(const _iterator & other) const
+            {
+                return p < other.p;
+            }
+
+            std::ptrdiff_t operator-(const _iterator & other) const
+            {
+                return (p - other.p) / stride;
+            }
+            _iterator operator-(int inc) const
+            {
+                return _iterator( p - inc*stride, stride);
+            }
+            _iterator operator+(int inc) const
+            {
+                return _iterator( p + inc*stride, stride);
+            }
+
+            _iterator& operator--() {p-=stride;return *this;}
+            _iterator  operator--(int) {_iterator tmp(*this); operator--(); return tmp;}
+
+            _iterator& operator++() {p+=stride;return *this;}
+            _iterator operator++(int) {_iterator tmp(*this); operator++(); return tmp;}
+
+            bool operator==(const _iterator& rhs) const {return p==rhs.p;}
+            bool operator!=(const _iterator& rhs) const {return p!=rhs.p;}
+            T& operator*() {return *static_cast<T*>(static_cast<void*>(p));}
+     };
+
+    using iterator       = _iterator;
+    using const_iterator = const iterator;
+
     aspan(void * data, size_t size, size_t stride) : _begin( static_cast<unsigned char*>(data) ),
         _size(size), _stride(stride)
     {
@@ -78,14 +121,13 @@ public:
         return *reinterpret_cast<value_type*>(_begin + _stride*i);
     }
 
-    value_type* begin()
+    iterator begin()
     {
-        return reinterpret_cast<value_type*>(_begin);
+        return iterator( _begin, _stride);
     }
-
-    value_type* end()
+    iterator end()
     {
-        return &this->operator[](_size);
+        return iterator( _begin + _stride*size(), _stride);
     }
 
     value_type & back()
@@ -1098,6 +1140,128 @@ public:
         std::vector<uint8_t> chunkData;
     };
 
+    GLTFModel()
+    {
+    }
+
+    GLTFModel(GLTFModel && other)
+    {
+         accessors   = std::move(  other.accessors);
+         buffers     = std::move(  other.buffers);
+         bufferViews = std::move(  other.bufferViews);
+         nodes       = std::move(  other.nodes);
+         meshes      = std::move(  other.meshes);
+         scenes      = std::move(  other.scenes);
+         skins       = std::move(  other.skins);
+         animations  = std::move(  other.animations);
+         images      = std::move(  other.images);
+         textures    = std::move(  other.textures);
+         samplers    = std::move(  other.samplers);
+         cameras     = std::move(  other.cameras);
+         materials   = std::move(  other.materials);
+
+         _setParents(this);
+    }
+    GLTFModel(GLTFModel const & other)
+    {
+         accessors   = other.accessors;
+         buffers     = other.buffers;
+         bufferViews = other.bufferViews;
+         nodes       = other.nodes;
+         meshes      = other.meshes;
+         scenes      = other.scenes;
+         skins       = other.skins;
+         animations  = other.animations;
+         images      = other.images;
+         textures    = other.textures;
+         samplers    = other.samplers;
+         cameras     = other.cameras;
+         materials   = other.materials;
+
+         _setParents(this);
+    }
+
+    GLTFModel & operator=(GLTFModel const & other)
+    {
+         if( this != &other)
+         {
+             accessors   = other.accessors;
+             buffers     = other.buffers;
+             bufferViews = other.bufferViews;
+             nodes       = other.nodes;
+             meshes      = other.meshes;
+             scenes      = other.scenes;
+             skins       = other.skins;
+             animations  = other.animations;
+             images      = other.images;
+             textures    = other.textures;
+             samplers    = other.samplers;
+             cameras     = other.cameras;
+             materials   = other.materials;
+
+             _setParents(this);
+         }
+         return *this;
+    }
+    GLTFModel & operator=(GLTFModel && other)
+    {
+         if( this != &other)
+         {
+             accessors   = std::move(  other.accessors);
+             buffers     = std::move(  other.buffers);
+             bufferViews = std::move(  other.bufferViews);
+             nodes       = std::move(  other.nodes);
+             meshes      = std::move(  other.meshes);
+             scenes      = std::move(  other.scenes);
+             skins       = std::move(  other.skins);
+             animations  = std::move(  other.animations);
+             images      = std::move(  other.images);
+             textures    = std::move(  other.textures);
+             samplers    = std::move(  other.samplers);
+             cameras     = std::move(  other.cameras);
+             materials   = std::move(  other.materials);
+
+             _setParents(this);
+         }
+         return *this;
+    }
+
+    void _setParents(GLTFModel * parent)
+    {
+        for(auto & v :  bufferViews) { v._parent=this;};
+        for(auto & v :  accessors  ) { v._parent=this;};
+
+        for(auto & v :  nodes      ) { v._parent=this;};
+        for(auto & v :  scenes     ) { v._parent=this;};
+        for(auto & v :  skins      ) { v._parent=this;};
+
+        for(auto & v :  images     ) { v._parent=this;};
+        for(auto & v :  textures   ) { v._parent=this;};
+        for(auto & v :  samplers   ) { v._parent=this;};
+        //for(auto & v :  cameras    ) { v._parent=this;};
+        //for(auto & v :  materials  ) { v._parent=this;};
+
+        for(auto & v :  meshes     )
+        {
+            v._parent=this;
+            for(auto & p :  v.primitives )
+            {
+                p._parent=this;
+            };
+        };
+        for(auto & v :  animations     )
+        {
+            v._parent=this;
+            for(auto & p :  v.samplers )
+            {
+                p._parent=this;
+            };
+            for(auto & p :  v.channels )
+            {
+                p._parent=this;
+            };
+        };
+    }
     void load( std::istream & i)
     {
         auto header = _readHeader(i);
