@@ -1,4 +1,11 @@
-#include<nlohmann/json.hpp>
+#ifndef GLTFPP_H
+#define GLTFPP_H
+
+#ifndef JSON_INCLUDE
+#define JSON_INCLUDE <nlohmann/json.hpp>
+#endif
+
+#include JSON_INCLUDE
 #include <iostream>
 
 /*
@@ -12,26 +19,25 @@
    * [`primitive`](#reference-primitive)
 * [`node`](#reference-node)
 * [`scene`](#reference-scene)
-
-## To Do:
-* [`accessor`](#reference-accessor)
-   * [`sparse`](#reference-sparse)
-      * [`indices`](#reference-indices)
-      * [`values`](#reference-values)
 * [`animation`](#reference-animation)
    * [`animation sampler`](#reference-animation-sampler)
    * [`channel`](#reference-channel)
       * [`target`](#reference-target)
 * [`image`](#reference-image)
+* [`sampler`](#reference-sampler)
+* [`texture`](#reference-texture)
+* [`skin`](#reference-skin)
+*
+## To Do:
+* [`accessor`](#reference-accessor)
+   * [`sparse`](#reference-sparse)
+      * [`indices`](#reference-indices)
+      * [`values`](#reference-values)
 * [`material`](#reference-material)
    * [`normalTextureInfo`](#reference-normaltextureinfo)
    * [`occlusionTextureInfo`](#reference-occlusiontextureinfo)
    * [`pbrMetallicRoughness`](#reference-pbrmetallicroughness)
 
-* [`sampler`](#reference-sampler)
-
-* [`skin`](#reference-skin)
-* [`texture`](#reference-texture)
 * [`textureInfo`](#reference-textureinfo)
 * [`camera`](#reference-camera)
    * [`orthographic`](#reference-orthographic)
@@ -1231,5 +1237,4 @@ BufferView const & Image::getBufferView() const
 
 }
 
-
-
+#endif
