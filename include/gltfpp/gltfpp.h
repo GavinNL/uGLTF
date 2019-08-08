@@ -7,6 +7,7 @@
 
 #include JSON_INCLUDE
 #include <iostream>
+#include <type_traits>
 
 #ifndef UGLTF_NAMESPACE
     #define UGLTF_NAMESPACE uGLTF
@@ -66,10 +67,12 @@ class aspan
 {
 public:
     using value_type = T;
+    using char_type = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
+    using void_type = typename std::conditional< std::is_const<value_type>::value, const void         , void >::type;
 
     class _iterator :  public std::iterator<std::random_access_iterator_tag, T>
     {
-            using char_type = std::uint8_t;
+            //using char_type = ::char_type;
             char_type * p;
             std::ptrdiff_t stride;
           public:
@@ -104,13 +107,13 @@ public:
 
             bool operator==(const _iterator& rhs) const {return p==rhs.p;}
             bool operator!=(const _iterator& rhs) const {return p!=rhs.p;}
-            T& operator*() {return *static_cast<T*>(static_cast<void*>(p));}
+            T& operator*() {return *static_cast<value_type*>(static_cast<void_type*>(p));}
      };
 
     using iterator       = _iterator;
     using const_iterator = const iterator;
 
-    aspan(void * data, size_t size, size_t stride) : _begin( static_cast<unsigned char*>(data) ),
+    aspan(void_type * data, size_t size, size_t stride) : _begin( static_cast<char_type*>(data) ),
         _size(size), _stride(stride)
     {
 
@@ -162,7 +165,7 @@ public:
     }
 
 public:
-    unsigned char* _begin;
+    char_type*     _begin;
     size_t         _size;
     size_t         _stride;
 };
@@ -254,6 +257,9 @@ public:
     template<typename T>
     aspan<T> getSpan();
 
+    template<typename T>
+    aspan<T> getSpan() const;
+
     void* data();
 
 private:
@@ -325,8 +331,17 @@ public:
             float znear;
         } orthographic;
 
-    } matrix;
+    };
 
+    /**
+     * @brief writeMatrix
+     * @param _mat4
+     *
+     * Takes the parameters of the perspective or orthograph structs and
+     * writes the matrix values.
+     *
+     * _mat4 must be an array of at least 16 floats.
+     */
     void writeMatrix(float * _mat4)
     {
         std::array< std::array<float, 4>, 4> & M = *reinterpret_cast<std::array< std::array<float, 4>, 4>*>(_mat4);
@@ -338,9 +353,9 @@ public:
 
         if( type == CameraType::PERSPECTIVE)
         {
-            auto a = matrix.perspective.aspectRatio;
-            auto y = matrix.perspective.yfov;
-            auto n = matrix.perspective.znear;
+            auto a = perspective.aspectRatio;
+            auto y = perspective.yfov;
+            auto n = perspective.znear;
             auto inv_tan = 1.0f / ( a * std::tan(0.5 * y) );
 
             M[0][0] = inv_tan / a;
@@ -349,14 +364,14 @@ public:
             M[3][3] = 0;
             M[3][2] = -1;
 
-            if( std::isinf( matrix.perspective.zfar ))
+            if( std::isinf( perspective.zfar ))
             {
                 M[2][2] = -1;
                 M[3][2] = -2*n;
             }
             else
             {
-                auto f = matrix.perspective.zfar;
+                auto f = perspective.zfar;
                 M[2][2] = 1.0f / (n-f);
                 M[3][2] = -2*f*n / M[2][2];
                 M[2][2] *= f+n;
@@ -364,10 +379,10 @@ public:
         }
         else
         {
-            auto r = matrix.orthographic.xmag;
-            auto t = matrix.orthographic.ymag;
-            auto f = matrix.orthographic.zfar;
-            auto n = matrix.orthographic.znear;
+            auto r = orthographic.xmag;
+            auto t = orthographic.ymag;
+            auto f = orthographic.zfar;
+            auto n = orthographic.znear;
 
             auto inv_nf = 1.0f / (n-f);
 
@@ -389,18 +404,18 @@ inline void from_json(const nlohmann::json & j, Camera & B)
     if( type == "perspective")
     {
         B.type = CameraType::PERSPECTIVE;
-        B.matrix.perspective.aspectRatio = _getValue(j["perspective"], "aspectRatio", 0.0f);
-        B.matrix.perspective.yfov        = _getValue(j["perspective"], "yfov", 0.0f);
-        B.matrix.perspective.zfar        = _getValue(j["perspective"], "zfar", INFINITY);
-        B.matrix.perspective.znear       = _getValue(j["perspective"], "znear", 0.0f);
+        B.perspective.aspectRatio = _getValue(j["perspective"], "aspectRatio", 0.0f);
+        B.perspective.yfov        = _getValue(j["perspective"], "yfov", 0.0f);
+        B.perspective.zfar        = _getValue(j["perspective"], "zfar", INFINITY);
+        B.perspective.znear       = _getValue(j["perspective"], "znear", 0.0f);
     }
     else if( type == "orthographic")
     {
         B.type = CameraType::ORTHOGRAPHIC;
-        B.matrix.orthographic.xmag  = _getValue(j["orthographic"], "xmag", 0.0f);
-        B.matrix.orthographic.ymag  = _getValue(j["orthographic"], "ymag", 0.0f);
-        B.matrix.orthographic.zfar  = _getValue(j["orthographic"], "zfar", INFINITY);
-        B.matrix.orthographic.znear = _getValue(j["orthographic"], "znear", 0.0f);
+        B.orthographic.xmag  = _getValue(j["orthographic"], "xmag", 0.0f);
+        B.orthographic.ymag  = _getValue(j["orthographic"], "ymag", 0.0f);
+        B.orthographic.zfar  = _getValue(j["orthographic"], "zfar", INFINITY);
+        B.orthographic.znear = _getValue(j["orthographic"], "znear", 0.0f);
     }
     else
     {
@@ -424,11 +439,29 @@ class Accessor
 
         std::string  name;
 
+        /**
+         * @brief getSpan
+         * @return
+         *
+         * Returns a typed container span to the raw data.
+         * This method will throw an error if sizeof(T) < componentSize().
+         *
+         * The span can be accessed as if it was a vector. Note that
+         * a span's data may not be contigious.
+         */
         template<typename T>
         aspan<T> getSpan();
 
+        BufferView const & getBufferView() const;
+        BufferView & getBufferView();
 
 
+        /**
+         * @brief componentSize
+         * @return
+         *
+         * Returns the component size. That is the size, in bytes, of teh base datatype.
+         */
         size_t componentSize() const
         {
             switch(componentType)
@@ -500,6 +533,10 @@ struct Transform
     std::array<float,3> translation = {0,0,0};
 };
 
+class Mesh;
+class Skin;
+class Camera;
+
 class Node
 {
 public:
@@ -545,11 +582,19 @@ public:
     {
         return skin != -1;
     }
-
     size_t childCount() const
     {
         return children.size();
     }
+
+    Mesh const & getMesh() const;
+    Skin const & getSkin() const;
+    Camera const & getCamera() const;
+    Mesh & getMesh();
+    Skin & getSkin();
+    Camera & getCamera();
+
+
     /**
      * @brief getChild
      * @param childIndex
@@ -594,14 +639,14 @@ private:
 
 inline void from_json(const nlohmann::json & j, Node & B)
 {
-    B.camera     = _getValue(j, "camera"   , -1);
-    B.skin       = _getValue(j, "skin" , -1 );
-    B.mesh       = _getValue(j, "mesh"  , -1 );
+    B.camera      = _getValue(j, "camera"   , -1);
+    B.skin        = _getValue(j, "skin" , -1 );
+    B.mesh        = _getValue(j, "mesh"  , -1 );
 
-    B.matrix      =     _getValue(j, "matrix", std::array<float,16>{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1});
-    B.scale       =     _getValue(j, "scale", std::array<float,3>{1,1,1});
-    B.rotation    =     _getValue(j, "rotation", std::array<float,4>{0,0,0,1});
-    B.translation =     _getValue(j, "translation", std::array<float,3>{0,0,0});
+    B.matrix      = _getValue(j, "matrix", std::array<float,16>{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1});
+    B.scale       = _getValue(j, "scale", std::array<float,3>{1,1,1});
+    B.rotation    = _getValue(j, "rotation", std::array<float,4>{0,0,0,1});
+    B.translation = _getValue(j, "translation", std::array<float,3>{0,0,0});
 
     if( j.count("matrix") == 1)
         B._hasMatrix = true;
@@ -694,16 +739,16 @@ private:
 
 inline void from_json(const nlohmann::json & j, Primitive & B)
 {
-    B.attributes.POSITION = _getValue(j["attributes"], "POSITION", -1);
-    B.attributes.NORMAL = _getValue(j["attributes"], "NORMAL", -1);
-    B.attributes.TANGENT = _getValue(j["attributes"], "TANGENT", -1);
+    B.attributes.POSITION   = _getValue(j["attributes"], "POSITION", -1);
+    B.attributes.NORMAL     = _getValue(j["attributes"], "NORMAL", -1);
+    B.attributes.TANGENT    = _getValue(j["attributes"], "TANGENT", -1);
     B.attributes.TEXCOORD_0 = _getValue(j["attributes"], "TEXCOORD_0", -1);
     B.attributes.TEXCOORD_1 = _getValue(j["attributes"], "TEXCOORD_1", -1);
-    B.attributes.COLOR_0 = _getValue(j["attributes"], "COLOR_0", -1);
-    B.attributes.JOINTS_0 = _getValue(j["attributes"], "JOINTS_0", -1);
-    B.attributes.WEIGHTS_0 = _getValue(j["attributes"], "WEIGHTS_0", -1);
+    B.attributes.COLOR_0    = _getValue(j["attributes"], "COLOR_0", -1);
+    B.attributes.JOINTS_0   = _getValue(j["attributes"], "JOINTS_0", -1);
+    B.attributes.WEIGHTS_0  = _getValue(j["attributes"], "WEIGHTS_0", -1);
 
-    B.indices = _getValue(j, "indices", -1);
+    B.indices  = _getValue(j, "indices", -1);
     B.material = _getValue(j, "material", -1);
 
     B.mode = static_cast<PrimitiveMode>( _getValue(j, "mode", 4) );
@@ -741,11 +786,22 @@ class Scene
 {
 public:
     std::vector<int32_t> nodes;	//integer [1-*]	The indices of each root node.	No
-    std::string name;          //The user-defined name of this object.	No
+    std::string name;           //The user-defined name of this object.	No
+
     //extensions	object	Dictionary object with extension-specific objects.	No
     //extras	any	Application-specific data.	No
 
-    Node* getRootNode(int32_t rootSceneNode);
+    /**
+     * @brief getRootNode
+     * @param index
+     * @return
+     *
+     * Returns the pointer to the node index.
+     *
+     * index must be less than nodes.size();
+     */
+    Node* operator[](size_t i);
+
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -753,10 +809,8 @@ private:
 
 inline void from_json(const nlohmann::json & j, Scene & B)
 {
-    B.name           = _getValue(j, "name", std::string(""));
-    //B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
-
-    B.nodes        = _getValue(j, "nodes", std::vector<int32_t>());
+    B.name   = _getValue(j, "name", std::string(""));
+    B.nodes  = _getValue(j, "nodes", std::vector<int32_t>());
 }
 
 class Skin
@@ -940,6 +994,27 @@ public:
     int32_t     bufferView;
     std::string name;
 
+    /**
+     * @brief getSpan
+     * @return
+     *
+     * Returns the span of the data. Image data will always be
+     * contigious.
+     *
+     * Note: The data returned in the span is ENCODED data based on the
+     * mimeType. It is YOUR responsibility to decode the data.
+     *
+     * For example using stb:
+     *
+     * auto span = Img.getSpan();
+     *
+     * int width,height,channels;
+     *
+     * auto decodedData = stbi_load_from_memory( &span[0], span.size(), &width, &height, &channels,4 );
+     */
+    aspan<uint8_t> getSpan();
+    aspan<const uint8_t> getSpan() const;
+
     aspan<uint8_t> data();
 
     BufferView       & getBufferView();
@@ -958,12 +1033,22 @@ inline void from_json(const nlohmann::json & j, Image & B)
     B.name        = _getValue(j, "name", std::string(""));
 }
 
+class Image;
+
+class Sampler;
+
 class Texture
 {
 public:
     int32_t     sampler;
     int32_t     source;
     std::string name;
+
+    Sampler & getSampler();
+    Sampler const & getSampler() const;
+
+    Image & getImage();
+    Image const & getImage() const;
 
 private:
     GLTFModel * _parent;
@@ -973,8 +1058,8 @@ private:
 inline void from_json(const nlohmann::json & j, Texture & B)
 {
     B.source  = _getValue(j, "source", -1);
-    B.sampler  = _getValue(j, "sampler", -1);
-    B.name        = _getValue(j, "name", std::string(""));
+    B.sampler = _getValue(j, "sampler", -1);
+    B.name    = _getValue(j, "name", std::string(""));
 }
 
 enum class Filter
@@ -995,6 +1080,7 @@ enum class WrapMode
     REPEAT          = 10497
 };
 
+
 class Sampler
 {
 public:
@@ -1002,28 +1088,29 @@ public:
     Filter minFilter;
     WrapMode wrapS;
     WrapMode wrapT;
-    std::string name;
 
-private:
-    GLTFModel * _parent;
-    friend class GLTFModel;
+    std::string name;
 };
 
 inline void from_json(const nlohmann::json & j, Sampler & B)
 {
-    B.magFilter  = static_cast<Filter>(_getValue(j, "magFilter", -1) );
-    B.minFilter  = static_cast<Filter>(_getValue(j, "minFilter", -1) );
-    B.wrapS      = static_cast<WrapMode>(_getValue(j, "wrapS", 10497));
-    B.wrapT      = static_cast<WrapMode>(_getValue(j, "wrapT", 10497));
-    B.name       = _getValue(j, "name", std::string(""));
+    B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729) );
+    B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729) );
+    B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS", 10497) );
+    B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT", 10497) );
+    B.name    = _getValue(j, "name", std::string(""));
 }
 
-class NormalTextureInfo
+class TextureInfo
 {
 public:
-    int32_t index = -1;
-    int32_t texCoord;
-    float   scale;
+    int32_t index    = -1;
+    int32_t texCoord = 0;
+    union
+    {
+        float   scale;        // used for other textures
+        float   strength;     // used for occlusion Textures
+    };
 
     operator bool() const
     {
@@ -1031,31 +1118,27 @@ public:
     }
 };
 
-class OcclusionTextureInfo
-{
-public:
-    int32_t index = -1;
-    int32_t texCoord;
-    float   strength;
 
-    operator bool() const
+
+inline void from_json(const nlohmann::json & j, TextureInfo & B)
+{
+    B.index    = _getValue(j, "index", -1);
+    B.texCoord = _getValue(j, "texCoord", 0 );
+
+    if( j.count("scale") == 1)
     {
-        return index!=-1;
+        B.scale = j["scale"].get<float>();
     }
-};
+    else if( j.count("strength") == 1)
+    {
+        B.strength = j["strength"].get<float>();
+    }
+    else
+    {
+        B.strength = 1.0f;
+    }
+}
 
-inline void from_json(const nlohmann::json & j, NormalTextureInfo & B)
-{
-    B.index    = _getValue(j, "index", -1);
-    B.texCoord = _getValue(j, "texCoord", 0 );
-    B.scale    = _getValue(j, "scale", 1.0f);
-}
-inline void from_json(const nlohmann::json & j, OcclusionTextureInfo & B)
-{
-    B.index    = _getValue(j, "index", -1);
-    B.texCoord = _getValue(j, "texCoord", 0 );
-    B.strength = _getValue(j, "strength", 1.0f);
-}
 
 enum class MaterialAlphaMode
 {
@@ -1071,10 +1154,10 @@ public:
     struct
     {
         std::array<float, 4> baseColorFactor;
-        NormalTextureInfo baseColorTexture;
+        TextureInfo       baseColorTexture;
         float             metallicFactor;
         float             roughnessFactor;
-        NormalTextureInfo metallicRoughnessTexture;
+        TextureInfo       metallicRoughnessTexture;
 
         operator bool() const
         {
@@ -1094,9 +1177,9 @@ public:
         friend void from_json(const nlohmann::json & j, Material & B);
     } pbrMetallicRoughness;
 
-    NormalTextureInfo    normalTexture;
-    OcclusionTextureInfo occlusionTexture;
-    NormalTextureInfo    emissiveTexture;
+    TextureInfo    normalTexture;
+    TextureInfo occlusionTexture;
+    TextureInfo    emissiveTexture;
     std::array<float,3>  emissiveFactor;
 
     MaterialAlphaMode alphaMode;
@@ -1132,16 +1215,16 @@ inline void from_json(const nlohmann::json & j, Material & B)
         B.pbrMetallicRoughness.metallicFactor  = _getValue( j["pbrMetallicRoughness"], "metallicFactor", 1.0f);
         B.pbrMetallicRoughness.roughnessFactor = _getValue( j["pbrMetallicRoughness"], "roughnessFactor", 1.0f);
 
-        B.pbrMetallicRoughness.baseColorTexture  = _getValue(j["pbrMetallicRoughness"], "baseColorTexture", NormalTextureInfo{});
-        B.pbrMetallicRoughness.metallicRoughnessTexture  = _getValue(j["pbrMetallicRoughness"], "metallicRoughnessTexture", NormalTextureInfo{});
+        B.pbrMetallicRoughness.baseColorTexture  = _getValue(j["pbrMetallicRoughness"], "baseColorTexture", TextureInfo{});
+        B.pbrMetallicRoughness.metallicRoughnessTexture  = _getValue(j["pbrMetallicRoughness"], "metallicRoughnessTexture", TextureInfo{});
         B.pbrMetallicRoughness._has = true;
     }
 
     B.emissiveFactor = _getValue(j, "emissiveFactor", std::array<float,3>({0,0,0}));
-    B.emissiveTexture = _getValue(j, "emissiveTexture", NormalTextureInfo{});
+    B.emissiveTexture = _getValue(j, "emissiveTexture", TextureInfo{});
 
-    B.normalTexture    = _getValue(j, "normalTexture", NormalTextureInfo{});
-    B.occlusionTexture = _getValue(j, "occlusionTexture", OcclusionTextureInfo{});
+    B.normalTexture    = _getValue(j, "normalTexture", TextureInfo{});
+    B.occlusionTexture = _getValue(j, "occlusionTexture", TextureInfo{});
 
     B.alphaCutoff        = _getValue(j, "alphaCutoff", 0.5f);
     B.doubleSided        = _getValue(j, "doubleSided", false);
@@ -1272,7 +1355,7 @@ public:
 
         for(auto & v :  images     ) { v._parent=this;};
         for(auto & v :  textures   ) { v._parent=this;};
-        for(auto & v :  samplers   ) { v._parent=this;};
+        //for(auto & v :  samplers   ) { v._parent=this;};
         //for(auto & v :  cameras    ) { v._parent=this;};
         //for(auto & v :  materials  ) { v._parent=this;};
 
@@ -1433,7 +1516,7 @@ public:
                 auto B = b.get<Sampler>();
                //
                 samplers.emplace_back( std::move(B) );
-                samplers.back()._parent = this;
+                //samplers.back()._parent = this;
             }
         }
         if(J.count("cameras") == 1)
@@ -1605,7 +1688,7 @@ Accessor const & Primitive::getIndexAccessor() const
 {
     if( hasIndices() )
     {
-        return _parent->accessors[ indices ];
+        return _parent->accessors.at( static_cast<size_t>(indices) );
     }
     throw std::runtime_error("This primitive does not have an index buffer");
 }
@@ -1613,50 +1696,60 @@ Accessor const & Primitive::getIndexAccessor() const
 inline Accessor& Primitive::getAccessor(PrimitiveAttribute attr)
 {
     const auto acessorIndex = (&attributes.POSITION)[ static_cast<int32_t>(attr)];
-    return _parent->accessors[acessorIndex];
+    return _parent->accessors.at( static_cast<size_t>(acessorIndex) );
 }
 
 Accessor const & Primitive::getAccessor(PrimitiveAttribute attr) const
 {
     const auto acessorIndex = (&attributes.POSITION)[ static_cast<int32_t>(attr)];
-    return _parent->accessors[acessorIndex];
+    return _parent->accessors.at( static_cast<size_t>(acessorIndex) );
 }
 
-inline Node* Scene::getRootNode(int32_t rootSceneNode)
+inline Node* Scene::operator[](size_t i)
 {
-    return &_parent->nodes[ nodes[rootSceneNode] ];
+    return &_parent->nodes.at( static_cast<size_t>(nodes.at(i)) );
 }
 
 inline Accessor& AnimationSampler::getInputAccessor()
 {
-    return _parent->accessors[input];
+    return _parent->accessors.at( static_cast<size_t>(input) );
 }
 
 inline Accessor& AnimationSampler::getOutputAccessor()
 {
-    return _parent->accessors[output];
+return _parent->accessors.at( static_cast<size_t>(output) );
 }
 
 
 Buffer &BufferView::getBuffer()
 {
-    return _parent->buffers[ buffer ];
+    return _parent->buffers.at( static_cast<size_t>(buffer) );
 }
 
 Buffer const & BufferView::getBuffer() const
 {
-    return _parent->buffers[ buffer ];
+    return _parent->buffers.at( static_cast<size_t>(buffer) );
 }
 
 void* BufferView::data()
 {
-    return _parent->buffers[ buffer ].m_data.data() + byteOffset;
+    return getBuffer().m_data.data() + byteOffset;
+}
+
+BufferView const & Accessor::getBufferView() const
+{
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
+}
+
+BufferView &       Accessor::getBufferView()
+{
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
 }
 
 template<typename T>
 aspan<T> Accessor::getSpan()
 {
-    auto & bv = _parent->bufferViews[ bufferView ];
+    auto & bv = getBufferView();
 
     auto stride = accessorSize();
 
@@ -1676,7 +1769,7 @@ aspan<T> Accessor::getSpan()
 template<typename T>
 aspan<T> BufferView::getSpan()
 {
-    auto d  =  _parent->buffers[ buffer ].m_data.data() + byteOffset;
+    auto d  = getBuffer().m_data.data() + byteOffset;
 
     auto stride = sizeof(T);
 
@@ -1694,23 +1787,99 @@ aspan<T> BufferView::getSpan()
         }
     }
 
-    size_t count = byteLength / stride;
+    auto count = static_cast<size_t>(byteLength) / stride;
     return aspan<T>(d, count, stride);
 }
 
-aspan<uint8_t> Image::data()
+template<typename T>
+aspan<T> BufferView::getSpan() const
 {
-    return _parent->bufferViews[ bufferView ].getSpan<uint8_t>();
+    auto d  = getBuffer().m_data.data() + byteOffset;
+
+    auto stride = sizeof(T);
+
+    // byteStride not given, so data is tightly packed
+    if( byteStride <= 0) // the stride is defined so its likely an attribute byffer
+    {
+        stride = sizeof(T);
+    }
+    else
+    {
+        if( static_cast<size_t>(byteStride) < sizeof(T) )
+        {
+            // warning: the defined byteStride is less than the requested
+            //          stride, consequitive data will overlap.
+        }
+    }
+
+    auto count = static_cast<size_t>(byteLength) / stride;
+    return aspan<const T>(d, count, stride);
+}
+
+aspan<uint8_t> Image::getSpan()
+{
+    return getBufferView().getSpan<uint8_t>();
+}
+
+aspan<const uint8_t> Image::getSpan() const
+{
+    return getBufferView().getSpan<const uint8_t>();
 }
 
 BufferView       & Image::getBufferView()
 {
-    return _parent->bufferViews[ bufferView ];
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
 }
 
 BufferView const & Image::getBufferView() const
 {
-    return _parent->bufferViews[ bufferView ];
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+}
+
+
+Mesh const   & Node::getMesh() const
+{
+    return _parent->meshes.at( static_cast<size_t>(mesh) );
+}
+Skin const   & Node::getSkin() const
+{
+    return _parent->skins.at(static_cast<size_t>(skin));
+}
+Camera const & Node::getCamera() const
+{
+    return _parent->cameras.at(static_cast<size_t>(camera));
+}
+Mesh         & Node::getMesh()
+{
+    return _parent->meshes.at( static_cast<size_t>(mesh));
+}
+Skin         & Node::getSkin()
+{
+    return _parent->skins.at( static_cast<size_t>(skin));
+}
+Camera       & Node::getCamera()
+{
+    return _parent->cameras.at(static_cast<size_t>(camera));
+}
+
+Sampler       & Texture::getSampler()
+{
+    _parent->samplers.at( static_cast<size_t>(sampler));
+}
+
+Sampler const & Texture::getSampler() const
+{
+    _parent->samplers.at( static_cast<size_t>(sampler));
+}
+
+Image       & Texture::getImage()
+{
+    _parent->images.at( static_cast<size_t>(source));
+}
+
+Image const & Texture::getImage() const
+{
+    _parent->images.at( static_cast<size_t>(source));
 }
 
 }

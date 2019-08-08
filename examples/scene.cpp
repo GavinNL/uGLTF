@@ -48,7 +48,7 @@ void drawScene( uGLTF::GLTFModel & M, int sceneIndex, float t=0.0f)
 
 
     // the root node of the scene
-    auto rootNode = S.getRootNode(0);
+    auto rootNode = S[0];
 
     drawNode(rootNode, 1);
 }

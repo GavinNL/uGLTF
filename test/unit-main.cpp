@@ -16,6 +16,7 @@ SCENARIO("Aspan")
         uint32_t x,y,z;
     };
 
+
     uGLTF::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
 
     REQUIRE( span.size() == 2);
@@ -39,12 +40,15 @@ SCENARIO("Aspan")
 
     REQUIRE( span[1].y == 0xDDCCBBAA);
 
-    uint32_t count=0;
-    for(auto & b : span)
+    THEN("We can loop using begin()/end() ")
     {
-        count++;
+        uint32_t count=0;
+        for(auto & b : span)
+        {
+            count++;
+        }
+        REQUIRE(count==2);
     }
-    REQUIRE(count==2);
 
 }
 
@@ -193,12 +197,25 @@ SCENARIO( "Loading " )
             }
         }
 
+        THEN("We can read the Materials")
+        {
+            for(auto & C : M.materials)
+            {
+                if( C.hasPBR() )
+                {
+                    REQUIRE( std::isnormal(C.pbrMetallicRoughness.metallicFactor) );
+                }
+                if( C.hasNormalTexture() )
+                {
+                    REQUIRE( C.normalTexture.index >= 0 );
+                }
+            }
+        }
+
         THEN("We can extract image data")
         {
             for(auto & I : M.images)
             {
-                auto img = I.data();
-
                 REQUIRE( I.bufferView >= 0 );
 
                 THEN("We can get the bufferView")
@@ -212,8 +229,28 @@ SCENARIO( "Loading " )
                         auto & B = Bv.getBuffer();
 
                         REQUIRE(B.byteLength != 0);
+
+                        THEN("We can get the span of the image")
+                        {
+                            auto img = I.getSpan();
+
+                            REQUIRE( img.size() > 0 );
+                            REQUIRE( img.stride() == 1);
+
+                            auto const & cI = I;
+
+                            auto img_c = cI.getSpan();
+
+                            REQUIRE( img_c.size() > 0 );
+                            REQUIRE( img_c.stride() == 1);
+                        }
                     }
+
+
                 }
+
+
+
             }
 
           //  REQUIRE(img.size()==40);
