@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <gltfpp/gltfpp.h>
+#include <ugltf/ugltf.h>
 #include <iostream>
 #include <fstream>
 #include <set>

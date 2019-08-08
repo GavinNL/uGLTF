@@ -1,4 +1,4 @@
-#include <gltfpp/gltfpp.h>
+#include <ugltf/ugltf.h>
 #include <fstream>
 
 using Transform = int;

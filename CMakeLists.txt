@@ -27,7 +27,7 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS "${PROJECT_NAME}::${PROJECT_NAME}")
 # Download the single header file for nlohmann/json. This is only for the unit tests
 # and examples. It is not included with uGLTF
 #################################################################################################
-if( NOT EXISTS "${CMAKE_CURRENT_BUILD_DIR}/include/nlohmann/json.hpp" )
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
     file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
 endif()
 #################################################################################################
