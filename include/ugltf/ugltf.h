@@ -730,6 +730,15 @@ public:
         return A.getSpan<T>();
     }
 
+    template<typename T>
+    aspan<T> getIndexSpan(PrimitiveAttribute attr)
+    {
+        static_assert( sizeof(T)==2 || sizeof(T)==4, "Size of template parameter is not in accordance with GLTF2.0");
+        auto & A = getIndexAccessor();
+
+        return A.getSpan<T>();
+    }
+
     // targets	object [1-*]	An array of Morph Targets, each Morph Target is a dictionary mapping attributes (only POSITION, NORMAL, and TANGENT supported) to their deviations in the Morph Target.	No
     // extensions	object	Dictionary object with extension-specific objects.	No
     // extras	any	Application-specific data.	No

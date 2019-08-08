@@ -64,4 +64,42 @@ for(auto & p : positions)
 ```
 
 An exception will be thrown if you attempt to use a template type that does not
-match the Accessor's type/component constants.
+match the Accessor's type/component constants. The requirement for the template
+parameter is that its size must be less than the stride defined by the GLTF asset.
+
+
+## Mesh data
+
+Mesh data can be accessed for each mesh primitive using the following:
+
+```C++
+
+for(auto & mesh : gltf.meshes)
+{
+    for(auto & primitive : mesh.primitives)
+    {
+       if( primitive.has(uGLTF::PrimitiveAttribute::POSITION))
+       {
+           auto positions = primitive.getSpan< std::array<float,3> >();
+
+           for(auto & p : positions)
+           {
+              // access p[0], p[1], p[2]
+           }
+       }
+       if( primitive.hasIndices() )
+       {
+         if( primitive.getIndexAccessor().accessorSize() == 2 )
+         {
+           auto index = primitive.getIndexSpan<uint16_t>();
+         }
+         else
+         {
+           auto index = primitive.getIndexSpan<uint32_t>();
+         }
+
+       }
+    }
+}
+
+```
