@@ -8,6 +8,8 @@ target_compile_features(${PROJECT_NAME}-catchmain PUBLIC cxx_std_11)
 
 
 
+
+
 # Find all files named unit-*.cpp
 file(GLOB files "unit-*.cpp")
 
@@ -32,8 +34,25 @@ set(UNIT_TEST_NAME test-${PROJECT_NAME}-${exe_name} )
  PUBLIC
  cxx_std_11)
 
+
  target_link_libraries( ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain ${UNIT_TEST_LINK_TARGETS})
+
  add_test( NAME ${UNIT_TEST_NAME}
- COMMAND ${UNIT_EXE_NAME}
- )
+           COMMAND ${UNIT_EXE_NAME}
+         )
 endforeach()
+
+
+
+#################################################################################################
+# Download an example glb file from KhronosGroup
+#################################################################################################
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoomBox.glb" )
+    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BoomBox/glTF-Binary/BoomBox.glb" "${CMAKE_CURRENT_BINARY_DIR}/BoomBox.glb" )
+endif()
+
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
+    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb" "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
+endif()
+
+#################################################################################################

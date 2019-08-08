@@ -4,9 +4,6 @@
 #include <fstream>
 #include <set>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 SCENARIO("Aspan")
 {
     uGLTF::GLTFModel M;
@@ -54,11 +51,8 @@ SCENARIO("Aspan")
 
 SCENARIO( "Read Header" )
 {
-    #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
-
-
     uGLTF::GLTFModel M;
-    std::ifstream in(TEST_MODEL);
+    std::ifstream in("CesiumMan.glb");
     GIVEN("A GLTFModel and an input stream")
     {
 
@@ -106,10 +100,8 @@ SCENARIO( "Read Header" )
 
 SCENARIO( "Extracting Buffers" )
 {
-    #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
-
     uGLTF::GLTFModel M;
-    std::ifstream in(TEST_MODEL);
+    std::ifstream in("CesiumMan.glb");
     GIVEN("A GLTFModel and an input stream")
     {
 
@@ -164,10 +156,8 @@ SCENARIO( "Extracting Buffers" )
 
 SCENARIO( "Loading " )
 {
-    #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/BoomBox.glb"
-
     uGLTF::GLTFModel M;
-    std::ifstream in(TEST_MODEL);
+    std::ifstream in("BoomBox.glb");
     M.load(in);
     in.close();
 
