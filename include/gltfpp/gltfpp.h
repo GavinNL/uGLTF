@@ -604,6 +604,7 @@ public:
      * Requirement: childIndex < children.size()
      */
     Node* getChild(int32_t childIndex);
+    Node const * getChild(int32_t childIndex) const;
 
 
     template<typename Callable_t>
@@ -1346,37 +1347,37 @@ public:
 
     void _setParents(GLTFModel * parent)
     {
-        for(auto & v :  bufferViews) { v._parent=this;};
-        for(auto & v :  accessors  ) { v._parent=this;};
+        for(auto & v :  bufferViews) { v._parent=parent;};
+        for(auto & v :  accessors  ) { v._parent=parent;};
 
-        for(auto & v :  nodes      ) { v._parent=this;};
-        for(auto & v :  scenes     ) { v._parent=this;};
-        for(auto & v :  skins      ) { v._parent=this;};
+        for(auto & v :  nodes      ) { v._parent=parent;};
+        for(auto & v :  scenes     ) { v._parent=parent;};
+        for(auto & v :  skins      ) { v._parent=parent;};
 
-        for(auto & v :  images     ) { v._parent=this;};
-        for(auto & v :  textures   ) { v._parent=this;};
+        for(auto & v :  images     ) { v._parent=parent;};
+        for(auto & v :  textures   ) { v._parent=parent;};
         //for(auto & v :  samplers   ) { v._parent=this;};
         //for(auto & v :  cameras    ) { v._parent=this;};
         //for(auto & v :  materials  ) { v._parent=this;};
 
         for(auto & v :  meshes     )
         {
-            v._parent=this;
+            v._parent=parent;
             for(auto & p :  v.primitives )
             {
-                p._parent=this;
+                p._parent=parent;
             };
         };
         for(auto & v :  animations     )
         {
-            v._parent=this;
+            v._parent=parent;
             for(auto & p :  v.samplers )
             {
-                p._parent=this;
+                p._parent=parent;
             };
             for(auto & p :  v.channels )
             {
-                p._parent=this;
+                p._parent=parent;
             };
         };
     }
@@ -1672,7 +1673,12 @@ public:
 
 inline Node* Node::getChild(int32_t childIndex)
 {
-    return &_parent->nodes[ children[childIndex] ];
+    return &_parent->nodes.at( static_cast<size_t>( children[ static_cast<size_t>(childIndex) ] ) );
+}
+
+inline Node const* Node::getChild(int32_t childIndex) const
+{
+    return &_parent->nodes.at( static_cast<size_t>( children[ static_cast<size_t>(childIndex) ] ) );
 }
 
 Accessor& Primitive::getIndexAccessor()

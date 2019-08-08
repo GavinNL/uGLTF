@@ -160,16 +160,22 @@ SCENARIO( "Extracting Buffers" )
 
 SCENARIO( "Loading " )
 {
-    uGLTF::GLTFModel M;
-    std::ifstream in("BoomBox.glb");
-    M.load(in);
-    in.close();
+    std::vector< std::string > models = {"BoomBox.glb", "BrainStem.glb", "CesiumMan.glb"};
 
-
-    GIVEN("A GLTFModel and an input stream")
+    for(auto & modelName : models )
     {
 
-        THEN("We can read the buffers")
+
+
+
+    //GIVEN("A GLTFModel and an input stream")
+    {
+        uGLTF::GLTFModel M;
+        std::ifstream in(modelName);
+        M.load(in);
+        in.close();
+
+        //("We can read the buffers")
         {
             for(auto & B : M.buffers)
             {
@@ -186,7 +192,7 @@ SCENARIO( "Loading " )
             }
         }
 
-        THEN("We can read the Cameras")
+        //("We can read the Cameras")
         {
             for(auto & C : M.cameras)
             {
@@ -197,13 +203,13 @@ SCENARIO( "Loading " )
             }
         }
 
-        THEN("We can read the Materials")
+        //("We can read the Materials")
         {
             for(auto & C : M.materials)
             {
                 if( C.hasPBR() )
                 {
-                    REQUIRE( std::isnormal(C.pbrMetallicRoughness.metallicFactor) );
+                    REQUIRE( std::isfinite(C.pbrMetallicRoughness.metallicFactor) );
                 }
                 if( C.hasNormalTexture() )
                 {
@@ -212,26 +218,26 @@ SCENARIO( "Loading " )
             }
         }
 
-        THEN("We can extract image data")
+        //("We can extract image data")
         {
             for(auto & I : M.images)
             {
                 REQUIRE( I.bufferView >= 0 );
 
-                THEN("We can get the bufferView")
+                //("We can get the bufferView")
                 {
                     auto & Bv = I.getBufferView();
 
                     REQUIRE( Bv.buffer != -1 );
 
-                    THEN("We can get the buffer")
+                    //("We can get the buffer")
                     {
                         auto & B = Bv.getBuffer();
 
                         REQUIRE(B.byteLength != 0);
 
-                        THEN("We can get the span of the image")
-                        {
+                        //("We can get the span of the image")
+
                             auto img = I.getSpan();
 
                             REQUIRE( img.size() > 0 );
@@ -243,7 +249,7 @@ SCENARIO( "Loading " )
 
                             REQUIRE( img_c.size() > 0 );
                             REQUIRE( img_c.stride() == 1);
-                        }
+
                     }
 
 
@@ -257,9 +263,9 @@ SCENARIO( "Loading " )
 
         }
 
-        THEN("We can access the meshes")
+        //("We can access the meshes")
         {
-            THEN("We can access the accesssors of the mesh primitives")
+            //("We can access the accesssors of the mesh primitives")
             {
                 uGLTF::PrimitiveAttribute attrs[] = {
                     uGLTF::PrimitiveAttribute::POSITION  ,
@@ -274,11 +280,12 @@ SCENARIO( "Loading " )
                 for(auto & mesh : M.meshes)
                 {
 
-                    std::set<size_t> vertexCounts;
 
 
                     for(auto & primitive : mesh.primitives)
                     {
+                        std::set<size_t> vertexCounts;
+
                         if( primitive.material != -1)
                         {
                             REQUIRE_NOTHROW( M.materials.at(primitive.material)) ;
@@ -312,14 +319,22 @@ SCENARIO( "Loading " )
 
                                 auto span = primitive.getSpan<uint8_t>(a);
 
-                                THEN("The stride must be larger than the accessorSize...otherwise data will be aliased")
+                                //("The stride must be larger than the accessorSize...otherwise data will be aliased")
                                 {
                                     REQUIRE( span.stride() >= p.accessorSize() );
                                 }
                                 vertexCounts.insert( span.size() );
+
+                                size_t count=0;
+                                for(auto & v : span)
+                                {
+                                    count++;
+                                }
+                                REQUIRE( count == span.size() );
+                                REQUIRE( count == p.count );
                             }
                         }
-                        THEN("All attriubutes must have the same count")
+                        //("All attriubutes must have the same count")
                         {
                             REQUIRE( vertexCounts.size() == 1 );
                         }
@@ -330,6 +345,31 @@ SCENARIO( "Loading " )
         }
 
 
+        // Animation
+        {
+            for(auto & A : M.animations )
+            {
+                for(auto & Ch : A.channels )
+                {
+                    REQUIRE( Ch.target.node >= 0 );
+                    REQUIRE( Ch.sampler <= A.samplers.size() );
+                }
+                for(auto & Sm : A.samplers )
+                {
+                    REQUIRE( Sm.input  < M.accessors.size() );
+                    REQUIRE( Sm.output < M.accessors.size() );
+
+                    auto & timeAcc = Sm.getInputAccessor();
+                    auto time      = Sm.getInputSpan();
+
+                    REQUIRE( timeAcc.type == uGLTF::AccessorType::SCALAR );
+                    REQUIRE( timeAcc.componentType == uGLTF::ComponentType::FLOAT);
+                    REQUIRE( timeAcc.count == time.size() );
+
+                }
+            }
+        }
+       }
 
     }
 }

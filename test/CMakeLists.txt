@@ -55,4 +55,9 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
     file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb" "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
 endif()
 
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
+    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BrainStem/glTF-Binary/BrainStem.glb" "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
+endif()
+
+
 #################################################################################################
