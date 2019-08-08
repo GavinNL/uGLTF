@@ -587,12 +587,32 @@ public:
         return children.size();
     }
 
-    Mesh const & getMesh() const;
-    Skin const & getSkin() const;
-    Camera const & getCamera() const;
+    /**
+     * @brief getMesh
+     * @return
+     *
+     * Returns a reference to the mesh. Throws an error if the mesh is not defined
+     */
     Mesh & getMesh();
+    Mesh const & getMesh() const;
+
+    /**
+     * @brief getSkin
+     * @return
+     *
+     * Returns a reference to the skin. Throws an error if the skin is not defined.
+     */
     Skin & getSkin();
+    Skin const & getSkin() const;
+
+    /**
+     * @brief getCamera
+     * @return
+     *
+     * Returns a reference to the camera. Throws an error if the camera is not defined.
+     */
     Camera & getCamera();
+    Camera const & getCamera() const;
 
 
     /**
@@ -716,12 +736,34 @@ public:
         return indices!=-1;
     }
 
+    /**
+     * @brief getAccessor
+     * @param attr
+     * @return
+     *
+     * Gets the accessor of the input attributes. You can use this
+     * to determine the component type and accessor type.
+     */
     Accessor& getAccessor(PrimitiveAttribute attr);
     Accessor const & getAccessor(PrimitiveAttribute attr) const;
 
+    /**
+     * @brief getIndexAccessor
+     * @return
+     *
+     * Returns a reference to the accessor used for index buffers.
+     */
     Accessor& getIndexAccessor();
     Accessor const & getIndexAccessor() const;
 
+    /**
+     * @brief getSpan
+     * @param attr
+     * @return
+     *
+     * Returns a span to the attribute so that you can
+     * access the data like it was an array
+     */
     template<typename T>
     aspan<T> getSpan(PrimitiveAttribute attr)
     {
@@ -730,8 +772,16 @@ public:
         return A.getSpan<T>();
     }
 
+    /**
+     * @brief getSpan
+     * @param attr
+     * @return
+     *
+     * Returns a span to the index accessor so that you can
+     * access the data like it was an array. sizeof(T) must be equal to 2 or 4
+     */
     template<typename T>
-    aspan<T> getIndexSpan(PrimitiveAttribute attr)
+    aspan<T> getIndexSpan()
     {
         static_assert( sizeof(T)==2 || sizeof(T)==4, "Size of template parameter is not in accordance with GLTF2.0");
         auto & A = getIndexAccessor();
@@ -739,9 +789,6 @@ public:
         return A.getSpan<T>();
     }
 
-    // targets	object [1-*]	An array of Morph Targets, each Morph Target is a dictionary mapping attributes (only POSITION, NORMAL, and TANGENT supported) to their deviations in the Morph Target.	No
-    // extensions	object	Dictionary object with extension-specific objects.	No
-    // extras	any	Application-specific data.	No
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -834,6 +881,23 @@ public:
     //extras	any	Application-specific data.	No
 
     Node* getRootNode();
+
+    bool hasInverseBindMatrices() const
+    {
+        return inverseBindMatrices!=-1;
+    }
+
+    Accessor& getInverseBindMatricesAccessor();
+    Accessor const & getInverseBindMatricesAccessor() const;
+
+    template<typename T>
+    aspan<T> getInverseBindMatricesSpan()
+    {
+        auto & A = getInverseBindMatricesAccessor();
+
+        assert( sizeof(T) == A.accessorSize() );
+        return A.getSpan<T>();
+    }
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -1690,7 +1754,7 @@ inline Node const* Node::getChild(int32_t childIndex) const
     return &_parent->nodes.at( static_cast<size_t>( children[ static_cast<size_t>(childIndex) ] ) );
 }
 
-Accessor& Primitive::getIndexAccessor()
+inline Accessor& Primitive::getIndexAccessor()
 {
     if( hasIndices() )
     {
@@ -1699,7 +1763,7 @@ Accessor& Primitive::getIndexAccessor()
     throw std::runtime_error("This primitive does not have an index buffer");
 }
 
-Accessor const & Primitive::getIndexAccessor() const
+inline Accessor const & Primitive::getIndexAccessor() const
 {
     if( hasIndices() )
     {
@@ -1714,7 +1778,7 @@ inline Accessor& Primitive::getAccessor(PrimitiveAttribute attr)
     return _parent->accessors.at( static_cast<size_t>(acessorIndex) );
 }
 
-Accessor const & Primitive::getAccessor(PrimitiveAttribute attr) const
+inline Accessor const & Primitive::getAccessor(PrimitiveAttribute attr) const
 {
     const auto acessorIndex = (&attributes.POSITION)[ static_cast<int32_t>(attr)];
     return _parent->accessors.at( static_cast<size_t>(acessorIndex) );
@@ -1741,28 +1805,28 @@ Buffer &BufferView::getBuffer()
     return _parent->buffers.at( static_cast<size_t>(buffer) );
 }
 
-Buffer const & BufferView::getBuffer() const
+inline Buffer const & BufferView::getBuffer() const
 {
     return _parent->buffers.at( static_cast<size_t>(buffer) );
 }
 
-void* BufferView::data()
+inline void* BufferView::data()
 {
     return getBuffer().m_data.data() + byteOffset;
 }
 
-BufferView const & Accessor::getBufferView() const
+inline BufferView const & Accessor::getBufferView() const
 {
     return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
 }
 
-BufferView &       Accessor::getBufferView()
+inline BufferView &       Accessor::getBufferView()
 {
     return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
 }
 
 template<typename T>
-aspan<T> Accessor::getSpan()
+inline aspan<T> Accessor::getSpan()
 {
     auto & bv = getBufferView();
 
@@ -1782,7 +1846,7 @@ aspan<T> Accessor::getSpan()
 
 
 template<typename T>
-aspan<T> BufferView::getSpan()
+inline aspan<T> BufferView::getSpan()
 {
     auto d  = getBuffer().m_data.data() + byteOffset;
 
@@ -1807,7 +1871,7 @@ aspan<T> BufferView::getSpan()
 }
 
 template<typename T>
-aspan<T> BufferView::getSpan() const
+inline aspan<T> BufferView::getSpan() const
 {
     auto d  = getBuffer().m_data.data() + byteOffset;
 
@@ -1831,72 +1895,81 @@ aspan<T> BufferView::getSpan() const
     return aspan<const T>(d, count, stride);
 }
 
-aspan<uint8_t> Image::getSpan()
+inline aspan<uint8_t> Image::getSpan()
 {
     return getBufferView().getSpan<uint8_t>();
 }
 
-aspan<const uint8_t> Image::getSpan() const
+inline aspan<const uint8_t> Image::getSpan() const
 {
     return getBufferView().getSpan<const uint8_t>();
 }
 
-BufferView       & Image::getBufferView()
+inline BufferView       & Image::getBufferView()
 {
     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
 }
 
-BufferView const & Image::getBufferView() const
+inline BufferView const & Image::getBufferView() const
 {
     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
 }
 
 
-Mesh const   & Node::getMesh() const
+inline Mesh const   & Node::getMesh() const
 {
     return _parent->meshes.at( static_cast<size_t>(mesh) );
 }
-Skin const   & Node::getSkin() const
+inline Skin const   & Node::getSkin() const
 {
     return _parent->skins.at(static_cast<size_t>(skin));
 }
-Camera const & Node::getCamera() const
+inline Camera const & Node::getCamera() const
 {
     return _parent->cameras.at(static_cast<size_t>(camera));
 }
-Mesh         & Node::getMesh()
+inline Mesh         & Node::getMesh()
 {
     return _parent->meshes.at( static_cast<size_t>(mesh));
 }
-Skin         & Node::getSkin()
+inline Skin         & Node::getSkin()
 {
     return _parent->skins.at( static_cast<size_t>(skin));
 }
-Camera       & Node::getCamera()
+inline Camera       & Node::getCamera()
 {
     return _parent->cameras.at(static_cast<size_t>(camera));
 }
 
-Sampler       & Texture::getSampler()
+inline Sampler       & Texture::getSampler()
 {
-    _parent->samplers.at( static_cast<size_t>(sampler));
+    return _parent->samplers.at( static_cast<size_t>(sampler));
 }
 
-Sampler const & Texture::getSampler() const
+inline Sampler const & Texture::getSampler() const
 {
-    _parent->samplers.at( static_cast<size_t>(sampler));
+    return _parent->samplers.at( static_cast<size_t>(sampler));
 }
 
-Image       & Texture::getImage()
+inline Image       & Texture::getImage()
 {
-    _parent->images.at( static_cast<size_t>(source));
+    return _parent->images.at( static_cast<size_t>(source));
 }
 
-Image const & Texture::getImage() const
+inline Image const & Texture::getImage() const
 {
-    _parent->images.at( static_cast<size_t>(source));
+    return _parent->images.at( static_cast<size_t>(source));
 }
 
+inline Accessor&        Skin::getInverseBindMatricesAccessor()
+{
+    return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
+}
+
+inline Accessor const & Skin::getInverseBindMatricesAccessor() const
+{
+    return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
+}
 }
 
 #endif

@@ -279,9 +279,6 @@ SCENARIO( "Loading " )
                 };
                 for(auto & mesh : M.meshes)
                 {
-
-
-
                     for(auto & primitive : mesh.primitives)
                     {
                         std::set<size_t> vertexCounts;
@@ -369,6 +366,25 @@ SCENARIO( "Loading " )
                 }
             }
         }
+
+        // Skins
+        {
+            for(auto & A : M.skins )
+            {
+
+                if( A.hasInverseBindMatrices() )
+                {
+                    auto acc = A.getInverseBindMatricesAccessor();
+
+                    auto span = A.getInverseBindMatricesSpan< std::array<float,16> >();
+
+                    REQUIRE( span.size() == A.joints.size() );
+                }
+
+
+            }
+        }
+
        }
 
     }
