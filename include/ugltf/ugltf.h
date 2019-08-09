@@ -219,16 +219,17 @@ std::vector<uint8_t> _parseURI(const std::string & uri)
         return out;
     }
 #endif
+    return std::vector<uint8_t>();
 }
 
 class Buffer
 {
     public:
-        int32_t              byteLength;
+        uint32_t             byteLength;
         std::vector<uint8_t> m_data;
 };
 
-enum class BufferViewTarget : int32_t
+enum class BufferViewTarget : uint32_t
 {
     UNKNOWN              = 0,
     ARRAY_BUFFER         = 34962,
@@ -238,11 +239,11 @@ enum class BufferViewTarget : int32_t
 class BufferView
 {
 public:
-    int32_t          buffer    ;
-    int32_t          byteLength = 0;
-    int32_t          byteOffset = 0;
-    int32_t          byteStride = 0;
-    BufferViewTarget target;
+    uint32_t          buffer    ;
+    uint32_t          byteLength = 0;
+    uint32_t          byteOffset = 0;
+    uint32_t          byteStride = 0;
+    BufferViewTarget  target;
 
     /**
      * @brief getBuffer
@@ -356,7 +357,7 @@ public:
             auto a = perspective.aspectRatio;
             auto y = perspective.yfov;
             auto n = perspective.znear;
-            auto inv_tan = 1.0f / ( a * std::tan(0.5 * y) );
+            auto inv_tan = 1.0f / ( a * std::tan(0.5f * y) );
 
             M[0][0] = inv_tan / a;
             M[1][1] = inv_tan;
@@ -398,7 +399,7 @@ public:
 
 inline void from_json(const nlohmann::json & j, Camera & B)
 {
-    auto type        = _getValue(j, "type", std::string(""));
+    auto type     = _getValue(j, "type", std::string(""));
     B.name        = _getValue(j, "name", std::string(""));
 
     if( type == "perspective")
@@ -427,12 +428,12 @@ inline void from_json(const nlohmann::json & j, Camera & B)
 class Accessor
 {
     public:
-        int32_t       bufferView;
-        int32_t       byteOffset;
-        ComponentType componentType;
-        bool          normalized;
-        int32_t       count;
-        AccessorType  type;
+        uint32_t       bufferView=std::numeric_limits<uint32_t>::max();
+        uint32_t       byteOffset=0;
+        uint32_t       count=0;
+        ComponentType  componentType;
+        AccessorType   type;
+        bool           normalized;
 
         std::vector<double> min;
         std::vector<double> max;
@@ -474,6 +475,7 @@ class Accessor
                 case ComponentType::FLOAT         : return 4;
                 case ComponentType::DOUBLE        : return 8;
             }
+            return 0u;
         }
         /**
          * @brief accessorSize
@@ -506,11 +508,11 @@ class Accessor
 
 inline void from_json(const nlohmann::json & j, Accessor & B)
 {
-    B.bufferView     = _getValue(j, "bufferView"   , 0);
-    B.byteOffset     = _getValue(j, "byteOffset" , 0);
-    B.componentType  = static_cast<ComponentType>(_getValue(j, "componentType", 0));
+    B.bufferView     = _getValue(j, "bufferView"   , 0u);
+    B.byteOffset     = _getValue(j, "byteOffset" , 0u);
+    B.componentType  = static_cast<ComponentType>(_getValue(j, "componentType", 0u));
     B.normalized     = _getValue(j, "normalized"   , false);
-    B.count          = _getValue(j, "count"   , 0);
+    B.count          = _getValue(j, "count"   , 0u);
 
     B.name           = _getValue(j, "name", std::string(""));
     B.min            = _getValue(j, "min", std::vector<double>());
@@ -540,16 +542,16 @@ class Camera;
 class Node
 {
 public:
-    int32_t mesh=-1;
-    int32_t camera=-1;
-    int32_t skin=-1;
+    uint32_t mesh    = std::numeric_limits<uint32_t>::max();
+    uint32_t camera  = std::numeric_limits<uint32_t>::max();
+    uint32_t skin    = std::numeric_limits<uint32_t>::max();
 
     std::array<float,16> matrix      = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     std::array<float,3>  scale       = {1,1,1};
     std::array<float,4>  rotation    = {0,0,0,1};
     std::array<float,3>  translation = {0,0,0};
 
-    std::vector<int32_t> children;
+    std::vector<uint32_t> children;
 
 
 
@@ -572,15 +574,15 @@ public:
     }
     bool hasMesh() const
     {
-        return mesh != -1;
+        return mesh != std::numeric_limits<uint32_t>::max();
     }
     bool hasCamera() const
     {
-        return camera != -1;
+        return camera != std::numeric_limits<uint32_t>::max();
     }
     bool hasSkin() const
     {
-        return skin != -1;
+        return skin != std::numeric_limits<uint32_t>::max();
     }
     size_t childCount() const
     {
@@ -623,15 +625,15 @@ public:
      * Returns a pointer to the child node.
      * Requirement: childIndex < children.size()
      */
-    Node* getChild(int32_t childIndex);
-    Node const * getChild(int32_t childIndex) const;
+    Node* getChild(uint32_t childIndex);
+    Node const * getChild(uint32_t childIndex) const;
 
 
     template<typename Callable_t>
     void depthFirstTraverse(Callable_t && C)
     {
         C(*this);
-        int32_t childIndex=0;
+        uint32_t childIndex=0;
         for(auto & i : children)
         {
             auto * N = getChild(childIndex++);
@@ -643,7 +645,7 @@ public:
     void descendTree(Callable_t && C)
     {
         C(*this);
-        int32_t childIndex=0;
+        uint32_t childIndex=0;
         for(auto & i : children)
         {
             auto * N = getChild(childIndex++);
@@ -660,9 +662,9 @@ private:
 
 inline void from_json(const nlohmann::json & j, Node & B)
 {
-    B.camera      = _getValue(j, "camera"   , -1);
-    B.skin        = _getValue(j, "skin" , -1 );
-    B.mesh        = _getValue(j, "mesh"  , -1 );
+    B.camera      = _getValue(j, "camera", std::numeric_limits<uint32_t>::max() );
+    B.skin        = _getValue(j, "skin"  , std::numeric_limits<uint32_t>::max() );
+    B.mesh        = _getValue(j, "mesh"  , std::numeric_limits<uint32_t>::max() );
 
     B.matrix      = _getValue(j, "matrix", std::array<float,16>{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1});
     B.scale       = _getValue(j, "scale", std::array<float,3>{1,1,1});
@@ -681,7 +683,7 @@ inline void from_json(const nlohmann::json & j, Node & B)
 
     B.name           = _getValue(j, "name", std::string(""));
     B.weights        = _getValue(j, "weights", std::vector<float>());
-    B.children       = _getValue(j, "children", std::vector<int32_t>());
+    B.children       = _getValue(j, "children", std::vector<uint32_t>());
 }
 
 enum class PrimitiveAttribute
@@ -713,27 +715,27 @@ public:
     struct
     {
         // node these must be in this order otherwise the has() method wont work
-        int32_t POSITION  = -1;
-        int32_t NORMAL	  = -1;
-        int32_t TANGENT	  = -1;
-        int32_t TEXCOORD_0= -1;
-        int32_t TEXCOORD_1= -1;
-        int32_t COLOR_0	  = -1;
-        int32_t JOINTS_0  = -1;
-        int32_t WEIGHTS_0 = -1;
+        uint32_t POSITION   = std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t NORMAL	    = std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t TANGENT	= std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t TEXCOORD_0 = std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t TEXCOORD_1 = std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t COLOR_0	= std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t JOINTS_0   = std::numeric_limits<uint32_t>::max();//-1;
+        uint32_t WEIGHTS_0  = std::numeric_limits<uint32_t>::max();//-1;
     } attributes;
 
-    int32_t       indices = -1;
-    PrimitiveMode mode = PrimitiveMode::TRIANGLES;
-    int32_t       material = -1;
+    uint32_t       indices  = std::numeric_limits<uint32_t>::max();
+    uint32_t       material = std::numeric_limits<uint32_t>::max();
+    PrimitiveMode  mode     = PrimitiveMode::TRIANGLES;
 
     bool has(PrimitiveAttribute attr) const
     {
-        return -1 != (&attributes.POSITION)[ static_cast<int32_t>(attr)];
+        return std::numeric_limits<uint32_t>::max() != (&attributes.POSITION)[ static_cast<uint32_t>(attr)];
     }
     bool hasIndices() const
     {
-        return indices!=-1;
+        return indices!=std::numeric_limits<uint32_t>::max();
     }
 
     /**
@@ -796,17 +798,17 @@ private:
 
 inline void from_json(const nlohmann::json & j, Primitive & B)
 {
-    B.attributes.POSITION   = _getValue(j["attributes"], "POSITION", -1);
-    B.attributes.NORMAL     = _getValue(j["attributes"], "NORMAL", -1);
-    B.attributes.TANGENT    = _getValue(j["attributes"], "TANGENT", -1);
-    B.attributes.TEXCOORD_0 = _getValue(j["attributes"], "TEXCOORD_0", -1);
-    B.attributes.TEXCOORD_1 = _getValue(j["attributes"], "TEXCOORD_1", -1);
-    B.attributes.COLOR_0    = _getValue(j["attributes"], "COLOR_0", -1);
-    B.attributes.JOINTS_0   = _getValue(j["attributes"], "JOINTS_0", -1);
-    B.attributes.WEIGHTS_0  = _getValue(j["attributes"], "WEIGHTS_0", -1);
+    B.attributes.POSITION   = _getValue(j["attributes"], "POSITION",   std::numeric_limits<uint32_t>::max() );
+    B.attributes.NORMAL     = _getValue(j["attributes"], "NORMAL",     std::numeric_limits<uint32_t>::max() );
+    B.attributes.TANGENT    = _getValue(j["attributes"], "TANGENT",    std::numeric_limits<uint32_t>::max() );
+    B.attributes.TEXCOORD_0 = _getValue(j["attributes"], "TEXCOORD_0", std::numeric_limits<uint32_t>::max() );
+    B.attributes.TEXCOORD_1 = _getValue(j["attributes"], "TEXCOORD_1", std::numeric_limits<uint32_t>::max() );
+    B.attributes.COLOR_0    = _getValue(j["attributes"], "COLOR_0",    std::numeric_limits<uint32_t>::max() );
+    B.attributes.JOINTS_0   = _getValue(j["attributes"], "JOINTS_0",   std::numeric_limits<uint32_t>::max() );
+    B.attributes.WEIGHTS_0  = _getValue(j["attributes"], "WEIGHTS_0",  std::numeric_limits<uint32_t>::max() );
 
-    B.indices  = _getValue(j, "indices" , -1);
-    B.material = _getValue(j, "material", -1);
+    B.indices  = _getValue(j, "indices" , std::numeric_limits<uint32_t>::max() );
+    B.material = _getValue(j, "material", std::numeric_limits<uint32_t>::max() );
 
     B.mode = static_cast<PrimitiveMode>( _getValue(j, "mode", 4) );
 
@@ -842,7 +844,7 @@ inline void from_json(const nlohmann::json & j, Mesh & B)
 class Scene
 {
 public:
-    std::vector<int32_t> nodes;	//integer [1-*]	The indices of each root node.	No
+    std::vector<uint32_t> nodes;	//integer [1-*]	The indices of each root node.	No
     std::string name;           //The user-defined name of this object.	No
 
     //extensions	object	Dictionary object with extension-specific objects.	No
@@ -867,16 +869,16 @@ private:
 inline void from_json(const nlohmann::json & j, Scene & B)
 {
     B.name   = _getValue(j, "name", std::string(""));
-    B.nodes  = _getValue(j, "nodes", std::vector<int32_t>());
+    B.nodes  = _getValue(j, "nodes", std::vector<uint32_t>());
 }
 
 class Skin
 {
 public:
-    int32_t              inverseBindMatrices = -1;
-    std::vector<int32_t> joints;	//integer [1-*]	The indices of each root node.	No
-    std::string          name;          //The user-defined name of this object.	No
-    int32_t              skeleton=-1;
+    uint32_t              inverseBindMatrices = std::numeric_limits<uint32_t>::max();
+    std::vector<uint32_t> joints;	//integer [1-*]	The indices of each root node.	No
+    std::string           name;          //The user-defined name of this object.	No
+    int32_t               skeleton=-1;
     //extensions	object	Dictionary object with extension-specific objects.	No
     //extras	any	Application-specific data.	No
 
@@ -884,7 +886,7 @@ public:
 
     bool hasInverseBindMatrices() const
     {
-        return inverseBindMatrices!=-1;
+        return inverseBindMatrices!=std::numeric_limits<uint32_t>::max();
     }
 
     Accessor& getInverseBindMatricesAccessor();
@@ -905,9 +907,9 @@ private:
 
 inline void from_json(const nlohmann::json & j, Skin & B)
 {
-    B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", -1);
+    B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", std::numeric_limits<uint32_t>::max());
     B.name                = _getValue(j, "name", std::string(""));
-    B.joints              = _getValue(j, "joints", std::vector<int32_t>());
+    B.joints              = _getValue(j, "joints", std::vector<uint32_t>());
     B.skeleton            = _getValue(j, "skeleton", -1);
     //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
 
@@ -946,8 +948,8 @@ enum class AnimationPath
 class AnimationSampler
 {
 public:
-    int32_t                input  = -1;
-    int32_t                output = -1;
+    uint32_t                input  = std::numeric_limits<uint32_t>::max();
+    uint32_t                output = std::numeric_limits<uint32_t>::max();
     AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
 
     /**
@@ -978,8 +980,8 @@ private:
 
 inline void from_json(const nlohmann::json & j, AnimationSampler & B)
 {
-    B.input = _getValue(j, "input", -1);
-    B.output = _getValue(j, "output", -1);
+    B.input = _getValue(j,  "input",  std::numeric_limits<uint32_t>::max() );
+    B.output = _getValue(j, "output", std::numeric_limits<uint32_t>::max() );
 
     auto interpolation = _getValue( j, "interpolation", std::string() );
 
@@ -993,11 +995,11 @@ inline void from_json(const nlohmann::json & j, AnimationSampler & B)
 class AnimationChannel
 {
 public:
-    int32_t              sampler = -1;
+    uint32_t              sampler = std::numeric_limits<uint32_t>::max();
 
     struct
     {
-        int32_t       node;
+        uint32_t      node = std::numeric_limits<uint32_t>::max();
         AnimationPath path;
     } target;
 
@@ -1008,7 +1010,7 @@ private:
 
 inline void from_json(const nlohmann::json & j, AnimationChannel & B)
 {
-    B.sampler = _getValue(j, "sampler", -1);
+    B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max());
 
     auto path = _getValue(j["target"], "path", std::string() );
 
@@ -1017,7 +1019,7 @@ inline void from_json(const nlohmann::json & j, AnimationChannel & B)
     if( path == "scale")       B.target.path = AnimationPath::SCALE;
     if( path == "weights")     B.target.path = AnimationPath::WEIGHTS;
 
-    B.target.node = _getValue(j["target"], "node", -1);
+    B.target.node = _getValue(j["target"], "node", std::numeric_limits<uint32_t>::max());
     //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
 
 }
@@ -1029,20 +1031,6 @@ public:
     std::vector<AnimationSampler> samplers;
     std::string                   name;          //The user-defined name of this object.	No
 
-
-    /**
-     * @brief getFrame
-     * @param nodeTransformations
-     * @param t
-     *
-     * This method will fill the nodeTransformations vector with
-     * the transformation matrices for this animation at time t.
-     *
-     * nodeTransformations.size() = 16 * GLTF.nodes.size()
-     *
-     * Note that not all nodes may be animated.
-     */
-    void getFrame( std::vector<float> & nodeTransformations, float t );
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -1063,9 +1051,9 @@ public:
     // mimeType	string	The image's MIME type.	No
     // bufferView	integer	The index of the bufferView that contains the image. Use this instead of the image's uri property.	No
 
+    uint32_t    bufferView = std::numeric_limits<uint32_t>::max();
     std::string uri;
     std::string mimeType;
-    int32_t     bufferView;
     std::string name;
 
     /**
@@ -1103,7 +1091,7 @@ inline void from_json(const nlohmann::json & j, Image & B)
 {
     B.uri         = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
-    B.bufferView  = _getValue(j, "bufferView", -1);
+    B.bufferView  = _getValue(j, "bufferView", std::numeric_limits<uint32_t>::max());
     B.name        = _getValue(j, "name", std::string(""));
 }
 
@@ -1114,8 +1102,8 @@ class Sampler;
 class Texture
 {
 public:
-    int32_t     sampler;
-    int32_t     source;
+    uint32_t     sampler=std::numeric_limits<uint32_t>::max();
+    uint32_t     source =std::numeric_limits<uint32_t>::max();
     std::string name;
 
     Sampler & getSampler();
@@ -1131,14 +1119,14 @@ private:
 
 inline void from_json(const nlohmann::json & j, Texture & B)
 {
-    B.source  = _getValue(j, "source", -1);
-    B.sampler = _getValue(j, "sampler", -1);
+    B.source  = _getValue(j, "source",  std::numeric_limits<uint32_t>::max() );
+    B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max() );
     B.name    = _getValue(j, "name", std::string(""));
 }
 
-enum class Filter
+enum class Filter : uint32_t
 {
-    UNKNOWN                = -1,
+    UNKNOWN                =  0,
     NEAREST                =  9728,
     LINEAR                 =  9729,
     NEAREST_MIPMAP_NEAREST =  9984,
@@ -1147,7 +1135,7 @@ enum class Filter
     LINEAR_MIPMAP_LINEAR   =  9987
 };
 
-enum class WrapMode
+enum class WrapMode : uint32_t
 {
     CLAMP_TO_EDGE   = 33071,
     MIRRORED_REPEAT = 33648,
@@ -1168,18 +1156,18 @@ public:
 
 inline void from_json(const nlohmann::json & j, Sampler & B)
 {
-    B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729) );
-    B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729) );
-    B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS", 10497) );
-    B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT", 10497) );
+    B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) );
+    B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) );
+    B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS",  10497u) );
+    B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT",  10497u) );
     B.name    = _getValue(j, "name", std::string(""));
 }
 
 class TextureInfo
 {
 public:
-    int32_t index    = -1;
-    int32_t texCoord = 0;
+    uint32_t index    = std::numeric_limits<uint32_t>::max();
+    uint32_t texCoord = 0;
     union
     {
         float   scale;        // used for other textures
@@ -1196,8 +1184,8 @@ public:
 
 inline void from_json(const nlohmann::json & j, TextureInfo & B)
 {
-    B.index    = _getValue(j, "index", -1);
-    B.texCoord = _getValue(j, "texCoord", 0 );
+    B.index    = _getValue(j, "index",   std::numeric_limits<uint32_t>::max());
+    B.texCoord = _getValue(j, "texCoord", 0u );
 
     if( j.count("scale") == 1)
     {
@@ -1251,9 +1239,10 @@ public:
         friend void from_json(const nlohmann::json & j, Material & B);
     } pbrMetallicRoughness;
 
-    TextureInfo    normalTexture;
-    TextureInfo occlusionTexture;
-    TextureInfo    emissiveTexture;
+    TextureInfo          normalTexture;
+    TextureInfo          occlusionTexture;
+    TextureInfo          emissiveTexture;
+
     std::array<float,3>  emissiveFactor;
 
     MaterialAlphaMode alphaMode;
@@ -1744,14 +1733,14 @@ public:
 };
 
 
-inline Node* Node::getChild(int32_t childIndex)
+inline Node* Node::getChild(uint32_t childIndex)
 {
-    return &_parent->nodes.at( static_cast<size_t>( children[ static_cast<size_t>(childIndex) ] ) );
+    return &_parent->nodes.at(  children[ childIndex ]  );
 }
 
-inline Node const* Node::getChild(int32_t childIndex) const
+inline Node const* Node::getChild(uint32_t childIndex) const
 {
-    return &_parent->nodes.at( static_cast<size_t>( children[ static_cast<size_t>(childIndex) ] ) );
+    return &_parent->nodes.at(  children[ childIndex ]  );
 }
 
 inline Accessor& Primitive::getIndexAccessor()

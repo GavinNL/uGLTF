@@ -35,7 +35,7 @@ SCENARIO( "Loading " )
 
         bool ret = loader.LoadBinaryFromFile(&TModel, &err, &warn, modelName.c_str() ); // for binary glTF(.glb)
 
-
+        REQUIRE(ret==true);
 
 
         auto _bufferCompare = [&]( uGLTF::Buffer & U, tinygltf::Buffer & T)

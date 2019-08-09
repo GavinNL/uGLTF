@@ -283,7 +283,7 @@ SCENARIO( "Loading " )
                     {
                         std::set<size_t> vertexCounts;
 
-                        if( primitive.material != -1)
+                        if( primitive.material != std::numeric_limits<uint32_t>::max() )
                         {
                             REQUIRE_NOTHROW( M.materials.at(primitive.material)) ;
                         }
