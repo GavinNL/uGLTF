@@ -428,7 +428,7 @@ class Accessor
 {
     public:
         int32_t       bufferView;
-        int32_t       bufferOffset;
+        int32_t       byteOffset;
         ComponentType componentType;
         bool          normalized;
         int32_t       count;
@@ -507,7 +507,7 @@ class Accessor
 inline void from_json(const nlohmann::json & j, Accessor & B)
 {
     B.bufferView     = _getValue(j, "bufferView"   , 0);
-    B.bufferOffset   = _getValue(j, "bufferOffset" , 0);
+    B.byteOffset     = _getValue(j, "byteOffset" , 0);
     B.componentType  = static_cast<ComponentType>(_getValue(j, "componentType", 0));
     B.normalized     = _getValue(j, "normalized"   , false);
     B.count          = _getValue(j, "count"   , 0);
@@ -725,7 +725,7 @@ public:
 
     int32_t       indices = -1;
     PrimitiveMode mode = PrimitiveMode::TRIANGLES;
-    int32_t       material;
+    int32_t       material = -1;
 
     bool has(PrimitiveAttribute attr) const
     {
@@ -805,7 +805,7 @@ inline void from_json(const nlohmann::json & j, Primitive & B)
     B.attributes.JOINTS_0   = _getValue(j["attributes"], "JOINTS_0", -1);
     B.attributes.WEIGHTS_0  = _getValue(j["attributes"], "WEIGHTS_0", -1);
 
-    B.indices  = _getValue(j, "indices", -1);
+    B.indices  = _getValue(j, "indices" , -1);
     B.material = _getValue(j, "material", -1);
 
     B.mode = static_cast<PrimitiveMode>( _getValue(j, "mode", 4) );
@@ -923,7 +923,7 @@ enum class AnimationInterpolation : int32_t
 
 enum class AnimationPath
 {
-    TRANSLATE,
+    TRANSLATION,
     ROTATION,
     SCALE,
     WEIGHTS
@@ -1012,7 +1012,7 @@ inline void from_json(const nlohmann::json & j, AnimationChannel & B)
 
     auto path = _getValue(j["target"], "path", std::string() );
 
-    if( path == "translation") B.target.path = AnimationPath::TRANSLATE;
+    if( path == "translation") B.target.path = AnimationPath::TRANSLATION;
     if( path == "rotation")    B.target.path = AnimationPath::ROTATION;
     if( path == "scale")       B.target.path = AnimationPath::SCALE;
     if( path == "weights")     B.target.path = AnimationPath::WEIGHTS;
@@ -1838,7 +1838,7 @@ inline aspan<T> Accessor::getSpan()
     }
 
     return
-    aspan<T>( bv.data(),
+    aspan<T>( static_cast<unsigned char*>(bv.data())+byteOffset,
               count,
               stride);
 }

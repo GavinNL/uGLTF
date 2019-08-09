@@ -36,6 +36,7 @@ set(UNIT_TEST_NAME test-${PROJECT_NAME}-${exe_name} )
 
 
  target_link_libraries( ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain ${UNIT_TEST_LINK_TARGETS})
+ target_include_directories( ${UNIT_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
  add_test( NAME ${UNIT_TEST_NAME}
            COMMAND ${UNIT_EXE_NAME}
