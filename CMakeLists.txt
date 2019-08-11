@@ -48,6 +48,12 @@ add_executable(
 )
 target_link_libraries(scene ${PROJECT_NAME}::${PROJECT_NAME} )
 
+add_executable(
+    gltfInfo
+    examples/gltfInfo.cpp
+)
+target_link_libraries(gltfInfo ${PROJECT_NAME}::${PROJECT_NAME} )
+
 
 
 

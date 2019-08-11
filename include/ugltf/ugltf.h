@@ -695,6 +695,21 @@ enum class PrimitiveAttribute
     WEIGHTS_0  = 7
 };
 
+inline std::string to_string(const PrimitiveAttribute & p)
+{
+    switch(p)
+    {
+        case PrimitiveAttribute::POSITION  : return std::string("POSITION");
+        case PrimitiveAttribute::NORMAL	  : return std::string("NORMAL");
+        case PrimitiveAttribute::TANGENT	  : return std::string("TANGENT");
+        case PrimitiveAttribute::TEXCOORD_0: return std::string("TEXCOORD_0");
+        case PrimitiveAttribute::TEXCOORD_1: return std::string("TEXCOORD_1");
+        case PrimitiveAttribute::COLOR_0	  : return std::string("COLOR_0");
+        case PrimitiveAttribute::JOINTS_0  : return std::string("JOINTS_0");
+        case PrimitiveAttribute::WEIGHTS_0 : return std::string("WEIGHTS_0");
+    }
+}
+
 enum class PrimitiveMode : int32_t
 {
     POINTS             = 0,
@@ -705,6 +720,21 @@ enum class PrimitiveMode : int32_t
     TRIANGLE_STRIP     = 5,
     TRIANGLE_FAN       = 6
 };
+
+
+inline std::string to_string(const PrimitiveMode & p)
+{
+    switch(p)
+    {
+        case PrimitiveMode::POINTS            :     return std::string("PrimitiveMode::POINTS");
+        case PrimitiveMode::LINES             :     return std::string("PrimitiveMode::LINES");
+        case PrimitiveMode::LINE_LOOP         :     return std::string("PrimitiveMode::LINE_LOOP");
+        case PrimitiveMode::LINE_STRIP        :     return std::string("PrimitiveMode::LINE_STRIP");
+        case PrimitiveMode::TRIANGLES         :     return std::string("PrimitiveMode::TRIANGLES");
+        case PrimitiveMode::TRIANGLE_STRIP    :     return std::string("PrimitiveMode::TRIANGLE_STRIP");
+        case PrimitiveMode::TRIANGLE_FAN      :     return std::string("PrimitiveMode::TRIANGLE_FAN");
+    }
+}
 
 class Primitive
 {
