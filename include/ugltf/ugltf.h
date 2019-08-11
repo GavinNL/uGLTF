@@ -756,6 +756,57 @@ public:
     uint32_t       material = std::numeric_limits<uint32_t>::max();
     PrimitiveMode  mode     = PrimitiveMode::TRIANGLES;
 
+
+    template <class T>
+    static inline void hash_combine(std::size_t& seed, const T& v)
+    {
+        std::hash<T> hasher;
+        seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+    }
+
+    /**
+     * @brief getIDType
+     * @return
+     *
+     * Returns a hash of the primitive. The hash of two primitives will be
+     * equal if:
+     *  1. They both contain the same attributes (position, normal, etc)
+     *  2. All attribute's use the same accessorType and componentType
+     *  3. They use the same primitive mode.
+     *
+     * This can be used to see if two primitives can be combined.
+     *
+     * It can also be used to determine if a pipeline can handle
+     * this type of mesh input.
+     */
+    size_t getIDType() const
+    {
+        auto u32Hash = std::hash<uint32_t>();
+        size_t h = 0;
+
+        for(uint32_t i = 0; i < 8; i++)
+        {
+            auto attr = static_cast<PrimitiveAttribute>(i);
+
+            if( has(attr) )
+            {
+                auto & A = getAccessor(attr);
+
+                hash_combine(h,  static_cast<uint32_t>(A.type) );
+                hash_combine(h,  static_cast<uint32_t>(A.componentType) );
+            }
+        }
+
+        if(hasIndices())
+        {
+            auto & A = getIndexAccessor();
+            hash_combine(h,  static_cast<uint32_t>(A.type) );
+            hash_combine(h,  static_cast<uint32_t>(A.componentType) );
+        }
+
+        hash_combine(h, static_cast<PrimitiveMode>(mode) );
+        return h;
+    }
     bool has(PrimitiveAttribute attr) const
     {
         return std::numeric_limits<uint32_t>::max() != (&attributes.POSITION)[ static_cast<uint32_t>(attr)];

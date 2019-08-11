@@ -5,7 +5,7 @@
 
 void printAttributes(uGLTF::Primitive const & P)
 {
-    uGLTF::PrimitiveAttribute attr[]=
+    uGLTF::PrimitiveAttribute attr[] =
     {
         uGLTF::PrimitiveAttribute::POSITION  ,
         uGLTF::PrimitiveAttribute::NORMAL	 ,
@@ -16,6 +16,7 @@ void printAttributes(uGLTF::Primitive const & P)
         uGLTF::PrimitiveAttribute::JOINTS_0  ,
         uGLTF::PrimitiveAttribute::WEIGHTS_0 ,
     };
+
     std::string out;
     for(auto & p : attr)
     {
@@ -39,11 +40,24 @@ int main(int argc, char **argv)
 
         M.load(in);
 
-
         std::cout << "Asset: " << argv[1] << std::endl;
 
-        std::cout << "Meshs: " << M.meshes.size() << std::endl;
+        std::cout << "Nodes: " << M.nodes.size() << std::endl;
+
+        std::cout << "Root Node: " << M.scenes[0].nodes[0] << std::endl;
         size_t i=0;
+        for(auto & m : M.nodes)
+        {
+            std::cout << INDENT << i++ <<": [";
+            for(auto n : m.children)
+            {
+                std::cout << n << ", ";
+            }
+            std::cout << "]\n";
+        }
+
+        std::cout << "Meshs: " << M.meshes.size() << std::endl;
+        i=0;
         for(auto & m : M.meshes)
         {
             std::cout << INDENT << i++ << std::endl;
@@ -58,8 +72,8 @@ int main(int argc, char **argv)
                 if( p.hasIndices() )
                 {
                     std::cout << INDENT INDENT "Elements: " << p.getIndexAccessor().count << std::endl;
-
                 }
+                std::cout << INDENT INDENT "Hash: " << std::hex << p.getIDType() << std::dec << std::endl;
                 printAttributes( p );
             }
         }
@@ -74,12 +88,25 @@ int main(int argc, char **argv)
 
             if(m.hasPBR())
             {
-                std::cout << INDENT INDENT "BaseColorTexture        : " << m.pbrMetallicRoughness.hasBaseColorTexture() << std::endl;
-                std::cout << INDENT INDENT "MetallicRoughnessTexture: " << m.pbrMetallicRoughness.hasMetallicRoughnessTexture() << std::endl;
+                std::cout << INDENT INDENT "baseColorFactor       : " << m.pbrMetallicRoughness.baseColorFactor[0] << ", "
+                                                                      << m.pbrMetallicRoughness.baseColorFactor[1] << ", "
+                                                                      << m.pbrMetallicRoughness.baseColorFactor[2] << '\n';
+
+                std::cout << INDENT INDENT "metallicFactor        : " << m.pbrMetallicRoughness.metallicFactor   << '\n';
+                std::cout << INDENT INDENT "roughnessFactor        : " << m.pbrMetallicRoughness.roughnessFactor << '\n';
+
+                if(m.pbrMetallicRoughness.hasBaseColorTexture())
+                    std::cout << INDENT INDENT "BaseColorTexture        : " << m.pbrMetallicRoughness.baseColorTexture << '\n';
+                if(m.pbrMetallicRoughness.hasMetallicRoughnessTexture())
+                    std::cout << INDENT INDENT "MetallicRoughnessTexture: " << m.pbrMetallicRoughness.metallicRoughnessTexture << '\n';
+
             }
-            std::cout << INDENT "NormalTexture: " << m.hasNormalTexture() << std::endl;
-            std::cout << INDENT "EmissiveTexture: " << m.hasEmissiveTexture() << std::endl;
-            std::cout << INDENT "OcclusionTexture: " << m.hasOcclusionTexture() << std::endl;
+            if( m.hasNormalTexture() )
+                std::cout << INDENT "normalTexture: "    << m.normalTexture << '\n';
+            if( m.hasEmissiveTexture() )
+                std::cout << INDENT "emissiveTexture: "    << m.emissiveTexture << '\n';
+            if( m.hasOcclusionTexture() )
+                std::cout << INDENT "occlusionTexture: "    << m.occlusionTexture << '\n';
 
             //m.pbrMetallicRoughness.
         }
