@@ -60,5 +60,9 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
     file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BrainStem/glTF-Binary/BrainStem.glb" "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
 endif()
 
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
+    file(DOWNLOAD "https://github.com/syoyo/tinygltf/blob/master/tiny_gltf.h" "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
+endif()
+
 
 #################################################################################################

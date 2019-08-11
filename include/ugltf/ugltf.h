@@ -185,41 +185,38 @@ inline T _getValue(nlohmann::json const & obj, const std::string & key, T const 
     return default_val;
 }
 
-std::vector<uint8_t> _parseURI(const std::string & uri)
+static std::vector<uint8_t> _parseURI(const std::string & uri)
 {
-#if 0
-    template<typename chartype=char>
-    static std::basic_string<chartype> Decode(const char * in, int size)
+    std::vector<uint8_t> out;
+    static bool init=false;
+    static std::vector<int> T(256,-1);
+    if(!init)
     {
-
-        std::basic_string<chartype> out;
-        static bool init=false;
-        static std::vector<int> T(256,-1);
-        if(!init)
-        {
-            init = true;
-            for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
-        }
-
-
-        int val=0, valb=-8;
-
-        //for (unsigned char c : in)
-        for(int i=0;i<size;i++)
-        {
-            unsigned char c = in[i];
-            if (T[c] == -1) break;
-            val = (val<<6) + T[c];
-            valb += 6;
-            if (valb>=0) {
-                out.push_back( static_cast<chartype>( (val>>valb)&0xFF) );
-                valb-=8;
-            }
-        }
-        return out;
+        init = true;
+        for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
     }
-#endif
-    return std::vector<uint8_t>();
+
+
+    int val=0, valb=-8;
+
+    auto size = uri.size();
+    //for (unsigned char c : in)
+    for(size_t i=0;i<size;i++)
+    {
+        unsigned char c = uri[i];
+
+        if (T[c] == -1)
+            break;
+
+        val = (val<<6) + T[c];
+        valb += 6;
+        if (valb>=0)
+        {
+            out.push_back( static_cast<uint8_t>( (val>>valb)&0xFF) );
+            valb-=8;
+        }
+    }
+    return out;
 }
 
 class Buffer

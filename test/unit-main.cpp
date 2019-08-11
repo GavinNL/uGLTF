@@ -4,6 +4,23 @@
 #include <fstream>
 #include <set>
 
+
+SCENARIO("Test Base64 decode")
+{
+    std::string orig = "Hello! This is a test.";
+    std::string enc = "SGVsbG8hIFRoaXMgaXMgYSB0ZXN0Lg==";
+
+    auto ret = uGLTF::_parseURI(enc);
+
+    REQUIRE( ret.size() == orig.size() );
+    auto x = orig.begin();
+    for(auto & r : ret)
+    {
+        REQUIRE( r == *x++);
+    }
+}
+
+
 SCENARIO("Aspan")
 {
     uGLTF::GLTFModel M;
