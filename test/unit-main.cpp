@@ -68,6 +68,33 @@ SCENARIO("Aspan")
         REQUIRE(count==2);
     }
 
+    WHEN("We create a span of const vec3")
+    {
+        uGLTF::aspan<const Vec3>  spanOfConst( data.data(),2,sizeof(Vec3));
+
+        THEN("We can loop through it like it was a vector")
+        {
+            auto it = spanOfConst.begin();
+            while( it != spanOfConst.end() )
+            {
+                it++;
+            }
+        }
+    }
+
+    WHEN("We can make the non-const span const")
+    {
+        const auto & constSpan = span;
+
+        THEN("We can loop through it as if it was a regular container")
+        {
+            for(auto & v : constSpan)
+            {
+                assert(&v);
+            }
+        }
+    }
+
 }
 
 

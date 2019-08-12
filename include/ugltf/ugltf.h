@@ -63,20 +63,35 @@ using json = nlohmann::json;
 
 class GLTFModel;
 
-
+/**
+ * @brief The aspan class
+ *
+ * An aspan (Aliased Span) is similar to a string_view or span (from C++20), but the underlying
+ * contigious array data can be alised to a different type as well as custom strides.
+ */
 template<typename T>
 class aspan
 {
 public:
-    using value_type = T;
-    using char_type = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
-    using void_type = typename std::conditional< std::is_const<value_type>::value, const void         , void >::type;
+    using base_value_type = typename std::remove_cv<T>::type;
 
-    class _iterator :  public std::iterator<std::random_access_iterator_tag, T>
+    using value_type = T;
+
+    using const_value_type = const typename std::remove_cv<value_type>::type;
+
+
+    /**
+     * @brief The _iterator class
+     * Iterator for non-const data
+     */
+    template<typename V>
+    class _iterator :  public std::iterator<std::random_access_iterator_tag, V>
     {
-            //using char_type = ::char_type;
-            char_type * p;
+            using char_type  = unsigned char;
+            using value_type = V;
+            char_type     * p;
             std::ptrdiff_t stride;
+
           public:
 
             _iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
@@ -109,19 +124,82 @@ public:
 
             bool operator==(const _iterator& rhs) const {return p==rhs.p;}
             bool operator!=(const _iterator& rhs) const {return p!=rhs.p;}
-            T& operator*() {return *static_cast<value_type*>(static_cast<void_type*>(p));}
+
+            value_type & operator*()
+            {
+                return *static_cast<value_type*>(static_cast<void*>(p));
+            }
+
+            value_type const & operator*() const
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
+     };
+    template<typename V>
+    class _const_iterator :  public std::iterator<std::random_access_iterator_tag, V>
+    {
+            using char_type  = const unsigned char;
+            using value_type = const V;
+            char_type     * p;
+            std::ptrdiff_t stride;
+
+          public:
+
+            _const_iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
+            _const_iterator(const _const_iterator& mit) : p(mit.p), stride(mit.stride) {}
+
+            // return the number of elements between two iterators
+            bool operator<(const _const_iterator & other) const
+            {
+                return p < other.p;
+            }
+
+            std::ptrdiff_t operator-(const _const_iterator & other) const
+            {
+                return (p - other.p) / stride;
+            }
+            _const_iterator operator-(int inc) const
+            {
+                return _iterator( p - inc*stride, stride);
+            }
+            _const_iterator operator+(int inc) const
+            {
+                return _iterator( p + inc*stride, stride);
+            }
+
+            _const_iterator& operator--() {p-=stride;return *this;}
+            _const_iterator  operator--(int) {_const_iterator tmp(*this); operator--(); return tmp;}
+
+            _const_iterator& operator++() {p+=stride;return *this;}
+            _const_iterator operator++(int) {_const_iterator tmp(*this); operator++(); return tmp;}
+
+            bool operator==(const _const_iterator& rhs) const {return p==rhs.p;}
+            bool operator!=(const _const_iterator& rhs) const {return p!=rhs.p;}
+
+            value_type & operator*() const
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
+            value_type & operator*()
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
      };
 
-    using iterator       = _iterator;
-    using const_iterator = const iterator;
+    using iterator       = _iterator<value_type>;
+    using const_iterator = _const_iterator<base_value_type>;
+    using void_type      = typename std::conditional< std::is_const<value_type>::value, const void, void>::type;
+    using char_type      = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
 
-    aspan(void_type * data, size_t size, size_t stride) : _begin( static_cast<char_type*>(data) ),
-        _size(size), _stride(stride)
+    aspan(void_type * data, size_t size, size_t stride) :
+        _begin( static_cast<char_type*>(data) ),
+        _size(size),
+        _stride(stride)
     {
 
     }
 
-    value_type & operator[](size_t i) const
+    const_value_type & operator[](size_t i) const
     {
         return *reinterpret_cast<value_type*>(_begin + _stride*i);
     }
@@ -130,14 +208,33 @@ public:
         return *reinterpret_cast<value_type*>(_begin + _stride*i);
     }
 
-    iterator begin()
+    const_iterator begin() const
     {
-        return iterator( _begin, _stride);
+        return const_iterator( _begin, _stride);
     }
-    iterator end()
+    const_iterator end() const
     {
-        return iterator( _begin + _stride*size(), _stride);
+        return const_iterator( _begin + _stride*size(), _stride);
     }
+
+    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
+    begin()
+    {
+        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
+        return __it( _begin, _stride);
+    }
+
+    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
+    end()
+    {
+        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
+        return __it( _begin + _stride*size(), _stride);
+    }
+
+//    iterator end()
+//    {
+//        return iterator( _begin + _stride*size(), _stride);
+//    }
 
     value_type & back()
     {
@@ -208,7 +305,7 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
     //for (unsigned char c : in)
     for(size_t i=0;i<size;i++)
     {
-        unsigned char c = uri[i];
+        unsigned char c = static_cast<unsigned char>(uri[i]);
 
         if (T[c] == -1)
             break;
