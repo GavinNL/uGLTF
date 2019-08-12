@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.13)
 add_library(${PROJECT_NAME}-catchmain STATIC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 target_include_directories(${PROJECT_NAME}-catchmain PUBLIC third_party)
 target_compile_features(${PROJECT_NAME}-catchmain PUBLIC cxx_std_11)
-
+target_compile_options( ${PROJECT_NAME}-catchmain PUBLIC -Wextra -Wno-type-limits)
 
 
 
@@ -27,16 +27,16 @@ foreach(file ${files})
 set(UNIT_EXE_NAME ${PROJECT_NAME}-${exe_name} )
 set(UNIT_TEST_NAME test-${PROJECT_NAME}-${exe_name} )
 
- add_executable( ${UNIT_EXE_NAME}
- ${file}
- )
- target_compile_features( ${UNIT_EXE_NAME}
- PUBLIC
- cxx_std_11)
+add_executable( ${UNIT_EXE_NAME}
+                ${file} )
+
+target_compile_features( ${UNIT_EXE_NAME}
+                            PUBLIC
+                            cxx_std_11)
 
 
- target_link_libraries( ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain ${UNIT_TEST_LINK_TARGETS})
- target_include_directories( ${UNIT_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries( ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain ${UNIT_TEST_LINK_TARGETS})
+target_include_directories( ${UNIT_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} )
 
  add_test( NAME ${UNIT_TEST_NAME}
            COMMAND ${UNIT_EXE_NAME}
@@ -61,7 +61,7 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
-    file(DOWNLOAD "https://github.com/syoyo/tinygltf/blob/master/tiny_gltf.h" "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
+    file(DOWNLOAD "https://raw.githubusercontent.com/syoyo/tinygltf/master/tiny_gltf.h" "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
 endif()
 
 

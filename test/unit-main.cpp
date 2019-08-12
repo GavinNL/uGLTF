@@ -62,6 +62,7 @@ SCENARIO("Aspan")
         uint32_t count=0;
         for(auto & b : span)
         {
+            assert(&b);
             count++;
         }
         REQUIRE(count==2);
@@ -230,7 +231,7 @@ SCENARIO( "Loading " )
                 }
                 if( C.hasNormalTexture() )
                 {
-                    REQUIRE( C.normalTexture.index >= 0 );
+                    REQUIRE( C.normalTexture.index != std::numeric_limits<uint32_t>::max() );
                 }
             }
         }
@@ -239,7 +240,7 @@ SCENARIO( "Loading " )
         {
             for(auto & I : M.images)
             {
-                REQUIRE( I.bufferView >= 0 );
+                REQUIRE( I.bufferView != std::numeric_limits<uint32_t>::max() );
 
                 //("We can get the bufferView")
                 {
@@ -342,6 +343,7 @@ SCENARIO( "Loading " )
                                 size_t count=0;
                                 for(auto & v : span)
                                 {
+                                    assert(&v);
                                     count++;
                                 }
                                 REQUIRE( count == span.size() );

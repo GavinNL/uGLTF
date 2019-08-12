@@ -20,7 +20,7 @@ bool canDraw( uGLTF::Node * N)
     return thisNodeDraws;
 }
 
-void drawNode( uGLTF::Node * N, Transform const & parentTransform, int indent=0)
+void drawNode( uGLTF::Node * N, Transform const & parentTransform, size_t indent=0)
 {
     // transformStack.back() is the transform of the parent node.
 
@@ -46,6 +46,8 @@ void drawScene( uGLTF::GLTFModel & M, int sceneIndex, float t=0.0f)
 {
     auto & S = M.scenes[sceneIndex];
 
+    if( t < 0 )
+        return;
 
     // the root node of the scene
     auto rootNode = S[0];

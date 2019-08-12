@@ -189,11 +189,14 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
 {
     std::vector<uint8_t> out;
     static bool init=false;
-    static std::vector<int> T(256,-1);
+    static std::vector<int32_t> T(256,-1);
     if(!init)
     {
         init = true;
-        for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+        for (int32_t i=0; i<64; i++)
+        {
+            T[ static_cast<size_t>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]) ] = i;
+        }
     }
 
 
@@ -495,6 +498,8 @@ class Accessor
                 case AccessorType::MAT2   : return actualDataSize*4;
                 case AccessorType::MAT3   : return actualDataSize*9;
                 case AccessorType::MAT4   : return actualDataSize*16;
+                default:
+                    return 0;
             }
         }
 
@@ -622,8 +627,8 @@ public:
      * Returns a pointer to the child node.
      * Requirement: childIndex < children.size()
      */
-    Node* getChild(uint32_t childIndex);
-    Node const * getChild(uint32_t childIndex) const;
+    Node* getChild(size_t childIndex);
+    Node const * getChild(size_t childIndex) const;
 
 
     template<typename Callable_t>
@@ -1173,7 +1178,7 @@ public:
 
     operator bool() const
     {
-        return index!=-1;
+        return index != std::numeric_limits<uint32_t>::max();;
     }
 };
 
@@ -1440,11 +1445,19 @@ public:
             };
         };
     }
-    void load( std::istream & i)
+    bool load( std::istream & i)
     {
         auto header = _readHeader(i);
         auto jsonChunk = _readChunk(i);
 
+        if(header.magic != 0x46546C67)
+        {
+            return false;
+        }
+        if( header.version < 2)
+        {
+            return false;
+        }
         jsonChunk.chunkData.push_back(0);
         auto J = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
 
@@ -1599,6 +1612,7 @@ public:
                 materials.emplace_back( std::move(B) );
             }
         }
+        return true;
     }
 
     static header_t _readHeader(std::istream & in)
@@ -1730,12 +1744,12 @@ public:
 };
 
 
-inline Node* Node::getChild(uint32_t childIndex)
+inline Node* Node::getChild(size_t childIndex)
 {
     return &_parent->nodes.at(  children[ childIndex ]  );
 }
 
-inline Node const* Node::getChild(uint32_t childIndex) const
+inline Node const* Node::getChild(size_t childIndex) const
 {
     return &_parent->nodes.at(  children[ childIndex ]  );
 }
