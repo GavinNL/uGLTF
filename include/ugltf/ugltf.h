@@ -59,6 +59,8 @@
 namespace UGLTF_NAMESPACE
 {
 
+using json = nlohmann::json;
+
 class GLTFModel;
 
 
@@ -171,7 +173,7 @@ public:
 };
 
 template<typename T>
-inline T _getValue(nlohmann::json const & obj, const std::string & key, T const &default_val)
+inline T _getValue(json const & obj, const std::string & key, T const &default_val)
 {
     try {
         auto it = obj.find(key);
@@ -268,7 +270,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, BufferView & B)
+inline void from_json(const json & j, BufferView & B)
 {
     B.buffer     = _getValue(j, "buffer"    , 0u);
     B.target     = static_cast<BufferViewTarget>(_getValue(j, "target"    , 0u));
@@ -397,7 +399,7 @@ public:
     }
 };
 
-inline void from_json(const nlohmann::json & j, Camera & B)
+inline void from_json(const json & j, Camera & B)
 {
     auto type     = _getValue(j, "type", std::string(""));
     B.name        = _getValue(j, "name", std::string(""));
@@ -508,7 +510,7 @@ class Accessor
         friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Accessor & B)
+inline void from_json(const json & j, Accessor & B)
 {
     B.bufferView     = _getValue(j, "bufferView"   , 0u);
     B.byteOffset     = _getValue(j, "byteOffset" , 0u);
@@ -658,11 +660,11 @@ private:
     bool _hasMatrix=false;
     bool _hasTransforms=false;
     GLTFModel * _parent;
-    friend void from_json(const nlohmann::json & j, Node & B);
+    friend void from_json(const json & j, Node & B);
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Node & B)
+inline void from_json(const json & j, Node & B)
 {
     B.camera      = _getValue(j, "camera", std::numeric_limits<uint32_t>::max() );
     B.skin        = _getValue(j, "skin"  , std::numeric_limits<uint32_t>::max() );
@@ -798,7 +800,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Primitive & B)
+inline void from_json(const json & j, Primitive & B)
 {
     B.attributes.POSITION   = _getValue(j["attributes"], "POSITION",   std::numeric_limits<uint32_t>::max() );
     B.attributes.NORMAL     = _getValue(j["attributes"], "NORMAL",     std::numeric_limits<uint32_t>::max() );
@@ -834,7 +836,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Mesh & B)
+inline void from_json(const json & j, Mesh & B)
 {
     B.name           = _getValue(j, "name", std::string(""));
     B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
@@ -868,7 +870,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Scene & B)
+inline void from_json(const json & j, Scene & B)
 {
     B.name   = _getValue(j, "name", std::string(""));
     B.nodes  = _getValue(j, "nodes", std::vector<uint32_t>());
@@ -907,7 +909,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Skin & B)
+inline void from_json(const json & j, Skin & B)
 {
     B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", std::numeric_limits<uint32_t>::max());
     B.name                = _getValue(j, "name", std::string(""));
@@ -980,7 +982,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, AnimationSampler & B)
+inline void from_json(const json & j, AnimationSampler & B)
 {
     B.input = _getValue(j,  "input",  std::numeric_limits<uint32_t>::max() );
     B.output = _getValue(j, "output", std::numeric_limits<uint32_t>::max() );
@@ -1010,7 +1012,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, AnimationChannel & B)
+inline void from_json(const json & j, AnimationChannel & B)
 {
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max());
 
@@ -1039,7 +1041,7 @@ private:
 
 };
 
-inline void from_json(const nlohmann::json & j, Animation & B)
+inline void from_json(const json & j, Animation & B)
 {
     B.channels            = _getValue(j, "channels", std::vector<AnimationChannel>());
     B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
@@ -1050,7 +1052,7 @@ inline void from_json(const nlohmann::json & j, Animation & B)
 class Image
 {
 public:
-    // mimeType	string	The image's MIME type.	No
+    // MimeType	string	The image's MIME type.	No
     // bufferView	integer	The index of the bufferView that contains the image. Use this instead of the image's uri property.	No
 
     uint32_t    bufferView = std::numeric_limits<uint32_t>::max();
@@ -1089,7 +1091,7 @@ private:
 
 };
 
-inline void from_json(const nlohmann::json & j, Image & B)
+inline void from_json(const json & j, Image & B)
 {
     B.uri         = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
@@ -1119,7 +1121,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Texture & B)
+inline void from_json(const json & j, Texture & B)
 {
     B.source  = _getValue(j, "source",  std::numeric_limits<uint32_t>::max() );
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max() );
@@ -1156,7 +1158,7 @@ public:
     std::string name;
 };
 
-inline void from_json(const nlohmann::json & j, Sampler & B)
+inline void from_json(const json & j, Sampler & B)
 {
     B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) );
     B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) );
@@ -1184,7 +1186,7 @@ public:
 
 
 
-inline void from_json(const nlohmann::json & j, TextureInfo & B)
+inline void from_json(const json & j, TextureInfo & B)
 {
     B.index    = _getValue(j, "index",   std::numeric_limits<uint32_t>::max());
     B.texCoord = _getValue(j, "texCoord", 0u );
@@ -1238,7 +1240,7 @@ public:
         }
     private:
         bool              _has=false;
-        friend void from_json(const nlohmann::json & j, Material & B);
+        friend void from_json(const json & j, Material & B);
     } pbrMetallicRoughness;
 
     TextureInfo          normalTexture;
@@ -1272,7 +1274,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Material & B)
+inline void from_json(const json & j, Material & B)
 {
     if( j.count("pbrMetallicRoughness")==1)
     {
@@ -1649,9 +1651,9 @@ public:
      *
      * Parse the raw json string data into a Json object.
      */
-    static nlohmann::json _parseJson( char * data)
+    static json _parseJson( char * data)
     {
-        nlohmann::json J;
+        json J;
 
         return J.parse(data);
     }
@@ -1664,7 +1666,7 @@ public:
      * Extract each of the buffers from the buffersDataChunk and add them
      * to the buffers array.
      */
-    static std::vector<Buffer> _readBuffers(std::istream & in, nlohmann::json const & jBuffers)
+    static std::vector<Buffer> _readBuffers(std::istream & in, json const & jBuffers)
     {
         std::vector<Buffer> outputBuffers;
 
@@ -1703,7 +1705,7 @@ public:
      * Extract each of the buffers from the buffersDataChunk and add them
      * to the buffers array.
      */
-    static std::vector<Buffer> _extractBuffers(chunk_t const & buffersChunk, nlohmann::json const & jBuffers)
+    static std::vector<Buffer> _extractBuffers(chunk_t const & buffersChunk, json const & jBuffers)
     {
         std::vector<Buffer> outputBuffers;
 
