@@ -12,7 +12,10 @@ target_include_directories( ${PROJECT_NAME}
  )
 target_compile_features( ${PROJECT_NAME}
                           INTERFACE
-                              cxx_std_17)
+                              cxx_std_17
+                              )
+
+target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall)
 
 target_compile_definitions( ${PROJECT_NAME}
                                 INTERFACE

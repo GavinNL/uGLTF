@@ -62,9 +62,37 @@ SCENARIO("Aspan")
         uint32_t count=0;
         for(auto & b : span)
         {
+            assert(&b);
             count++;
         }
         REQUIRE(count==2);
+    }
+
+    WHEN("We create a span of const vec3")
+    {
+        uGLTF::aspan<const Vec3>  spanOfConst( data.data(),2,sizeof(Vec3));
+
+        THEN("We can loop through it like it was a vector")
+        {
+            auto it = spanOfConst.begin();
+            while( it != spanOfConst.end() )
+            {
+                it++;
+            }
+        }
+    }
+
+    WHEN("We can make the non-const span const")
+    {
+        const auto & constSpan = span;
+
+        THEN("We can loop through it as if it was a regular container")
+        {
+            for(auto & v : constSpan)
+            {
+                assert(&v);
+            }
+        }
     }
 
 }
@@ -230,7 +258,7 @@ SCENARIO( "Loading " )
                 }
                 if( C.hasNormalTexture() )
                 {
-                    REQUIRE( C.normalTexture.index >= 0 );
+                    REQUIRE( C.normalTexture.index != std::numeric_limits<uint32_t>::max() );
                 }
             }
         }
@@ -239,7 +267,7 @@ SCENARIO( "Loading " )
         {
             for(auto & I : M.images)
             {
-                REQUIRE( I.bufferView >= 0 );
+                REQUIRE( I.bufferView != std::numeric_limits<uint32_t>::max() );
 
                 //("We can get the bufferView")
                 {
@@ -342,6 +370,7 @@ SCENARIO( "Loading " )
                                 size_t count=0;
                                 for(auto & v : span)
                                 {
+                                    assert(&v);
                                     count++;
                                 }
                                 REQUIRE( count == span.size() );

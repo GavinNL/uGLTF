@@ -59,22 +59,39 @@
 namespace UGLTF_NAMESPACE
 {
 
+using json = nlohmann::json;
+
 class GLTFModel;
 
-
+/**
+ * @brief The aspan class
+ *
+ * An aspan (Aliased Span) is similar to a string_view or span (from C++20), but the underlying
+ * contigious array data can be alised to a different type as well as custom strides.
+ */
 template<typename T>
 class aspan
 {
 public:
-    using value_type = T;
-    using char_type = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
-    using void_type = typename std::conditional< std::is_const<value_type>::value, const void         , void >::type;
+    using base_value_type = typename std::remove_cv<T>::type;
 
-    class _iterator :  public std::iterator<std::random_access_iterator_tag, T>
+    using value_type = T;
+
+    using const_value_type = const typename std::remove_cv<value_type>::type;
+
+
+    /**
+     * @brief The _iterator class
+     * Iterator for non-const data
+     */
+    template<typename V>
+    class _iterator :  public std::iterator<std::random_access_iterator_tag, V>
     {
-            //using char_type = ::char_type;
-            char_type * p;
+            using char_type  = unsigned char;
+            using value_type = V;
+            char_type     * p;
             std::ptrdiff_t stride;
+
           public:
 
             _iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
@@ -107,19 +124,82 @@ public:
 
             bool operator==(const _iterator& rhs) const {return p==rhs.p;}
             bool operator!=(const _iterator& rhs) const {return p!=rhs.p;}
-            T& operator*() {return *static_cast<value_type*>(static_cast<void_type*>(p));}
+
+            value_type & operator*()
+            {
+                return *static_cast<value_type*>(static_cast<void*>(p));
+            }
+
+            value_type const & operator*() const
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
+     };
+    template<typename V>
+    class _const_iterator :  public std::iterator<std::random_access_iterator_tag, V>
+    {
+            using char_type  = const unsigned char;
+            using value_type = const V;
+            char_type     * p;
+            std::ptrdiff_t stride;
+
+          public:
+
+            _const_iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
+            _const_iterator(const _const_iterator& mit) : p(mit.p), stride(mit.stride) {}
+
+            // return the number of elements between two iterators
+            bool operator<(const _const_iterator & other) const
+            {
+                return p < other.p;
+            }
+
+            std::ptrdiff_t operator-(const _const_iterator & other) const
+            {
+                return (p - other.p) / stride;
+            }
+            _const_iterator operator-(int inc) const
+            {
+                return _iterator( p - inc*stride, stride);
+            }
+            _const_iterator operator+(int inc) const
+            {
+                return _iterator( p + inc*stride, stride);
+            }
+
+            _const_iterator& operator--() {p-=stride;return *this;}
+            _const_iterator  operator--(int) {_const_iterator tmp(*this); operator--(); return tmp;}
+
+            _const_iterator& operator++() {p+=stride;return *this;}
+            _const_iterator operator++(int) {_const_iterator tmp(*this); operator++(); return tmp;}
+
+            bool operator==(const _const_iterator& rhs) const {return p==rhs.p;}
+            bool operator!=(const _const_iterator& rhs) const {return p!=rhs.p;}
+
+            value_type & operator*() const
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
+            value_type & operator*()
+            {
+                return *static_cast<value_type const*>(static_cast<void const*>(p));
+            }
      };
 
-    using iterator       = _iterator;
-    using const_iterator = const iterator;
+    using iterator       = _iterator<value_type>;
+    using const_iterator = _const_iterator<base_value_type>;
+    using void_type      = typename std::conditional< std::is_const<value_type>::value, const void, void>::type;
+    using char_type      = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
 
-    aspan(void_type * data, size_t size, size_t stride) : _begin( static_cast<char_type*>(data) ),
-        _size(size), _stride(stride)
+    aspan(void_type * data, size_t size, size_t stride) :
+        _begin( static_cast<char_type*>(data) ),
+        _size(size),
+        _stride(stride)
     {
 
     }
 
-    value_type & operator[](size_t i) const
+    const_value_type & operator[](size_t i) const
     {
         return *reinterpret_cast<value_type*>(_begin + _stride*i);
     }
@@ -128,14 +208,33 @@ public:
         return *reinterpret_cast<value_type*>(_begin + _stride*i);
     }
 
-    iterator begin()
+    const_iterator begin() const
     {
-        return iterator( _begin, _stride);
+        return const_iterator( _begin, _stride);
     }
-    iterator end()
+    const_iterator end() const
     {
-        return iterator( _begin + _stride*size(), _stride);
+        return const_iterator( _begin + _stride*size(), _stride);
     }
+
+    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
+    begin()
+    {
+        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
+        return __it( _begin, _stride);
+    }
+
+    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
+    end()
+    {
+        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
+        return __it( _begin + _stride*size(), _stride);
+    }
+
+//    iterator end()
+//    {
+//        return iterator( _begin + _stride*size(), _stride);
+//    }
 
     value_type & back()
     {
@@ -171,7 +270,7 @@ public:
 };
 
 template<typename T>
-inline T _getValue(nlohmann::json const & obj, const std::string & key, T const &default_val)
+inline T _getValue(json const & obj, const std::string & key, T const &default_val)
 {
     try {
         auto it = obj.find(key);
@@ -189,11 +288,14 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
 {
     std::vector<uint8_t> out;
     static bool init=false;
-    static std::vector<int> T(256,-1);
+    static std::vector<int32_t> T(256,-1);
     if(!init)
     {
         init = true;
-        for (int i=0; i<64; i++) T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+        for (int32_t i=0; i<64; i++)
+        {
+            T[ static_cast<size_t>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]) ] = i;
+        }
     }
 
 
@@ -203,7 +305,7 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
     //for (unsigned char c : in)
     for(size_t i=0;i<size;i++)
     {
-        unsigned char c = uri[i];
+        unsigned char c = static_cast<unsigned char>(uri[i]);
 
         if (T[c] == -1)
             break;
@@ -265,7 +367,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, BufferView & B)
+inline void from_json(const json & j, BufferView & B)
 {
     B.buffer     = _getValue(j, "buffer"    , 0u);
     B.target     = static_cast<BufferViewTarget>(_getValue(j, "target"    , 0u));
@@ -394,7 +496,7 @@ public:
     }
 };
 
-inline void from_json(const nlohmann::json & j, Camera & B)
+inline void from_json(const json & j, Camera & B)
 {
     auto type     = _getValue(j, "type", std::string(""));
     B.name        = _getValue(j, "name", std::string(""));
@@ -495,6 +597,8 @@ class Accessor
                 case AccessorType::MAT2   : return actualDataSize*4;
                 case AccessorType::MAT3   : return actualDataSize*9;
                 case AccessorType::MAT4   : return actualDataSize*16;
+                default:
+                    return 0;
             }
         }
 
@@ -503,7 +607,7 @@ class Accessor
         friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Accessor & B)
+inline void from_json(const json & j, Accessor & B)
 {
     B.bufferView     = _getValue(j, "bufferView"   , 0u);
     B.byteOffset     = _getValue(j, "byteOffset" , 0u);
@@ -622,8 +726,8 @@ public:
      * Returns a pointer to the child node.
      * Requirement: childIndex < children.size()
      */
-    Node* getChild(uint32_t childIndex);
-    Node const * getChild(uint32_t childIndex) const;
+    Node* getChild(size_t childIndex);
+    Node const * getChild(size_t childIndex) const;
 
 
     template<typename Callable_t>
@@ -653,11 +757,11 @@ private:
     bool _hasMatrix=false;
     bool _hasTransforms=false;
     GLTFModel * _parent;
-    friend void from_json(const nlohmann::json & j, Node & B);
+    friend void from_json(const json & j, Node & B);
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Node & B)
+inline void from_json(const json & j, Node & B)
 {
     B.camera      = _getValue(j, "camera", std::numeric_limits<uint32_t>::max() );
     B.skin        = _getValue(j, "skin"  , std::numeric_limits<uint32_t>::max() );
@@ -874,7 +978,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Primitive & B)
+inline void from_json(const json & j, Primitive & B)
 {
     B.attributes.POSITION   = _getValue(j["attributes"], "POSITION",   std::numeric_limits<uint32_t>::max() );
     B.attributes.NORMAL     = _getValue(j["attributes"], "NORMAL",     std::numeric_limits<uint32_t>::max() );
@@ -910,7 +1014,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Mesh & B)
+inline void from_json(const json & j, Mesh & B)
 {
     B.name           = _getValue(j, "name", std::string(""));
     B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
@@ -944,7 +1048,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Scene & B)
+inline void from_json(const json & j, Scene & B)
 {
     B.name   = _getValue(j, "name", std::string(""));
     B.nodes  = _getValue(j, "nodes", std::vector<uint32_t>());
@@ -983,7 +1087,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Skin & B)
+inline void from_json(const json & j, Skin & B)
 {
     B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", std::numeric_limits<uint32_t>::max());
     B.name                = _getValue(j, "name", std::string(""));
@@ -1056,7 +1160,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, AnimationSampler & B)
+inline void from_json(const json & j, AnimationSampler & B)
 {
     B.input = _getValue(j,  "input",  std::numeric_limits<uint32_t>::max() );
     B.output = _getValue(j, "output", std::numeric_limits<uint32_t>::max() );
@@ -1086,7 +1190,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, AnimationChannel & B)
+inline void from_json(const json & j, AnimationChannel & B)
 {
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max());
 
@@ -1115,7 +1219,7 @@ private:
 
 };
 
-inline void from_json(const nlohmann::json & j, Animation & B)
+inline void from_json(const json & j, Animation & B)
 {
     B.channels            = _getValue(j, "channels", std::vector<AnimationChannel>());
     B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
@@ -1126,7 +1230,7 @@ inline void from_json(const nlohmann::json & j, Animation & B)
 class Image
 {
 public:
-    // mimeType	string	The image's MIME type.	No
+    // MimeType	string	The image's MIME type.	No
     // bufferView	integer	The index of the bufferView that contains the image. Use this instead of the image's uri property.	No
 
     uint32_t    bufferView = std::numeric_limits<uint32_t>::max();
@@ -1165,7 +1269,7 @@ private:
 
 };
 
-inline void from_json(const nlohmann::json & j, Image & B)
+inline void from_json(const json & j, Image & B)
 {
     B.uri         = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
@@ -1195,7 +1299,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Texture & B)
+inline void from_json(const json & j, Texture & B)
 {
     B.source  = _getValue(j, "source",  std::numeric_limits<uint32_t>::max() );
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max() );
@@ -1232,7 +1336,7 @@ public:
     std::string name;
 };
 
-inline void from_json(const nlohmann::json & j, Sampler & B)
+inline void from_json(const json & j, Sampler & B)
 {
     B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) );
     B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) );
@@ -1254,13 +1358,13 @@ public:
 
     operator bool() const
     {
-        return index!=-1;
+        return index != std::numeric_limits<uint32_t>::max();;
     }
 };
 
 
 
-inline void from_json(const nlohmann::json & j, TextureInfo & B)
+inline void from_json(const json & j, TextureInfo & B)
 {
     B.index    = _getValue(j, "index",   std::numeric_limits<uint32_t>::max());
     B.texCoord = _getValue(j, "texCoord", 0u );
@@ -1314,7 +1418,7 @@ public:
         }
     private:
         bool              _has=false;
-        friend void from_json(const nlohmann::json & j, Material & B);
+        friend void from_json(const json & j, Material & B);
     } pbrMetallicRoughness;
 
     TextureInfo          normalTexture;
@@ -1348,7 +1452,7 @@ private:
     friend class GLTFModel;
 };
 
-inline void from_json(const nlohmann::json & j, Material & B)
+inline void from_json(const json & j, Material & B)
 {
     if( j.count("pbrMetallicRoughness")==1)
     {
@@ -1521,11 +1625,19 @@ public:
             };
         };
     }
-    void load( std::istream & i)
+    bool load( std::istream & i)
     {
         auto header = _readHeader(i);
         auto jsonChunk = _readChunk(i);
 
+        if(header.magic != 0x46546C67)
+        {
+            return false;
+        }
+        if( header.version < 2)
+        {
+            return false;
+        }
         jsonChunk.chunkData.push_back(0);
         auto J = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
 
@@ -1680,6 +1792,7 @@ public:
                 materials.emplace_back( std::move(B) );
             }
         }
+        return true;
     }
 
     static header_t _readHeader(std::istream & in)
@@ -1716,9 +1829,9 @@ public:
      *
      * Parse the raw json string data into a Json object.
      */
-    static nlohmann::json _parseJson( char * data)
+    static json _parseJson( char * data)
     {
-        nlohmann::json J;
+        json J;
 
         return J.parse(data);
     }
@@ -1731,7 +1844,7 @@ public:
      * Extract each of the buffers from the buffersDataChunk and add them
      * to the buffers array.
      */
-    static std::vector<Buffer> _readBuffers(std::istream & in, nlohmann::json const & jBuffers)
+    static std::vector<Buffer> _readBuffers(std::istream & in, json const & jBuffers)
     {
         std::vector<Buffer> outputBuffers;
 
@@ -1770,7 +1883,7 @@ public:
      * Extract each of the buffers from the buffersDataChunk and add them
      * to the buffers array.
      */
-    static std::vector<Buffer> _extractBuffers(chunk_t const & buffersChunk, nlohmann::json const & jBuffers)
+    static std::vector<Buffer> _extractBuffers(chunk_t const & buffersChunk, json const & jBuffers)
     {
         std::vector<Buffer> outputBuffers;
 
@@ -1811,12 +1924,12 @@ public:
 };
 
 
-inline Node* Node::getChild(uint32_t childIndex)
+inline Node* Node::getChild(size_t childIndex)
 {
     return &_parent->nodes.at(  children[ childIndex ]  );
 }
 
-inline Node const* Node::getChild(uint32_t childIndex) const
+inline Node const* Node::getChild(size_t childIndex) const
 {
     return &_parent->nodes.at(  children[ childIndex ]  );
 }
