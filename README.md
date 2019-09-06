@@ -1,7 +1,30 @@
 # uGLTF - Micro GLTF
 
-uGLTF is a small header-only library with the only dependency being the json parser: [nlohmann/json](https://github.com/nlohmann/json) (not included).
+uGLTF is a small header-only library with the only dependency being the json parser: [nlohmann/json](https://github.com/nlohmann/json) (not included, but automatically downloaded for unit tests/examples).
 
+## Usage
+
+Simply copy the `ugltf.h` header file to your project include path and you are
+good to go.
+
+
+## Compile
+
+```Bash
+cd SRC_FOLDER
+mkdir build
+cd build
+cmake ..
+cmake --build .
+
+ctest
+
+```
+
+# Features
+
+* enum classes for all constants
+*
 
 ```C++
 

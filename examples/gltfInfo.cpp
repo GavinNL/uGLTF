@@ -1,6 +1,14 @@
 #include <ugltf/ugltf.h>
-#include <fstream>
 
+
+// THis is not included with ugltf, but was
+// downloaded by the CMakeLists.txt file specifically for building
+// this app
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+#include <fstream>
+#include <set>
 #define INDENT "  "
 
 void printAttributes(uGLTF::Primitive const & P)
@@ -110,6 +118,108 @@ int main(int argc, char **argv)
 
             //m.pbrMetallicRoughness.
         }
+
+        //=====================================================================================================
+        // Skin/Skeleton
+        //=====================================================================================================
+        std::cout << "Skins: " << M.meshes.size() << std::endl;
+        i=0;
+
+        for(auto & m : M.skins)
+        {
+            std::cout << INDENT << "Name              : " << m.name << std::endl;
+            std::cout << INDENT << "Root Skeleton Node: " << m.skeleton << std::endl;
+            std::cout << INDENT << "Joint Nodes       : " ;
+            for(auto & j : m.joints)
+                std::cout << j << ' ';
+            std::cout << std::endl;
+
+
+            auto & inverseBindMatrices = m.getInverseBindMatricesAccessor();
+            std::cout << INDENT << "Total inv Bind Mat: " << inverseBindMatrices.count << std::endl;
+
+        }
+        //=====================================================================================================
+
+
+
+
+        //=====================================================================================================
+        // Animations
+        //=====================================================================================================
+        std::cout << "Animations: " << M.animations.size() << std::endl;
+        i=0;
+
+        for(auto & m : M.animations)
+        {
+            std::cout << INDENT << "Name              : " << m.name << std::endl;
+            std::cout << INDENT << "Channels          : " << m.channels.size() << std::endl;
+
+            uint32_t i=0;
+            std::set<uint32_t> nodes;
+            for(auto & c : m.channels)
+            {
+                nodes.insert(c.target.node);
+///                std::cout << INDENT << "Channel:           : " <<  i++ << std::endl;
+///                std::cout << INDENT INDENT << "Node              : " <<  c.target.node<< std::endl;
+///                std::cout << INDENT INDENT << "Path              : " <<  to_string(c.target.path) << std::endl;
+            }
+
+            std::cout << INDENT << "Animated Nodes    : ";// << m.channels.size() << std::endl;
+            for(auto & n : nodes)
+            {
+                std::cout << n << ", ";
+            }
+            std::cout << std::endl;
+            std::cout << INDENT << "Samplers          : " << m.samplers.size() << std::endl;
+            for(auto & s : m.samplers)
+            {
+
+                std::cout << INDENT INDENT << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
+                          << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back() << std::endl;
+
+            }
+
+        }
+
+        //=====================================================================================================
+
+
+
+        //=====================================================================================================
+        // Images
+        //=====================================================================================================
+        std::cout << "Textures: " << M.textures.size() << std::endl;
+        i=0;
+
+        for(auto & m : M.textures)
+        {
+            std::cout << INDENT << "Name              : " << m.name << std::endl;
+
+            auto & I = m.getImage();
+            std::cout << INDENT INDENT << "img mime type     : " << I.mimeType << std::endl;
+
+            {
+                auto data = I.getSpan();
+                std::cout << INDENT INDENT << "img data size     : " << data.size() << std::endl;
+
+                int x,y,comp;
+                auto * img = stbi_load_from_memory( &data[0], data.size(), &x, &y, &comp, 3);
+
+                std::cout << INDENT INDENT << "Dimensions  e     : " << x << " x " << y << std::endl;
+
+                stbi_image_free(img);
+            }
+
+            //auto & S = m.getSampler();
+            //S.magFilter
+            //std::cout << INDENT << "img data size     : " << data.size() << std::endl;
+
+        }
+
+
+
+        //=====================================================================================================
 
     }
 

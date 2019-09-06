@@ -33,7 +33,13 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS "${PROJECT_NAME}::${PROJECT_NAME}")
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
     file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
 endif()
+
+# Also download stb_image
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
+    file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
+endif()
 #################################################################################################
+
 
 
 

@@ -409,6 +409,21 @@ SCENARIO( "Loading " )
                     REQUIRE( timeAcc.componentType == uGLTF::ComponentType::FLOAT);
                     REQUIRE( timeAcc.count == time.size() );
 
+
+                    {
+                        auto const & Smc = Sm;
+
+                        auto & timeAccc = Smc.getInputAccessor();
+                        auto timec      = Smc.getInputSpan();
+
+
+
+
+                        REQUIRE( timeAccc.type == uGLTF::AccessorType::SCALAR );
+                        REQUIRE( timeAccc.componentType == uGLTF::ComponentType::FLOAT);
+                        REQUIRE( timeAccc.count == time.size() );
+                    }
+
                 }
             }
         }
@@ -425,9 +440,23 @@ SCENARIO( "Loading " )
                     auto span = A.getInverseBindMatricesSpan< std::array<float,16> >();
 
                     REQUIRE( span.size() == A.joints.size() );
+
+                    REQUIRE( acc.componentType   == uGLTF::ComponentType::FLOAT);
+                    REQUIRE( acc.componentSize() == sizeof(float));
+                    REQUIRE( acc.accessorSize()  == 16*sizeof(float));
+
+                    { //
+                        auto const &Ac = A;
+                        auto acc_c  = Ac.getInverseBindMatricesAccessor() ;
+                        auto span_c = Ac.getInverseBindMatricesSpan< const std::array<float,16> >();
+
+                        REQUIRE(span_c.size() == A.joints.size() );
+
+                        REQUIRE( acc_c.componentType   == uGLTF::ComponentType::FLOAT);
+                        REQUIRE( acc_c.componentSize() == sizeof(float));
+                        REQUIRE( acc_c.accessorSize()  == 16*sizeof(float));
+                    }
                 }
-
-
             }
         }
 

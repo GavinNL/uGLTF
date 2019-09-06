@@ -362,6 +362,8 @@ public:
 
     void* data();
 
+    void const* data() const;
+
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -390,6 +392,22 @@ enum class AccessorType : int32_t
     MAT4
 };
 
+inline std::string to_string(const AccessorType & p)
+{
+    switch(p)
+    {
+        case AccessorType::UNKNOWN: return std::string("UNKNOWN");
+        case AccessorType::SCALAR:  return std::string("SCALAR");
+        case AccessorType::VEC2:    return std::string("VEC2");
+        case AccessorType::VEC3:    return std::string("VEC3");
+        case AccessorType::VEC4:    return std::string("VEC4");
+        case AccessorType::MAT2:    return std::string("MAT2");
+        case AccessorType::MAT3:    return std::string("MAT3");
+        case AccessorType::MAT4:    return std::string("MAT4");
+    }
+    return std::string("UNKNOWN");
+}
+
 enum class ComponentType : int32_t
 {
     BYTE            = 5120,
@@ -400,6 +418,21 @@ enum class ComponentType : int32_t
     FLOAT           = 5126,
     DOUBLE          = 5130
 };
+
+inline std::string to_string(const ComponentType & p)
+{
+    switch(p)
+    {
+        case ComponentType::BYTE          : return std::string("BYTE");
+        case ComponentType::UNSIGNED_BYTE : return std::string("UNSIGNED_BYTE");
+        case ComponentType::SHORT         : return std::string("SHORT");
+        case ComponentType::UNSIGNED_SHORT: return std::string("UNSIGNED_SHORT");
+        case ComponentType::UNSIGNED_INT  : return std::string("UNSIGNED_INT");
+        case ComponentType::FLOAT         : return std::string("FLOAT");
+        case ComponentType::DOUBLE        : return std::string("DOUBLE");
+    }
+    return std::string("UNKNOWN");
+}
 
 enum class CameraType
 {
@@ -442,7 +475,7 @@ public:
      *
      * _mat4 must be an array of at least 16 floats.
      */
-    void writeMatrix(float * _mat4)
+    void writeMatrix(float * _mat4) const
     {
         std::array< std::array<float, 4>, 4> & M = *reinterpret_cast<std::array< std::array<float, 4>, 4>*>(_mat4);
 
@@ -552,6 +585,9 @@ class Accessor
         template<typename T>
         aspan<T> getSpan();
 
+        template<typename T>
+        aspan<T> getSpan() const;
+
         BufferView const & getBufferView() const;
         BufferView & getBufferView();
 
@@ -597,9 +633,8 @@ class Accessor
                 case AccessorType::MAT2   : return actualDataSize*4;
                 case AccessorType::MAT3   : return actualDataSize*9;
                 case AccessorType::MAT4   : return actualDataSize*16;
-                default:
-                    return 0;
             }
+            return 0;
         }
 
     private:
@@ -804,14 +839,15 @@ inline std::string to_string(const PrimitiveAttribute & p)
     switch(p)
     {
         case PrimitiveAttribute::POSITION  : return std::string("POSITION");
-        case PrimitiveAttribute::NORMAL	  : return std::string("NORMAL");
-        case PrimitiveAttribute::TANGENT	  : return std::string("TANGENT");
+        case PrimitiveAttribute::NORMAL	   : return std::string("NORMAL");
+        case PrimitiveAttribute::TANGENT   : return std::string("TANGENT");
         case PrimitiveAttribute::TEXCOORD_0: return std::string("TEXCOORD_0");
         case PrimitiveAttribute::TEXCOORD_1: return std::string("TEXCOORD_1");
-        case PrimitiveAttribute::COLOR_0	  : return std::string("COLOR_0");
+        case PrimitiveAttribute::COLOR_0   : return std::string("COLOR_0");
         case PrimitiveAttribute::JOINTS_0  : return std::string("JOINTS_0");
         case PrimitiveAttribute::WEIGHTS_0 : return std::string("WEIGHTS_0");
     }
+    return std::string("UNKNOWN");
 }
 
 enum class PrimitiveMode : int32_t
@@ -838,6 +874,7 @@ inline std::string to_string(const PrimitiveMode & p)
         case PrimitiveMode::TRIANGLE_STRIP    :     return std::string("PrimitiveMode::TRIANGLE_STRIP");
         case PrimitiveMode::TRIANGLE_FAN      :     return std::string("PrimitiveMode::TRIANGLE_FAN");
     }
+    return std::string("UNKNOWN");
 }
 
 class Primitive
@@ -885,7 +922,6 @@ public:
      */
     size_t getIDType() const
     {
-        auto u32Hash = std::hash<uint32_t>();
         size_t h = 0;
 
         for(uint32_t i = 0; i < 8; i++)
@@ -956,6 +992,14 @@ public:
         return A.getSpan<T>();
     }
 
+    template<typename T>
+    aspan<T> getSpan(PrimitiveAttribute attr) const
+    {
+        auto & A = getAccessor(attr);
+
+        return A.getSpan<T>();
+    }
+
     /**
      * @brief getSpan
      * @param attr
@@ -973,6 +1017,14 @@ public:
         return A.getSpan<T>();
     }
 
+    template<typename T>
+    aspan<T> getIndexSpan() const
+    {
+        static_assert( sizeof(T)==2 || sizeof(T)==4, "Size of template parameter is not in accordance with GLTF2.0");
+        auto & A = getIndexAccessor();
+
+        return A.getSpan<T>();
+    }
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -1082,6 +1134,15 @@ public:
         assert( sizeof(T) == A.accessorSize() );
         return A.getSpan<T>();
     }
+    template<typename T>
+    aspan<T> getInverseBindMatricesSpan() const
+    {
+        auto & A = getInverseBindMatricesAccessor();
+
+        assert( sizeof(T) == A.accessorSize() );
+        return A.getSpan<T>();
+    }
+
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -1112,6 +1173,18 @@ enum class AnimationPath
     SCALE,
     WEIGHTS
 };
+
+inline std::string to_string(const AnimationPath & p)
+{
+    switch(p)
+    {
+        case AnimationPath::TRANSLATION: return std::string("TRANSLATION");
+        case AnimationPath::ROTATION:    return std::string("ROTATION");
+        case AnimationPath::SCALE:       return std::string("SCALE");
+        case AnimationPath::WEIGHTS:     return std::string("WEIGHTS");
+    }
+    return "UNKNOWN";
+}
 
 /**
  * @brief The AnimationSampler class
@@ -1146,8 +1219,19 @@ public:
         return getInputAccessor().getSpan<float>();
     }
 
+    aspan<const float> getInputSpan() const
+    {
+        return getInputAccessor().getSpan<const float>();
+    }
+
     template<typename T>
     aspan<T> getOutputSpan()
+    {
+        return getOutputAccessor().getSpan<T>();
+    }
+
+    template<typename T>
+    aspan<T> getOutputSpan() const
     {
         return getOutputAccessor().getSpan<T>();
     }
@@ -1155,6 +1239,8 @@ public:
     Accessor& getInputAccessor();
     Accessor& getOutputAccessor();
 
+    Accessor const & getInputAccessor() const ;
+    Accessor const & getOutputAccessor() const;
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
@@ -1328,8 +1414,8 @@ enum class WrapMode : uint32_t
 class Sampler
 {
 public:
-    Filter magFilter;
-    Filter minFilter;
+    Filter   magFilter;
+    Filter   minFilter;
     WrapMode wrapS;
     WrapMode wrapT;
 
@@ -1338,10 +1424,10 @@ public:
 
 inline void from_json(const json & j, Sampler & B)
 {
-    B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) );
-    B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) );
-    B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS",  10497u) );
-    B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT",  10497u) );
+    B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) ); // magic values defined by spec
+    B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) ); // magic values defined by spec
+    B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS",  10497u) ); // magic values defined by spec
+    B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT",  10497u) ); // magic values defined by spec
     B.name    = _getValue(j, "name", std::string(""));
 }
 
@@ -1398,10 +1484,10 @@ public:
     struct
     {
         std::array<float, 4> baseColorFactor;
-        TextureInfo       baseColorTexture;
-        float             metallicFactor;
-        float             roughnessFactor;
-        TextureInfo       metallicRoughnessTexture;
+        TextureInfo          baseColorTexture;
+        float                metallicFactor;
+        float                roughnessFactor;
+        TextureInfo          metallicRoughnessTexture;
 
         operator bool() const
         {
@@ -1591,15 +1677,15 @@ public:
 
     void _setParents(GLTFModel * parent)
     {
-        for(auto & v :  bufferViews) { v._parent=parent;};
-        for(auto & v :  accessors  ) { v._parent=parent;};
+        for(auto & v :  bufferViews) { v._parent=parent;}
+        for(auto & v :  accessors  ) { v._parent=parent;}
 
-        for(auto & v :  nodes      ) { v._parent=parent;};
-        for(auto & v :  scenes     ) { v._parent=parent;};
-        for(auto & v :  skins      ) { v._parent=parent;};
+        for(auto & v :  nodes      ) { v._parent=parent;}
+        for(auto & v :  scenes     ) { v._parent=parent;}
+        for(auto & v :  skins      ) { v._parent=parent;}
 
-        for(auto & v :  images     ) { v._parent=parent;};
-        for(auto & v :  textures   ) { v._parent=parent;};
+        for(auto & v :  images     ) { v._parent=parent;}
+        for(auto & v :  textures   ) { v._parent=parent;}
         //for(auto & v :  samplers   ) { v._parent=this;};
         //for(auto & v :  cameras    ) { v._parent=this;};
         //for(auto & v :  materials  ) { v._parent=this;};
@@ -1610,20 +1696,20 @@ public:
             for(auto & p :  v.primitives )
             {
                 p._parent=parent;
-            };
-        };
+            }
+        }
         for(auto & v :  animations     )
         {
             v._parent=parent;
             for(auto & p :  v.samplers )
             {
                 p._parent=parent;
-            };
+            }
             for(auto & p :  v.channels )
             {
                 p._parent=parent;
-            };
-        };
+            }
+        }
     }
     bool load( std::istream & i)
     {
@@ -1976,11 +2062,20 @@ inline Accessor& AnimationSampler::getInputAccessor()
 
 inline Accessor& AnimationSampler::getOutputAccessor()
 {
-return _parent->accessors.at( static_cast<size_t>(output) );
+    return _parent->accessors.at( static_cast<size_t>(output) );
 }
 
+inline Accessor const& AnimationSampler::getInputAccessor() const
+{
+    return _parent->accessors.at( static_cast<size_t>(input) );
+}
 
-Buffer &BufferView::getBuffer()
+inline Accessor const & AnimationSampler::getOutputAccessor() const
+{
+    return _parent->accessors.at( static_cast<size_t>(output) );
+}
+
+inline Buffer &BufferView::getBuffer()
 {
     return _parent->buffers.at( static_cast<size_t>(buffer) );
 }
@@ -1991,6 +2086,11 @@ inline Buffer const & BufferView::getBuffer() const
 }
 
 inline void* BufferView::data()
+{
+    return getBuffer().m_data.data() + byteOffset;
+}
+
+inline void const * BufferView::data() const
 {
     return getBuffer().m_data.data() + byteOffset;
 }
@@ -2023,6 +2123,23 @@ inline aspan<T> Accessor::getSpan()
               stride);
 }
 
+template<typename T>
+inline aspan<T> Accessor::getSpan() const
+{
+    auto & bv = getBufferView();
+
+    auto stride = accessorSize();
+
+    if( stride < sizeof(T) )
+    {
+        throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+    }
+
+    return
+    aspan<T>( static_cast<const unsigned char*>(bv.data())+byteOffset,
+              count,
+              stride);
+}
 
 
 template<typename T>
