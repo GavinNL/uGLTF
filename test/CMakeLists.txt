@@ -2,10 +2,10 @@
 # compiling time. Each unit test will link to this
 cmake_minimum_required(VERSION 3.13)
 
-add_library(${PROJECT_NAME}-catchmain STATIC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+add_library(               ${PROJECT_NAME}-catchmain STATIC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 target_include_directories(${PROJECT_NAME}-catchmain PUBLIC third_party)
-target_compile_features(${PROJECT_NAME}-catchmain PUBLIC cxx_std_11)
-target_compile_options( ${PROJECT_NAME}-catchmain PUBLIC -Wextra -Wno-type-limits)
+target_compile_features(   ${PROJECT_NAME}-catchmain PUBLIC cxx_std_11)
+target_compile_options(    ${PROJECT_NAME}-catchmain PUBLIC -Wextra -Wno-type-limits)
 
 
 
@@ -14,14 +14,15 @@ target_compile_options( ${PROJECT_NAME}-catchmain PUBLIC -Wextra -Wno-type-limit
 file(GLOB files "unit-*.cpp")
 
 enable_testing()
+
 foreach(file ${files})
 
- get_filename_component(file_basename ${file} NAME_WE)
- string(REGEX REPLACE "unit-([^$]+)" "test-${folder_name}-\\1" testcase ${file_basename})
+     get_filename_component(file_basename ${file} NAME_WE)
+     string(REGEX REPLACE "unit-([^$]+)" "test-${folder_name}-\\1" testcase ${file_basename})
 
- string(REGEX REPLACE "unit-([^$]+)" "unit-\\1" exe_name ${file_basename})
+     string(REGEX REPLACE "unit-([^$]+)" "unit-\\1" exe_name ${file_basename})
 
- message("New File: ${file} Test case: ${testcase} Exe name: ${exe_name}")
+     message("New File: ${file} Test case: ${testcase} Exe name: ${exe_name}")
 
 
 set(UNIT_EXE_NAME ${PROJECT_NAME}-${exe_name} )
@@ -35,7 +36,7 @@ target_compile_features( ${UNIT_EXE_NAME}
                             cxx_std_11)
 
 
-target_link_libraries( ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain ${UNIT_TEST_LINK_TARGETS})
+target_link_libraries(      ${UNIT_EXE_NAME} PUBLIC ${PROJECT_NAME}-catchmain   ${UNIT_TEST_LINK_TARGETS}   )
 target_include_directories( ${UNIT_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} )
 
  add_test( NAME ${UNIT_TEST_NAME}
@@ -63,6 +64,4 @@ endif()
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
     file(DOWNLOAD "https://raw.githubusercontent.com/syoyo/tinygltf/master/tiny_gltf.h" "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
 endif()
-
-
 #################################################################################################
