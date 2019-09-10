@@ -154,7 +154,6 @@ include(GNUInstallDirs)
 
 INSTALL(TARGETS
               ${PROJECT_NAME}
-              ${PROJECT_NAME}-catchmain
         LIBRARY
               DESTINATION some/libpath
         PUBLIC_HEADER
