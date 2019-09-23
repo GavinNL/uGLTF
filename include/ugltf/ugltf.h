@@ -358,7 +358,7 @@ public:
     aspan<T> getSpan();
 
     template<typename T>
-    aspan<T> getSpan() const;
+    aspan<typename std::add_const<T>::type > getSpan() const;
 
     void* data();
 
@@ -586,7 +586,7 @@ class Accessor
         aspan<T> getSpan();
 
         template<typename T>
-        aspan<T> getSpan() const;
+        aspan< typename std::add_const<T>::type > getSpan() const;
 
         BufferView const & getBufferView() const;
         BufferView & getBufferView();
@@ -1134,13 +1134,14 @@ public:
         assert( sizeof(T) == A.accessorSize() );
         return A.getSpan<T>();
     }
+
     template<typename T>
-    aspan<T> getInverseBindMatricesSpan() const
+    aspan< typename std::add_const<T>::type > getInverseBindMatricesSpan() const
     {
         auto & A = getInverseBindMatricesAccessor();
 
         assert( sizeof(T) == A.accessorSize() );
-        return A.getSpan<T>();
+        return A.getSpan< typename std::add_const<T>::type >();
     }
 
 private:
@@ -1230,10 +1231,15 @@ public:
         return getOutputAccessor().getSpan<T>();
     }
 
+    //template<typename T>
+    //aspan<T> getOutputSpan() const
+    //{
+    //    return getOutputAccessor().getSpan<T>();
+    //}
     template<typename T>
-    aspan<T> getOutputSpan() const
+    aspan< typename std::add_const<T>::type > getOutputSpan() const
     {
-        return getOutputAccessor().getSpan<T>();
+        return getOutputAccessor().getSpan< typename std::add_const<T>::type >();
     }
 
     Accessor& getInputAccessor();
@@ -2124,7 +2130,7 @@ inline aspan<T> Accessor::getSpan()
 }
 
 template<typename T>
-inline aspan<T> Accessor::getSpan() const
+inline aspan< typename std::add_const<T>::type > Accessor::getSpan() const
 {
     auto & bv = getBufferView();
 
@@ -2136,7 +2142,7 @@ inline aspan<T> Accessor::getSpan() const
     }
 
     return
-    aspan<T>( static_cast<const unsigned char*>(bv.data())+byteOffset,
+    aspan<typename std::add_const<T>::type>( static_cast<const unsigned char*>(bv.data())+byteOffset,
               count,
               stride);
 }
@@ -2168,7 +2174,7 @@ inline aspan<T> BufferView::getSpan()
 }
 
 template<typename T>
-inline aspan<T> BufferView::getSpan() const
+inline aspan< typename std::add_const<T>::type > BufferView::getSpan() const
 {
     auto d  = getBuffer().m_data.data() + byteOffset;
 
@@ -2189,7 +2195,7 @@ inline aspan<T> BufferView::getSpan() const
     }
 
     auto count = static_cast<size_t>(byteLength) / stride;
-    return aspan<const T>(d, count, stride);
+    return aspan< typename std::add_const<T>::type >(d, count, stride);
 }
 
 inline aspan<uint8_t> Image::getSpan()
