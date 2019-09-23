@@ -52,7 +52,13 @@ int main(int argc, char **argv)
 
         std::cout << "Nodes: " << M.nodes.size() << std::endl;
 
-        std::cout << "Root Node: " << M.scenes[0].nodes[0] << std::endl;
+
+        std::cout << "Root Nodes: " ;
+        for(auto & r : M.scenes[0].nodes)
+        {
+            std::cout << " " << r;
+        }
+        std::cout << std::endl;
         size_t i=0;
         for(auto & m : M.nodes)
         {
@@ -81,6 +87,7 @@ int main(int argc, char **argv)
                 {
                     std::cout << INDENT INDENT "Elements: " << p.getIndexAccessor().count << std::endl;
                 }
+                std::cout << INDENT INDENT "Vertices: " << p.getAccessor(uGLTF::PrimitiveAttribute::POSITION).count << std::endl;
                 std::cout << INDENT INDENT "Hash: " << std::hex << p.getIDType() << std::dec << std::endl;
                 printAttributes( p );
             }
