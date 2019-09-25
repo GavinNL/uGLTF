@@ -99,29 +99,53 @@ int main(int argc, char **argv)
         for(auto & m : M.materials)
         {
             std::cout << INDENT << i++ << std::endl;
-            std::cout << INDENT "PBR: " << m.hasPBR() << std::endl;
+            //std::cout << INDENT "PBR: " << m.hasPBR() << std::endl;
+            if( m.hasNormalTexture() )
+            {
+                std::cout << INDENT "normalTexture: \n";
+                std::cout << INDENT "     index: "    << m.normalTexture.index << '\n';
+                std::cout << INDENT "  texCoord: "    << m.normalTexture.texCoord << '\n';
+                std::cout << INDENT "     scale: "    << m.normalTexture.scale << '\n';
+            }
 
+            if( m.hasEmissiveTexture() )
+            {
+                std::cout << INDENT "emissiveTexture: \n";
+                std::cout << INDENT "     index: "    << m.emissiveTexture.index << '\n';
+                std::cout << INDENT "  texCoord: "    << m.emissiveTexture.texCoord << '\n';
+                std::cout << INDENT "     scale: "    << m.emissiveTexture.scale << '\n';
+            }
+
+            if( m.hasOcclusionTexture() )
+            {
+                std::cout << INDENT "occlusionTexture: \n";
+                std::cout << INDENT "     index: "    << m.occlusionTexture.index << '\n';
+                std::cout << INDENT "  texCoord: "    << m.occlusionTexture.texCoord << '\n';
+                std::cout << INDENT "  strength: "    << m.occlusionTexture.strength << '\n';
+            }
+
+            std::cout << INDENT "emissiveFactor          : " << m.emissiveFactor[0] << ", "
+                                                             << m.emissiveFactor[1] << ", "
+                                                             << m.emissiveFactor[2] << ", "
+                                                             << m.emissiveFactor[3] << '\n';
             if(m.hasPBR())
             {
+                std::cout << INDENT "PBR: \n";
                 std::cout << INDENT INDENT "baseColorFactor       : " << m.pbrMetallicRoughness.baseColorFactor[0] << ", "
                                                                       << m.pbrMetallicRoughness.baseColorFactor[1] << ", "
-                                                                      << m.pbrMetallicRoughness.baseColorFactor[2] << '\n';
+                                                                      << m.pbrMetallicRoughness.baseColorFactor[2] << ", "
+                                                                      << m.pbrMetallicRoughness.baseColorFactor[3] << '\n';
 
                 std::cout << INDENT INDENT "metallicFactor        : " << m.pbrMetallicRoughness.metallicFactor   << '\n';
-                std::cout << INDENT INDENT "roughnessFactor        : " << m.pbrMetallicRoughness.roughnessFactor << '\n';
+                std::cout << INDENT INDENT "roughnessFactor       : " << m.pbrMetallicRoughness.roughnessFactor << '\n';
 
                 if(m.pbrMetallicRoughness.hasBaseColorTexture())
-                    std::cout << INDENT INDENT "BaseColorTexture        : " << m.pbrMetallicRoughness.baseColorTexture << '\n';
+                    std::cout << INDENT INDENT "BaseColorTexture        : " << m.pbrMetallicRoughness.baseColorTexture.index << '\n';
                 if(m.pbrMetallicRoughness.hasMetallicRoughnessTexture())
                     std::cout << INDENT INDENT "MetallicRoughnessTexture: " << m.pbrMetallicRoughness.metallicRoughnessTexture << '\n';
 
             }
-            if( m.hasNormalTexture() )
-                std::cout << INDENT "normalTexture: "    << m.normalTexture << '\n';
-            if( m.hasEmissiveTexture() )
-                std::cout << INDENT "emissiveTexture: "    << m.emissiveTexture << '\n';
-            if( m.hasOcclusionTexture() )
-                std::cout << INDENT "occlusionTexture: "    << m.occlusionTexture << '\n';
+
 
             //m.pbrMetallicRoughness.
         }
@@ -129,7 +153,7 @@ int main(int argc, char **argv)
         //=====================================================================================================
         // Skin/Skeleton
         //=====================================================================================================
-        std::cout << "Skins: " << M.meshes.size() << std::endl;
+        std::cout << "Skins: " << M.skins.size() << std::endl;
         i=0;
 
         for(auto & m : M.skins)
@@ -194,16 +218,26 @@ int main(int argc, char **argv)
 
 
         //=====================================================================================================
-        // Images
+        // Textures
         //=====================================================================================================
         std::cout << "Textures: " << M.textures.size() << std::endl;
         i=0;
 
         for(auto & m : M.textures)
         {
-            std::cout << INDENT << "Name              : " << m.name << std::endl;
+            std::cout << INDENT << "Source: " << m.source << std::endl;
+        }
 
-            auto & I = m.getImage();
+        //=====================================================================================================
+        // Images
+        //=====================================================================================================
+        std::cout << "Images: " << M.textures.size() << std::endl;
+        i=0;
+
+        for(auto & I : M.images)
+        {
+            std::cout << INDENT << "Name              : " << I.name << std::endl;
+
             std::cout << INDENT INDENT << "img mime type     : " << I.mimeType << std::endl;
 
             {

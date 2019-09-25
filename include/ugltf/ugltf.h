@@ -1546,13 +1546,14 @@ private:
 
 inline void from_json(const json & j, Material & B)
 {
+    B.pbrMetallicRoughness._has = false;
     if( j.count("pbrMetallicRoughness")==1)
     {
-        B.pbrMetallicRoughness.baseColorFactor = _getValue(j["pbrMetallicRoughness"], "baseColorFactor", std::array<float,4>({1,1,1,1}));
-        B.pbrMetallicRoughness.metallicFactor  = _getValue( j["pbrMetallicRoughness"], "metallicFactor", 1.0f);
+        B.pbrMetallicRoughness.baseColorFactor = _getValue( j["pbrMetallicRoughness"], "baseColorFactor", std::array<float,4>({1,1,1,1}));
+        B.pbrMetallicRoughness.metallicFactor  = _getValue( j["pbrMetallicRoughness"], "metallicFactor" , 1.0f);
         B.pbrMetallicRoughness.roughnessFactor = _getValue( j["pbrMetallicRoughness"], "roughnessFactor", 1.0f);
 
-        B.pbrMetallicRoughness.baseColorTexture  = _getValue(j["pbrMetallicRoughness"], "baseColorTexture", TextureInfo{});
+        B.pbrMetallicRoughness.baseColorTexture          = _getValue(j["pbrMetallicRoughness"], "baseColorTexture", TextureInfo{});
         B.pbrMetallicRoughness.metallicRoughnessTexture  = _getValue(j["pbrMetallicRoughness"], "metallicRoughnessTexture", TextureInfo{});
         B.pbrMetallicRoughness._has = true;
     }
