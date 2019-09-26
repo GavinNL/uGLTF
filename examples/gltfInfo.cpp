@@ -89,6 +89,7 @@ int main(int argc, char **argv)
                 }
                 std::cout << INDENT INDENT "Vertices: " << p.getAccessor(uGLTF::PrimitiveAttribute::POSITION).count << std::endl;
                 std::cout << INDENT INDENT "Hash: " << std::hex << p.getIDType() << std::dec << std::endl;
+                std::cout << INDENT INDENT "Material : " << p.material << std::endl;
                 printAttributes( p );
             }
         }
@@ -191,9 +192,10 @@ int main(int argc, char **argv)
             for(auto & c : m.channels)
             {
                 nodes.insert(c.target.node);
-///                std::cout << INDENT << "Channel:           : " <<  i++ << std::endl;
-///                std::cout << INDENT INDENT << "Node              : " <<  c.target.node<< std::endl;
-///                std::cout << INDENT INDENT << "Path              : " <<  to_string(c.target.path) << std::endl;
+                std::cout << INDENT << "   Channel: " <<  i++
+                          << "  Node: " <<  c.target.node
+                          << "  Sampler: " <<  c.sampler
+                          << "  Path: " <<  to_string(c.target.path) << std::endl;
             }
 
             std::cout << INDENT << "Animated Nodes    : ";// << m.channels.size() << std::endl;
@@ -207,10 +209,11 @@ int main(int argc, char **argv)
             {
 
                 std::cout << INDENT INDENT << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
-                          << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back() << std::endl;
+                          << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back()
+                          << INDENT INDENT << "Interpolation : " << to_string(s.interpolation)<< ", " << s.getInputSpan().back() << std::endl;
 
             }
-
+            std::cout << "\n\n";
         }
 
         //=====================================================================================================
