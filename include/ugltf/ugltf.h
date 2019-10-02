@@ -1164,9 +1164,18 @@ enum class AnimationInterpolation : int32_t
 {
     STEP,
     LINEAR,
-    CUBIC
+    CUBICSPLINE
 };
-
+inline std::string to_string(const AnimationInterpolation & p)
+{
+    switch(p)
+    {
+        case AnimationInterpolation::STEP:   return std::string("STEP");
+        case AnimationInterpolation::LINEAR: return std::string("LINEAR");
+        case AnimationInterpolation::CUBICSPLINE:  return std::string("CUBICSPLINE");
+    }
+    return "UNKNOWN";
+}
 enum class AnimationPath
 {
     TRANSLATION,
@@ -1259,9 +1268,9 @@ inline void from_json(const json & j, AnimationSampler & B)
 
     auto interpolation = _getValue( j, "interpolation", std::string() );
 
-    if( interpolation == "STEP")   B.interpolation = AnimationInterpolation::STEP;
-    if( interpolation == "LINEAR") B.interpolation = AnimationInterpolation::LINEAR;
-    if( interpolation == "CUBIC")  B.interpolation = AnimationInterpolation::CUBIC;
+    if( interpolation == "STEP")         B.interpolation = AnimationInterpolation::STEP;
+    if( interpolation == "LINEAR")       B.interpolation = AnimationInterpolation::LINEAR;
+    if( interpolation == "CUBICSPLINE")  B.interpolation = AnimationInterpolation::CUBICSPLINE;
 }
 
 
@@ -1600,6 +1609,11 @@ public:
     {
     }
 
+    explicit GLTFModel( std::istream & i )
+    {
+        load(i);
+    }
+
     GLTFModel(GLTFModel && other)
     {
          accessors   = std::move(  other.accessors);
@@ -1718,6 +1732,8 @@ public:
             }
         }
     }
+
+
     bool load( std::istream & i)
     {
         auto header = _readHeader(i);

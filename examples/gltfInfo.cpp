@@ -30,7 +30,11 @@ void printAttributes(uGLTF::Primitive const & P)
     {
         if( P.has(p) )
         {
-            out += to_string(p) + ",";
+
+            auto & A = P.getAccessor(p);
+
+
+            out += to_string(p) + "(" + to_string( A.componentType ) + ")  ";
         }
     }
     out.pop_back();
@@ -68,6 +72,17 @@ int main(int argc, char **argv)
                 std::cout << n << ", ";
             }
             std::cout << "]\n";
+
+            std::cout << INDENT INDENT << "T " << m.translation[0] << ", "
+                              << m.translation[1] << ", "
+                              << m.translation[2] << "\n";
+            std::cout << INDENT INDENT << "R " << m.rotation[0] << ", "
+                              << m.rotation[1] << ", "
+                              << m.rotation[2] << ", "
+                              << m.rotation[3] << "\n";
+            std::cout << INDENT INDENT << "S " << m.scale[0] << ", "
+                              << m.scale[1] << ", "
+                              << m.scale[2] << "\n";
         }
 
         std::cout << "Meshs: " << M.meshes.size() << std::endl;
@@ -86,11 +101,13 @@ int main(int argc, char **argv)
                 if( p.hasIndices() )
                 {
                     std::cout << INDENT INDENT "Elements: " << p.getIndexAccessor().count << std::endl;
+                    std::cout << INDENT INDENT "Type    : " << to_string(p.getIndexAccessor().componentType) << std::endl;
                 }
                 std::cout << INDENT INDENT "Vertices: " << p.getAccessor(uGLTF::PrimitiveAttribute::POSITION).count << std::endl;
                 std::cout << INDENT INDENT "Hash: " << std::hex << p.getIDType() << std::dec << std::endl;
                 std::cout << INDENT INDENT "Material : " << p.material << std::endl;
                 printAttributes( p );
+
             }
         }
 
@@ -261,9 +278,27 @@ int main(int argc, char **argv)
 
         }
 
-
-
         //=====================================================================================================
+        std::cout << "Buffers: " << M.buffers.size() << std::endl;
+        i=0;
+
+        for(auto & I : M.buffers)
+        {
+            std::cout << INDENT << "Bytes             : " << I.byteLength << std::endl;
+        }
+        //=====================================================================================================
+        std::cout << "BufferViews: " << M.textures.size() << std::endl;
+        i=0;
+
+        for(auto & I : M.bufferViews)
+        {
+            std::cout << INDENT << i++
+                      << INDENT << "Buffer : " << I.buffer
+                      << INDENT << "Bytes  : " << I.byteLength
+                      << INDENT << "Offset : " << I.byteOffset
+                      << INDENT << "Stride : " << I.byteStride << std::endl;
+
+        }
 
     }
 
