@@ -1748,7 +1748,8 @@ public:
             return false;
         }
         jsonChunk.chunkData.push_back(0);
-        auto J = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+        _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+        auto & J = _json;
 
         if(J.count("buffers") == 1)
         {
@@ -2030,6 +2031,8 @@ public:
     std::vector<Sampler>    samplers;
     std::vector<Camera>     cameras;
     std::vector<Material>   materials;
+
+    json                    _json;
 };
 
 
