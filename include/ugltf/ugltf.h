@@ -321,6 +321,37 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
     return out;
 }
 
+enum class BufferViewTarget : uint32_t
+{
+    UNKNOWN              = 0,
+    ARRAY_BUFFER         = 34962,
+    ELEMENT_ARRAY_BUFFER = 34963
+};
+
+enum class AccessorType : int32_t
+{
+    UNKNOWN=0,
+    SCALAR,
+    VEC2,
+    VEC3,
+    VEC4,
+    MAT2,
+    MAT3,
+    MAT4
+};
+
+enum class ComponentType : int32_t
+{
+    BYTE            = 5120,
+    UNSIGNED_BYTE   = 5121,
+    SHORT           = 5122,
+    UNSIGNED_SHORT  = 5123,
+    UNSIGNED_INT    = 5125,
+    FLOAT           = 5126,
+    DOUBLE          = 5130
+};
+
+
 struct Asset
 {
     std::string version = "2.0";
@@ -344,19 +375,48 @@ inline void from_json(const json & j, Asset & B)
     B.copyright = _getValue(j, "copyright", std::string("") );
 }
 
+class Accessor;
+class BufferView;
+
 class Buffer
 {
     public:
         uint32_t             byteLength;
         std::vector<uint8_t> m_data;
+
+
+        /**
+         * @brief createNewAccessor
+         * @param count
+         * @param type
+         * @param comp
+         * @return
+         *
+         * Create a new accessor within this buffer. This will also create a
+         * unique bufferView for the accessor. The buffer's vector data
+         * will be expanded
+         *
+         * Retuns the accessor index
+         */
+        size_t createNewAccessor(size_t count, AccessorType type, ComponentType comp);
+
+        /**
+         * @brief createNewAccessor
+         * @param A
+         * @return
+         *
+         * Create a new accessor and copy the data from A
+         *
+         * Retuns the accessor index
+         */
+        size_t createNewAccessor(Accessor const & A);
+
+
+private:
+    GLTFModel * _parent;
+    friend class GLTFModel;
 };
 
-enum class BufferViewTarget : uint32_t
-{
-    UNKNOWN              = 0,
-    ARRAY_BUFFER         = 34962,
-    ELEMENT_ARRAY_BUFFER = 34963
-};
 
 class BufferView
 {
@@ -390,6 +450,8 @@ public:
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
+    friend class Buffer;
+
 };
 
 inline void to_json(json& j, const BufferView & p)
@@ -414,17 +476,7 @@ inline void from_json(const json & j, BufferView & B)
 
 
 
-enum class AccessorType : int32_t
-{
-    UNKNOWN=0,
-    SCALAR,
-    VEC2,
-    VEC3,
-    VEC4,
-    MAT2,
-    MAT3,
-    MAT4
-};
+
 
 inline std::string to_string(const AccessorType & p)
 {
@@ -442,16 +494,7 @@ inline std::string to_string(const AccessorType & p)
     return std::string("UNKNOWN");
 }
 
-enum class ComponentType : int32_t
-{
-    BYTE            = 5120,
-    UNSIGNED_BYTE   = 5121,
-    SHORT           = 5122,
-    UNSIGNED_SHORT  = 5123,
-    UNSIGNED_INT    = 5125,
-    FLOAT           = 5126,
-    DOUBLE          = 5130
-};
+
 
 inline std::string to_string(const ComponentType & p)
 {
@@ -653,6 +696,15 @@ class Accessor
         BufferView & getBufferView();
 
 
+
+        /**
+         * @brief copyDataFrom
+         * @param A
+         *
+         * Copies data from accessor A to this accessor.
+         */
+        void copyDataFrom(Accessor const & A);
+
         /**
          * @brief componentSize
          * @return
@@ -701,6 +753,7 @@ class Accessor
     private:
         GLTFModel * _parent;
         friend class GLTFModel;
+        friend class Buffer;
 };
 
 inline void to_json(json& j, const Accessor & p)
@@ -711,11 +764,14 @@ inline void to_json(json& j, const Accessor & p)
             {"normalized", p.normalized},
             {"count"     , p.count},
             {"name"      , p.name},
-            {"min"       , p.min},
-            {"max"       , p.max},
             {"type"      , to_string(p.type)},
             {"componentType"      , to_string(p.componentType)}
            };
+
+   if(p.min.size())
+       j["min"] = p.min;
+   if(p.max.size())
+       j["max"] = p.max;
 }
 
 inline void from_json(const json & j, Accessor & B)
@@ -1428,6 +1484,7 @@ public:
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
+    friend class Animation;
 };
 
 inline void to_json(json& j, const AnimationSampler & p)
@@ -1465,6 +1522,7 @@ public:
 private:
     GLTFModel * _parent;
     friend class GLTFModel;
+    friend class Animation;
 };
 
 
@@ -1497,6 +1555,18 @@ public:
     std::vector<AnimationChannel> channels;
     std::vector<AnimationSampler> samplers;
     std::string                   name;          //The user-defined name of this object.	No
+
+    AnimationSampler & newSampler()
+    {
+        auto & S = samplers.emplace_back();
+        S._parent = _parent;
+    }
+    AnimationChannel & newChannel()
+    {
+        auto & S = channels.emplace_back();
+        S._parent = _parent;
+    }
+
 
 private:
     GLTFModel * _parent;
@@ -1981,6 +2051,7 @@ public:
 
     void _setParents(GLTFModel * parent)
     {
+        for(auto & v :  buffers) { v._parent=parent;}
         for(auto & v :  bufferViews) { v._parent=parent;}
         for(auto & v :  accessors  ) { v._parent=parent;}
 
@@ -2239,7 +2310,8 @@ public:
 
         auto j = generateJSON();
 
-        std::string j_str = j.dump();
+        std::string j_str = j.dump(4);
+        std::cout << j_str << std::endl;
         length += 8;
         length += j_str.size();
 
@@ -2268,6 +2340,20 @@ public:
 
     }
 
+
+    Buffer & newBuffer()
+    {
+        auto & b = buffers.emplace_back();
+        b._parent = this;
+        return b;
+    }
+
+    Animation& newAnimation()
+    {
+        auto & b = animations.emplace_back();
+        b._parent = this;
+        return b;
+    }
 
     template<typename T>
     static void _writeVectorBuffer(const std::vector<T> & chunk, std::ostream & out)
@@ -2684,6 +2770,95 @@ inline Accessor const & Skin::getInverseBindMatricesAccessor() const
 {
     return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
 }
+
+void Accessor::copyDataFrom(Accessor const & A)
+{
+    uint8_t * dst       = static_cast<uint8_t*>( getBufferView().data() );
+
+    uint8_t const * src = static_cast<uint8_t const*>( A.getBufferView().data() ) + A.byteOffset;
+
+    size_t srcStride=0;
+    // byte stride has not been set by the bufferView, so
+    // to get to the next element,
+    if( A.getBufferView().byteStride == 0)
+    {
+        srcStride = A.accessorSize();
+    }
+    else
+    {
+        if( A.getBufferView().byteStride % A.accessorSize() != 0)
+        {
+            throw std::runtime_error("The byteStride for the bufferView is not a multiple of the AccessorSize!");
+        }
+    }
+
+    auto totalBytesForData = A.accessorSize() * A.count;
+    if( getBufferView().byteLength < totalBytesForData   )
+    {
+        throw std::runtime_error("This destinationAccessor does not have enough space for the data");
+    }
+
+    auto count = A.count;
+    auto elmentSize = A.accessorSize();
+    auto dstStride = elmentSize;
+
+    while(count--)
+    {
+        std::memcpy( dst, src, elmentSize);
+
+        dst += dstStride;
+        src += srcStride;
+    }
+
+}
+
+inline size_t Buffer::createNewAccessor(Accessor const & A)
+{
+    auto i = createNewAccessor(A.count, A.type, A.componentType);
+
+    auto & B = _parent->accessors[i];
+    B.min = A.min;
+    B.max = A.max;
+    B.normalized = A.normalized;
+    B.name = A.name;
+
+    B.copyDataFrom(A);
+
+    return i;
+}
+
+inline size_t Buffer::createNewAccessor(size_t count, AccessorType type, ComponentType comp)
+{
+    // reserve data for the new accessor
+    auto offset = m_data.size();
+
+
+    auto & newBufferView = _parent->bufferViews.emplace_back();
+    auto & newAccessor   = _parent->accessors.emplace_back();
+
+    newBufferView._parent = _parent;
+    newAccessor._parent = _parent;
+
+    newAccessor.bufferView = _parent->bufferViews.size()-1;
+    newAccessor.byteOffset=0; // byte offset from start of bufferview?
+    newAccessor.count=count;
+    newAccessor.componentType = comp;
+    newAccessor.type = type;
+    //newAccessor.normalized;
+
+    auto bytes = newAccessor.accessorSize() * count;
+
+    newBufferView.buffer = _parent->buffers.size()-1;
+    newBufferView.byteLength = bytes;
+    newBufferView.byteOffset = offset;
+    newBufferView.byteStride = 0;
+
+    m_data.insert( m_data.end(), bytes, 0);
+    byteLength += bytes;
+
+    return _parent->accessors.size()-1;
+}
+
 }
 
 #endif

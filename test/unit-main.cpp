@@ -464,3 +464,62 @@ SCENARIO( "Loading " )
 
     }
 }
+
+SCENARIO("Creating new Accessors")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+            THEN("We can create a new accessor from that buffer")
+            {
+                auto i= buff.createNewAccessor(2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
+
+                REQUIRE( M.accessors[i].count == 2 );
+                REQUIRE( M.accessors[i].accessorSize() == 4*2);
+
+                REQUIRE( M.bufferViews.size() == 1);
+                REQUIRE( M.accessors.size() == 1);
+
+                REQUIRE( M.accessors[i].getBufferView().byteOffset == 0);
+
+                auto S = M.accessors[i].getSpan< std::array<uint32_t,2> >();
+
+                REQUIRE( S.size() == 2 );
+                S[0][0] = 0xABCDECBA;
+                S[0][1] = 0x12345678;
+                S[1][0] = 0x87654321;
+                S[1][1] = 0x1A2B3C4D;
+
+                THEN("We can create a new accessor with the old accessor")
+                {
+                    auto j = buff.createNewAccessor(2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT)   ;
+
+
+                    REQUIRE( M.bufferViews.size() == 2);
+                    REQUIRE( M.accessors.size()   == 2);
+
+                    REQUIRE( M.accessors[j].getBufferView().byteOffset == 16);
+                    REQUIRE( M.accessors[j].getBufferView().byteLength == 16);
+
+
+                    M.accessors[j].copyDataFrom( M.accessors[i] );
+
+                    auto S2 = M.accessors[j].getSpan< std::array<uint32_t,2> >();
+
+                    REQUIRE( S2.size() == 2 );
+                    REQUIRE( S2[0][0] == 0xABCDECBA );
+                    REQUIRE( S2[0][1] == 0x12345678 );
+                    REQUIRE( S2[1][0] == 0x87654321 );
+                    REQUIRE( S2[1][1] == 0x1A2B3C4D );
+                }
+            }
+        }
+
+    }
+}
