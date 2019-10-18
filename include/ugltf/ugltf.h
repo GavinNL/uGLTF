@@ -369,6 +369,17 @@ private:
     friend class GLTFModel;
 };
 
+inline void to_json(json& j, const BufferView & p)
+{
+   j = json{
+            {"buffer"    , p.buffer},
+            {"target"    , static_cast<uint32_t>(p.target) },
+            {"byteLength", p.byteLength},
+            {"byteOffset", p.byteOffset},
+            {"byteStride", p.byteStride}
+           };
+}
+
 inline void from_json(const json & j, BufferView & B)
 {
     B.buffer     = _getValue(j, "buffer"    , 0u);
@@ -529,6 +540,33 @@ public:
     }
 };
 
+inline void to_json( json & j, Camera const & B)
+{
+    switch( B.type )
+    {
+        case CameraType::ORTHOGRAPHIC:
+            j["type"] = "orthographic";
+            j["orthographic"]["xmag"]  = B.orthographic.xmag;
+            j["orthographic"]["ymag"]  = B.orthographic.ymag;
+            j["orthographic"]["zfar"]  = B.orthographic.zfar;
+            j["orthographic"]["znear"] = B.orthographic.znear;
+            break;
+        case CameraType::PERSPECTIVE:
+            j["type"] = "perspective";
+            j["perspective"]["aspectRatio"]  = B.perspective.aspectRatio;
+            j["perspective"]["yfov"]  = B.perspective.yfov;
+
+            if( !std::isinf(B.perspective.zfar) )
+                j["perspective"]["zfar"]  = B.perspective.zfar;
+
+            j["perspective"]["znear"] = B.perspective.znear;
+            break;
+    }
+
+    if( B.name.size() )
+        j["name"] = B.name;
+}
+
 inline void from_json(const json & j, Camera & B)
 {
     auto type     = _getValue(j, "type", std::string(""));
@@ -641,6 +679,21 @@ class Accessor
         GLTFModel * _parent;
         friend class GLTFModel;
 };
+
+inline void to_json(json& j, const Accessor & p)
+{
+   j = json{
+            {"buffer"    , p.bufferView},
+            {"byteOffset", p.byteOffset},
+            {"normalized", p.normalized},
+            {"count"     , p.count},
+            {"name"      , p.name},
+            {"min"       , p.min},
+            {"max"       , p.max},
+            {"type"      , to_string(p.type)},
+            {"componentType"      , to_string(p.componentType)}
+           };
+}
 
 inline void from_json(const json & j, Accessor & B)
 {
@@ -795,6 +848,39 @@ private:
     friend void from_json(const json & j, Node & B);
     friend class GLTFModel;
 };
+
+inline void to_json(json& j, const Node & p)
+{
+    if( p.mesh    != std::numeric_limits<uint32_t>::max())
+        j["mesh"] = p.mesh;
+
+    if( p.camera  != std::numeric_limits<uint32_t>::max())
+        j["camera"] = p.camera;
+
+    if( p.skin    != std::numeric_limits<uint32_t>::max())
+        j["camera"] = p.camera;
+
+    if( p.hasMatrix() )
+        j["matrix"] = p.matrix;
+
+    if( p.hasTransforms())
+    {
+        j["scale"] = p.scale      ;
+        j["rotation"] = p.rotation   ;
+        j["translation"] = p.translation;
+    }
+
+    if( p.childCount())
+    {
+        j["children"] = p.children;
+    }
+
+    if( p.weights.size() )
+        j["weights"] = p.weights;
+
+    if( p.name.length() )
+        j["name"] = p.name;
+}
 
 inline void from_json(const json & j, Node & B)
 {
@@ -955,6 +1041,10 @@ public:
     {
         return indices!=std::numeric_limits<uint32_t>::max();
     }
+    bool hasMaterial() const
+    {
+        return material!=std::numeric_limits<uint32_t>::max();
+    }
 
     /**
      * @brief getAccessor
@@ -1030,6 +1120,25 @@ private:
     friend class GLTFModel;
 };
 
+inline void to_json(json& j, const Primitive & p)
+{
+
+    if(p.has(PrimitiveAttribute::POSITION  ) ) j["attributes"]["POSITION"  ] =  p.attributes.POSITION;
+    if(p.has(PrimitiveAttribute::NORMAL    ) ) j["attributes"]["NORMAL"    ] =  p.attributes.NORMAL;
+    if(p.has(PrimitiveAttribute::TANGENT   ) ) j["attributes"]["TANGENT"   ] =  p.attributes.TANGENT;
+    if(p.has(PrimitiveAttribute::TEXCOORD_0) ) j["attributes"]["TEXCOORD_0"] =  p.attributes.TEXCOORD_0;
+    if(p.has(PrimitiveAttribute::TEXCOORD_1) ) j["attributes"]["TEXCOORD_1"] =  p.attributes.TEXCOORD_1;
+    if(p.has(PrimitiveAttribute::COLOR_0   ) ) j["attributes"]["COLOR_0"   ] =  p.attributes.COLOR_0;
+    if(p.has(PrimitiveAttribute::JOINTS_0  ) ) j["attributes"]["JOINTS_0"  ] =  p.attributes.JOINTS_0;
+    if(p.has(PrimitiveAttribute::WEIGHTS_0 ) ) j["attributes"]["WEIGHTS_0" ] =  p.attributes.WEIGHTS_0;
+
+    if(p.hasIndices())
+        j["indices" ] =  p.attributes.WEIGHTS_0;
+
+    if( p.hasMaterial() )
+        j["material"] = p.material;
+}
+
 inline void from_json(const json & j, Primitive & B)
 {
     B.attributes.POSITION   = _getValue(j["attributes"], "POSITION",   std::numeric_limits<uint32_t>::max() );
@@ -1066,6 +1175,19 @@ private:
     friend class GLTFModel;
 };
 
+inline void to_json(json& j, const Mesh & p)
+{
+
+    if( p.primitives.size() )
+        j["primitives"] = p.primitives;
+
+    if( p.name.length() )
+        j["name"] = p.name;
+
+    if( p.weights.size() )
+        j["weights"] = p.weights;
+}
+
 inline void from_json(const json & j, Mesh & B)
 {
     B.name           = _getValue(j, "name", std::string(""));
@@ -1099,6 +1221,15 @@ private:
     GLTFModel * _parent;
     friend class GLTFModel;
 };
+
+inline void to_json(json& j, const Scene & p)
+{
+    if( p.name.size() )
+        j["name"] = p.name;
+
+    if( p.nodes.size() )
+        j["nodes"] = p.nodes;
+}
 
 inline void from_json(const json & j, Scene & B)
 {
@@ -1148,6 +1279,21 @@ private:
     GLTFModel * _parent;
     friend class GLTFModel;
 };
+
+inline void to_json(json& j, const Skin & p)
+{
+    if(p.hasInverseBindMatrices())
+        j["inverseBindMatrices"] = p.inverseBindMatrices;
+
+    if( p.name.size())
+        j["name"] = p.name;
+
+    if( p.joints.size())
+        j["joints"] = p.joints;
+
+    if( p.skeleton != -1)
+        j["skeleton"] = p.skeleton;
+}
 
 inline void from_json(const json & j, Skin & B)
 {
@@ -1261,6 +1407,13 @@ private:
     friend class GLTFModel;
 };
 
+inline void to_json(json& j, const AnimationSampler & p)
+{
+    j["input"]  = p.input;
+    j["output"] = p.output;
+    j["interpolation"] = to_string(p.interpolation);
+}
+
 inline void from_json(const json & j, AnimationSampler & B)
 {
     B.input = _getValue(j,  "input",  std::numeric_limits<uint32_t>::max() );
@@ -1291,6 +1444,14 @@ private:
     friend class GLTFModel;
 };
 
+
+inline void to_json(json& j, const AnimationChannel & p)
+{
+    j["sampler"] = p.sampler;
+    j["target"]["path"] = to_string(p.target.path);
+    j["target"]["node"] = p.target.node;
+}
+
 inline void from_json(const json & j, AnimationChannel & B)
 {
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max());
@@ -1319,6 +1480,13 @@ private:
     friend class GLTFModel;
 
 };
+
+inline void to_json(json& j, const Animation & p)
+{
+    j["channels"] = p.channels;
+    j["samplers"] = p.samplers;
+    if(p.name.size()) j["name"]     = p.name;
+}
 
 inline void from_json(const json & j, Animation & B)
 {
@@ -1370,6 +1538,21 @@ private:
 
 };
 
+inline void to_json(json& j, const Image & p)
+{
+    if( p.uri.size())
+        j["uri"] = p.uri;
+
+    if(p.mimeType.size())
+        j["mimeType"] = p.mimeType;
+
+    if(p.bufferView != std::numeric_limits<uint32_t>::max())
+        j["bufferView"] = p.bufferView;
+
+    if( p.name.size() )
+        j["name"] = p.name;
+}
+
 inline void from_json(const json & j, Image & B)
 {
     B.uri         = _getValue(j, "uri", std::string(""));
@@ -1399,6 +1582,19 @@ private:
     GLTFModel * _parent;
     friend class GLTFModel;
 };
+
+inline void to_json(json& j, const Texture & p)
+{
+    if(p.source != std::numeric_limits<uint32_t>::max())
+        j["source"] = p.source;
+
+    if(p.sampler != std::numeric_limits<uint32_t>::max())
+        j["sampler"] = p.sampler;
+
+    if( p.name.size() )
+        j["name"] = p.name;
+}
+
 
 inline void from_json(const json & j, Texture & B)
 {
@@ -1437,6 +1633,17 @@ public:
     std::string name;
 };
 
+inline void to_json(json& j, const Sampler & p)
+{
+    j["magFilter"] = static_cast<uint32_t>(p.magFilter);
+    j["minFilter"] = static_cast<uint32_t>(p.minFilter);
+    j["wrapS"]     = static_cast<uint32_t>(p.wrapS);
+    j["wrapT"]     = static_cast<uint32_t>(p.wrapT);
+
+    if( p.name.size() )
+        j["name"] = p.name;
+}
+
 inline void from_json(const json & j, Sampler & B)
 {
     B.magFilter    = static_cast<Filter>( _getValue(j, "magFilter", 9729u) ); // magic values defined by spec
@@ -1451,11 +1658,9 @@ class TextureInfo
 public:
     uint32_t index    = std::numeric_limits<uint32_t>::max();
     uint32_t texCoord = 0;
-    union
-    {
-        float   scale;        // used for other textures
-        float   strength;     // used for occlusion Textures
-    };
+
+    float   scale    = std::nanf("");        // used for other textures
+    float   strength = std::nanf("");;     // used for occlusion Textures
 
     operator bool() const
     {
@@ -1464,6 +1669,17 @@ public:
 };
 
 
+inline void to_json( json & j, TextureInfo const & B)
+{
+    j["index"]    = B.index   ;// = _getValue(j, "index",   std::numeric_limits<uint32_t>::max());
+    j["texCoord"] = B.texCoord;// = _getValue(j, "texCoord", 0u );
+
+    if( !std::isnan(B.scale) )
+        j["scale"] = B.scale;
+
+    if( !std::isnan(B.strength) )
+        j["strength"] = B.strength;
+}
 
 inline void from_json(const json & j, TextureInfo & B)
 {
@@ -1492,16 +1708,27 @@ enum class MaterialAlphaMode
     BLEND
 };
 
+std::string to_string(MaterialAlphaMode d)
+{
+    switch(d)
+    {
+        case MaterialAlphaMode::OPAQUE:      return std::string("OPAQUE");
+        case MaterialAlphaMode::MASK  :      return std::string("MASK");
+        case MaterialAlphaMode::BLEND :      return std::string("BLEND");
+        default: return std::string("OPAQUE");
+    }
+
+}
 class Material
 {
 public:
 
     struct
     {
-        std::array<float, 4> baseColorFactor;
+        std::array<float, 4> baseColorFactor = {1,1,1,1};
         TextureInfo          baseColorTexture;
-        float                metallicFactor;
-        float                roughnessFactor;
+        float                metallicFactor  = 1.0f;
+        float                roughnessFactor = 1.0f;
         TextureInfo          metallicRoughnessTexture;
 
         operator bool() const
@@ -1526,9 +1753,9 @@ public:
     TextureInfo          occlusionTexture;
     TextureInfo          emissiveTexture;
 
-    std::array<float,3>  emissiveFactor;
+    std::array<float,3>  emissiveFactor = {0,0,0};
 
-    MaterialAlphaMode alphaMode;
+    MaterialAlphaMode alphaMode = MaterialAlphaMode::OPAQUE;
     float alphaCutoff = 0.5f;
     bool  doubleSided = false;
 
@@ -1552,6 +1779,39 @@ private:
   //  GLTFModel * _parent;
     friend class GLTFModel;
 };
+
+inline void to_json(json & j, Material const & B)
+{
+    if( B.hasPBR() )
+    {
+
+        if( B.pbrMetallicRoughness.hasBaseColorTexture())
+            j["pbrMetallicRoughness"]["baseColorTexture"]          = B.pbrMetallicRoughness.baseColorTexture;
+
+        if( B.pbrMetallicRoughness.hasMetallicRoughnessTexture())
+            j["pbrMetallicRoughness"]["metallicRoughnessTexture"]  = B.pbrMetallicRoughness.metallicRoughnessTexture;
+
+        j["pbrMetallicRoughness"]["baseColorFactor"] = B.pbrMetallicRoughness.baseColorFactor;
+        j["pbrMetallicRoughness"]["roughnessFactor"] = B.pbrMetallicRoughness.roughnessFactor;
+        j["pbrMetallicRoughness"]["metallicFactor"]  = B.pbrMetallicRoughness.metallicFactor;
+    }
+
+    if( B.hasNormalTexture() )
+        j["normalTexture"] = B.normalTexture;
+
+    if( B.hasEmissiveTexture() )
+        j["emissiveTexture"] = B.emissiveTexture;
+
+    if( B.hasOcclusionTexture() )
+        j["occlusionTexture"] = B.occlusionTexture;
+
+    j["emissiveFactor"] = B.emissiveFactor;
+
+    j["alphaMode"]   = to_string(B.alphaMode);
+    j["alphaCutoff"] = B.alphaCutoff;
+    j["doubleSided"] = B.doubleSided;
+
+}
 
 inline void from_json(const json & j, Material & B)
 {
@@ -1903,6 +2163,107 @@ public:
             }
         }
         return true;
+    }
+
+
+
+
+    /**
+     * @brief generateJSON
+     * @return
+     *
+     * Generates the JSON component of the GLB file.
+     */
+    json generateJSON() const
+    {
+        json root;
+
+        auto & J = root;
+
+        J["accessors"]   =  accessors;
+        J["bufferViews"] =  bufferViews;
+        J["nodes"]       =  nodes;
+        J["meshes"]      =  meshes;
+        J["scenes"]      =  scenes;
+        J["skins"]       =  skins;
+        J["animations"]  =  animations;
+        J["images"]      =  images;
+        J["textures"]    =  textures;
+        J["samplers"]    =  samplers;
+        J["cameras"]     =  cameras;
+        J["materials"]   =  materials;
+
+        return root;
+    }
+
+    /**
+     * @brief writeGLB
+     * @param out
+     *
+     * Writes the GLTF file to an output stream in GLB format
+     */
+    void writeGLB(std::ostream & out) const
+    {
+        uint32_t magic   = 0x46546C67;
+        uint32_t version = 2;
+        uint32_t length  = 12;
+
+        auto j = generateJSON();
+
+        std::string j_str = j.dump();
+        length += 8;
+        length += j_str.size();
+
+        for(auto & c : buffers)
+        {
+            length += c.m_data.size() + 8;
+        }
+
+        out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
+        out.write( reinterpret_cast<char*>(&version) , sizeof(version));
+        out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
+
+        {
+            uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
+            uint32_t chunkType   = 0x4E4F534A; // json
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType ) , sizeof(chunkType));
+            out.write( j_str.data(), j_str.size());
+        }
+
+        for(auto & c : buffers)
+        {
+            _writeVectorBuffer( c.m_data, out );
+        }
+
+    }
+
+
+    template<typename T>
+    static void _writeVectorBuffer(const std::vector<T> & chunk, std::ostream & out)
+    {
+        _writeBuffer(chunk.data(), sizeof(T)*chunk.size(), out);
+    }
+    /**
+     * @brief _writeBuffer
+     * @param data
+     * @param bytes
+     * @param out
+     *
+     * Writes a buffer to the stream using the glb format specifications
+     */
+    static void _writeBuffer(const void * data, size_t bytes, std::ostream &out )
+    {
+        uint32_t chunkLength = static_cast<uint32_t>(bytes);
+        uint32_t chunkType   = 0x004E4942;
+
+        char four[4];
+        memcpy(four,&chunkLength,4);
+        out.write( four, 4 );
+        memcpy(four,&chunkType,4);
+        out.write( four, 4 );
+        out.write( static_cast<char const*>(data), bytes);
     }
 
     static header_t _readHeader(std::istream & in)

@@ -66,6 +66,7 @@ int main(int argc, char **argv)
         size_t i=0;
         for(auto & m : M.nodes)
         {
+            std::cout << INDENT << "Name: " << m.name << '\n';
             std::cout << INDENT << i++ <<": [";
             for(auto n : m.children)
             {
