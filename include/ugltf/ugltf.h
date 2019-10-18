@@ -321,6 +321,29 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
     return out;
 }
 
+struct Asset
+{
+    std::string version = "2.0";
+    std::string generator;
+    std::string copyright;
+};
+
+inline void to_json(json& j, const Asset & p)
+{
+   j = json{
+            {"version"   , p.version},
+            {"generator" , p.generator},
+            {"copyright" , p.copyright}
+           };
+}
+
+inline void from_json(const json & j, Asset & B)
+{
+    B.version   = _getValue(j,   "version",   std::string("") );
+    B.generator = _getValue(j, "generator", std::string("") );
+    B.copyright = _getValue(j, "copyright", std::string("") );
+}
+
 class Buffer
 {
     public:
@@ -2011,6 +2034,11 @@ public:
         _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
         auto & J = _json;
 
+        if(J.count("asset") == 1)
+        {
+            asset = J["asset"].get<Asset>();
+        }
+
         if(J.count("buffers") == 1)
         {
             buffers = _readBuffers(i, J["buffers"]);
@@ -2180,6 +2208,7 @@ public:
 
         auto & J = root;
 
+        J["asset"]       =  asset;
         J["accessors"]   =  accessors;
         J["bufferViews"] =  bufferViews;
         J["nodes"]       =  nodes;
@@ -2379,6 +2408,7 @@ public:
 
 
 public:
+    Asset                   asset;
     std::vector<Accessor>   accessors;
     std::vector<Buffer>     buffers;
     std::vector<BufferView> bufferViews;
