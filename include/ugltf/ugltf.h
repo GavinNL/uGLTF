@@ -16,6 +16,7 @@
 #include <spdlog/spdlog.h>
 #define TRACE(...) spdlog::info(__VA_ARGS__)
 
+
 /*
 
 
@@ -349,6 +350,7 @@ enum class ComponentType : int32_t
     UNSIGNED_BYTE   = 5121,
     SHORT           = 5122,
     UNSIGNED_SHORT  = 5123,
+    INT             = 5124,
     UNSIGNED_INT    = 5125,
     FLOAT           = 5126,
     DOUBLE          = 5130
@@ -566,6 +568,7 @@ inline std::string to_string(const ComponentType & p)
         case ComponentType::UNSIGNED_BYTE : return std::string("UNSIGNED_BYTE");
         case ComponentType::SHORT         : return std::string("SHORT");
         case ComponentType::UNSIGNED_SHORT: return std::string("UNSIGNED_SHORT");
+        case ComponentType::INT           : return std::string("INT");
         case ComponentType::UNSIGNED_INT  : return std::string("UNSIGNED_INT");
         case ComponentType::FLOAT         : return std::string("FLOAT");
         case ComponentType::DOUBLE        : return std::string("DOUBLE");
@@ -771,6 +774,81 @@ class Accessor
 
 
 
+
+        /**
+         * @brief calculateMinMax
+         *
+         * Calculate the min and maximum values for this accessor
+         */
+        void calculateMinMax()
+        {
+#define DOMINMAX(T, N) \
+{\
+    auto S = getSpan< std::array<T, N> >();\
+    auto l_min = S[0];\
+    auto l_max = S[0];\
+    for(auto & s : S)\
+    {\
+        l_min = _min<T,N>( s, l_min);\
+        l_max = _max<T,N>( s, l_max);\
+    }\
+    for(size_t i=0;i< N;i++)\
+    {\
+        min.push_back( l_min[i] );\
+        max.push_back( l_max[i] );\
+    }\
+    break;\
+}\
+
+#define DOMINMAX_TYPE(T) \
+switch (type)\
+{\
+    case AccessorType::UNKNOWN: break;\
+    case AccessorType::SCALAR:\
+        DOMINMAX(std::int8_t,1)\
+    case AccessorType::VEC2:\
+        DOMINMAX(std::int8_t,2)\
+    case AccessorType::VEC3:\
+        DOMINMAX(std::int8_t,3)\
+    case AccessorType::VEC4:\
+        DOMINMAX(std::int8_t,4)\
+    case AccessorType::MAT2: break;\
+    case AccessorType::MAT3: break;\
+    case AccessorType::MAT4: break;\
+}\
+
+            min.clear();
+            max.clear();
+            switch (componentType)
+            {
+                case ComponentType::BYTE:
+                    DOMINMAX_TYPE(std::int8_t)
+                    break;
+                case ComponentType::UNSIGNED_BYTE :
+                    DOMINMAX_TYPE(std::uint8_t)
+                    break;
+                case ComponentType::SHORT         :
+                    DOMINMAX_TYPE(std::int16_t)
+                    break;
+                case ComponentType::UNSIGNED_SHORT:
+                    DOMINMAX_TYPE(std::uint16_t)
+                    break;
+                case ComponentType::INT  :
+                    DOMINMAX_TYPE(std::int32_t)
+                    break;
+                case ComponentType::UNSIGNED_INT  :
+                    DOMINMAX_TYPE(std::uint32_t)
+                    break;
+                case ComponentType::FLOAT         :
+                    DOMINMAX_TYPE(float)
+                    break;
+                case ComponentType::DOUBLE        :
+                    DOMINMAX_TYPE(double)
+                    break;
+
+            }
+        }
+
         /**
          * @brief copyDataFrom
          * @param A
@@ -794,6 +872,7 @@ class Accessor
                 case ComponentType::SHORT         : return 2;
                 case ComponentType::UNSIGNED_SHORT: return 2;
                 case ComponentType::UNSIGNED_INT  : return 4;
+                case ComponentType::INT           : return 4;
                 case ComponentType::FLOAT         : return 4;
                 case ComponentType::DOUBLE        : return 8;
             }
@@ -828,6 +907,30 @@ class Accessor
         GLTFModel * _parent;
         friend class GLTFModel;
         friend class Buffer;
+
+        template<typename T, size_t N>
+        std::array<T, N> _min( std::array<T, N> a, std::array<T, N> b)
+        {
+            std::array<T, N> m;
+            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::max();
+            for(size_t i=0;i<N;i++)
+            {
+                m[i] = std::min( a[i], b[i]);
+            }
+            return m;
+        }
+
+        template<typename T, size_t N>
+        std::array<T, N> _max( std::array<T, N> a, std::array<T, N> b)
+        {
+            std::array<T, N> m;
+            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::lowest();
+            for(size_t i=0;i<N;i++)
+            {
+                m[i] = std::max( a[i], b[i]);
+            }
+            return m;
+        }
 };
 
 inline void to_json(json& j, const Accessor & p)
