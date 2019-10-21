@@ -180,20 +180,22 @@ SCENARIO( "Extracting Buffers" )
 
                 THEN("We can read the Buffer chunk")
                 {
-                    auto cB = M._readChunk(in);
+                    M._readBuffers(in, J["buffers"]);
 
-                    REQUIRE( cB.chunkType == 0x004E4942);
-                    REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
-                    REQUIRE( cB.chunkData.size() == cB.chunkLength);
-
-
-                    THEN("We can extract the buffers")
-                    {
-                        auto buffers = M._extractBuffers(cB, J["buffers"]);
-
-                        REQUIRE(buffers.size() == 1);
-
-                    }
+                    // auto cB = M._readChunk(in);
+                    //
+                    // REQUIRE( cB.chunkType == 0x004E4942);
+                    // REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
+                    // REQUIRE( cB.chunkData.size() == cB.chunkLength);
+                    //
+                    //
+                    // THEN("We can extract the buffers")
+                    // {
+                    //     auto buffers = M._extractBuffers(cB, J["buffers"]);
+                    //
+                    //     REQUIRE(buffers.size() == 1);
+                    //
+                    // }
                 }
             }
         }

@@ -2585,15 +2585,24 @@ public:
         length += 8;
         length += j_str.size();
 
+        uint32_t bufferChunkSize=8;
         for(auto & c : buffers)
         {
-            length += c.m_data.size() + 8;
+            bufferChunkSize += c.m_data.size();
         }
+        if(bufferChunkSize%4!=0)
+            bufferChunkSize += 4-bufferChunkSize%4;
+
+        TRACE("Buffer Chunk Size   : {}", bufferChunkSize);
+        TRACE("Buffer Chunk%4 Check: {}", bufferChunkSize%4);
+
+        length += bufferChunkSize;
 
         out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
         out.write( reinterpret_cast<char*>(&version) , sizeof(version));
         out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
 
+        // Write the JSON chunk.
         {
             uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
             uint32_t chunkType   = 0x4E4F534A; // json
@@ -2604,9 +2613,41 @@ public:
             out.write( j_str.data(), j_str.size());
         }
 
-        for(auto & c : buffers)
+        // write the Buffers chunk.
         {
-            _writeVectorBuffer( c.m_data, out );
+            uint32_t chunkLength = 0;//
+            uint32_t chunkType   = 0x004E4942; // bin
+
+            for(auto & c : buffers)
+            {
+                chunkLength += c.m_data.size();
+            }
+            TRACE("Total Buffer bytes: {}", chunkLength);
+            // Make sure that the total data is aligned to a 4byte boundary.
+            uint32_t padding=0;
+            if( chunkLength % 4!=0)
+            {
+                padding = 4-chunkLength%4;
+                chunkLength += padding;
+                TRACE("Adding padding: {}", padding);
+            }
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+
+            for(auto & c : buffers)
+            {
+                out.write( reinterpret_cast<char const*>(c.m_data.data()) , c.m_data.size() );
+                //chunkLength += c.m_data.size();
+            }
+
+            if(padding)
+            {
+                std::array<char, 8> _padd = {};
+                out.write( _padd.data() , padding );
+            }
+
+
         }
 
     }
@@ -2624,34 +2665,6 @@ public:
         auto & b = animations.emplace_back();
         b._parent = this;
         return b;
-    }
-
-    template<typename T>
-    static void _writeVectorBuffer(const std::vector<T> & chunk, std::ostream & out)
-    {
-        _writeBuffer(chunk.data(), sizeof(T)*chunk.size(), out);
-    }
-    /**
-     * @brief _writeBuffer
-     * @param data
-     * @param bytes
-     * @param out
-     *
-     * Writes a buffer to the stream using the glb format specifications
-     */
-    static void _writeBuffer(const void * data, size_t bytes, std::ostream &out )
-    {
-        TRACE("Writing Buffer: {}", bytes );
-
-        uint32_t chunkLength = static_cast<uint32_t>(bytes);
-        uint32_t chunkType   = 0x004E4942;
-
-        char four[4];
-        memcpy(four,&chunkLength,4);
-        out.write( four, 4 );
-        memcpy(four,&chunkType,4);
-        out.write( four, 4 );
-        out.write( static_cast<char const*>(data), bytes);
     }
 
     static header_t _readHeader(std::istream & in)
@@ -2718,8 +2731,10 @@ public:
                 for(auto & b : jBuffers)
                 {
                     Buffer B;
-                    B.m_data.resize( b["byteLength"].get<uint32_t>() );
                     B.byteLength = b["byteLength"].get<int32_t>();
+                    B.m_data.resize( B.byteLength );
+
+                    // read exactly byteLength bytes from the input stream
                     in.read( reinterpret_cast<char*>(B.m_data.data()), B.m_data.size());
 
                     outputBuffers.emplace_back( std::move(B) );
@@ -2733,38 +2748,6 @@ public:
 
         return outputBuffers;
     }
-
-    /**
-     * @brief _extractBuffers
-     * @param buffersChunk
-     * @param jBuffers
-     *
-     * Extract each of the buffers from the buffersDataChunk and add them
-     * to the buffers array.
-     */
-    static std::vector<Buffer> _extractBuffers(chunk_t const & buffersChunk, json const & jBuffers)
-    {
-        std::vector<Buffer> outputBuffers;
-
-        uint32_t offset=0;
-
-        for(auto & b : jBuffers)
-        {
-            Buffer B;
-            B.m_data.resize( b["byteLength"].get<uint32_t>() );
-
-            memcpy( B.m_data.data(), buffersChunk.chunkData.data()+offset, B.m_data.size());
-
-            outputBuffers.emplace_back( std::move(B) );
-
-            offset += B.m_data.size();
-        }
-
-        return outputBuffers;
-    }
-
-
-
 
 public:
     Asset                   asset;
@@ -3068,7 +3051,7 @@ void Accessor::copyDataFrom(Accessor const & A)
     auto totalBytesForData = A.accessorSize() * A.count;
     if( getBufferView().byteLength < totalBytesForData   )
     {
-        throw std::runtime_error("This destinationAccessor does not have enough space for the data");
+        throw std::runtime_error("This destination Accessor does not have enough space for the data");
     }
 
     auto count = A.count;
