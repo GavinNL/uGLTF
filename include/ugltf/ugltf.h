@@ -1550,10 +1550,10 @@ inline std::string to_string(const AnimationPath & p)
 {
     switch(p)
     {
-        case AnimationPath::TRANSLATION: return std::string("TRANSLATION");
-        case AnimationPath::ROTATION:    return std::string("ROTATION");
-        case AnimationPath::SCALE:       return std::string("SCALE");
-        case AnimationPath::WEIGHTS:     return std::string("WEIGHTS");
+        case AnimationPath::TRANSLATION: return std::string("translation");
+        case AnimationPath::ROTATION:    return std::string("rotation");
+        case AnimationPath::SCALE:       return std::string("scale");
+        case AnimationPath::WEIGHTS:     return std::string("weights");
     }
     return "UNKNOWN";
 }
@@ -2316,7 +2316,7 @@ public:
 
     bool load( std::istream & i)
     {
-        auto header = _readHeader(i);
+        auto header    = _readHeader(i);
         auto jsonChunk = _readChunk(i);
 
         if(header.magic != 0x46546C67)
