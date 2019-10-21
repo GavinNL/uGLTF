@@ -1022,11 +1022,11 @@ inline void to_json(json& j, const Node & p)
     if( p.camera  != std::numeric_limits<uint32_t>::max())
         j["camera"] = p.camera;
 
-    if( p.skin    != std::numeric_limits<uint32_t>::max())
-        j["camera"] = p.camera;
-
     if( p.hasMatrix() )
         j["matrix"] = p.matrix;
+
+    if( p.hasSkin())
+        j["skin"] = p.skin;
 
     if( p.hasTransforms())
     {
@@ -1987,10 +1987,7 @@ inline void from_json(const json & j, TextureInfo & B)
     {
         B.strength = j["strength"].get<float>();
     }
-    else
-    {
-        B.strength = 1.0f;
-    }
+
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
