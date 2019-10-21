@@ -87,7 +87,7 @@ set_target_properties( ${PROJECT_NAME}
                           PUBLIC_HEADER
                             ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
 
-target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall)
+target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Werror -Wno-type-limits)
 
 target_compile_definitions( ${PROJECT_NAME}
                                 INTERFACE
@@ -102,6 +102,46 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS
 #################################################################################################
 
 
+
+
+
+#################################################################################################
+# Build the actual interface library
+#################################################################################################
+add_library( stbgltf STATIC src/libstb.cpp)
+
+add_library( stbgltf::stbgltf ALIAS stbgltf )
+
+target_include_directories( ${PROJECT_NAME}
+                            INTERFACE
+                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+)
+
+
+target_compile_features( stbgltf
+                          INTERFACE
+                              cxx_std_17
+                              )
+
+set_target_properties( stbgltf
+                      PROPERTIES
+                          PUBLIC_HEADER
+                            ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
+
+#target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Werror)
+
+#target_compile_definitions( ${PROJECT_NAME}
+#                                INTERFACE
+#                                TEST_DEFINE)
+
+# If you create any targets, add them to the following
+# variable so that the unit tests link to them.
+LIST(APPEND UNIT_TEST_LINK_TARGETS
+              stbgltf::stbgltf
+              )
+
+#################################################################################################
 
 
 
@@ -140,11 +180,15 @@ add_executable(
     gltfInfo
     examples/gltfInfo.cpp
 )
-target_link_libraries(gltfInfo ${PROJECT_NAME}::${PROJECT_NAME} )
+target_link_libraries(gltfInfo ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
 
-
+add_executable(
+    readWrite
+    examples/readWrite.cpp
+)
+target_link_libraries(readWrite ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
 #################################################################################################

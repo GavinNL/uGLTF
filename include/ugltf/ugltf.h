@@ -13,6 +13,9 @@
     #define UGLTF_NAMESPACE uGLTF
 #endif
 
+#include <spdlog/spdlog.h>
+#define TRACE(...) spdlog::info(__VA_ARGS__)
+
 /*
 
 
@@ -283,8 +286,8 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
     }
     return default_val;
 }
-
-static std::vector<uint8_t> _parseURI(const std::string & uri)
+#if 1
+inline std::vector<uint8_t> _parseURI(const std::string & uri)
 {
     std::vector<uint8_t> out;
     static bool init=false;
@@ -320,7 +323,7 @@ static std::vector<uint8_t> _parseURI(const std::string & uri)
     }
     return out;
 }
-
+#endif
 enum class BufferViewTarget : uint32_t
 {
     UNKNOWN              = 0,
@@ -368,11 +371,25 @@ inline void to_json(json& j, const Asset & p)
            };
 }
 
+
+
 inline void from_json(const json & j, Asset & B)
 {
     B.version   = _getValue(j,   "version",   std::string("") );
     B.generator = _getValue(j, "generator", std::string("") );
     B.copyright = _getValue(j, "copyright", std::string("") );
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2)    << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 class Accessor;
@@ -418,6 +435,30 @@ private:
 };
 
 
+inline void to_json(json& j, const Buffer & p)
+{
+   j = json{
+            {"byteLength", p.m_data.size()}
+           };
+}
+
+inline void from_json(const json & j, Buffer & B)
+{
+    B.byteLength     = _getValue(j, "byteLength"    , 0u);
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
+}
+
 class BufferView
 {
 public:
@@ -458,11 +499,20 @@ inline void to_json(json& j, const BufferView & p)
 {
    j = json{
             {"buffer"    , p.buffer},
-            {"target"    , static_cast<uint32_t>(p.target) },
+
             {"byteLength", p.byteLength},
-            {"byteOffset", p.byteOffset},
-            {"byteStride", p.byteStride}
+            {"byteOffset", p.byteOffset}
+
            };
+
+   if( p.byteStride)
+    j["byteStride"] = p.byteStride;
+
+   if( p.target != BufferViewTarget::UNKNOWN)
+   {
+       j["target"] = static_cast<uint32_t>(p.target);
+
+   }
 }
 
 inline void from_json(const json & j, BufferView & B)
@@ -472,6 +522,18 @@ inline void from_json(const json & j, BufferView & B)
     B.byteLength = _getValue(j, "byteLength", 0u);
     B.byteOffset = _getValue(j, "byteOffset", 0u);
     B.byteStride = _getValue(j, "byteStride", 0u);
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 
@@ -659,6 +721,18 @@ inline void from_json(const json & j, Camera & B)
         throw std::runtime_error("Camera type is not defined in the gltf asset");
     }
 
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
+
 }
 
 class Accessor
@@ -759,13 +833,13 @@ class Accessor
 inline void to_json(json& j, const Accessor & p)
 {
    j = json{
-            {"buffer"    , p.bufferView},
+            {"bufferView"    , p.bufferView},
             {"byteOffset", p.byteOffset},
             {"normalized", p.normalized},
             {"count"     , p.count},
             {"name"      , p.name},
             {"type"      , to_string(p.type)},
-            {"componentType"      , to_string(p.componentType)}
+            {"componentType"      , static_cast<uint32_t>(p.componentType)}
            };
 
    if(p.min.size())
@@ -794,6 +868,18 @@ inline void from_json(const json & j, Accessor & B)
     if( type == "MAT2")   B.type = AccessorType::MAT2;
     if( type == "MAT3")   B.type = AccessorType::MAT3;
     if( type == "MAT4")   B.type = AccessorType::MAT4;
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 
 }
 struct Transform
@@ -985,6 +1071,18 @@ inline void from_json(const json & j, Node & B)
     B.name           = _getValue(j, "name", std::string(""));
     B.weights        = _getValue(j, "weights", std::vector<float>());
     B.children       = _getValue(j, "children", std::vector<uint32_t>());
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 enum class PrimitiveAttribute
@@ -1212,10 +1310,12 @@ inline void to_json(json& j, const Primitive & p)
     if(p.has(PrimitiveAttribute::WEIGHTS_0 ) ) j["attributes"]["WEIGHTS_0" ] =  p.attributes.WEIGHTS_0;
 
     if(p.hasIndices())
-        j["indices" ] =  p.attributes.WEIGHTS_0;
+        j["indices" ] =  p.indices;
 
     if( p.hasMaterial() )
         j["material"] = p.material;
+
+    j["mode"] = static_cast<uint32_t>(p.mode);
 }
 
 inline void from_json(const json & j, Primitive & B)
@@ -1234,6 +1334,18 @@ inline void from_json(const json & j, Primitive & B)
 
     B.mode = static_cast<PrimitiveMode>( _getValue(j, "mode", 4) );
 
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
+
 }
 
 
@@ -1243,6 +1355,7 @@ public:
     std::vector<Primitive> primitives;
     std::vector<float>     weights;
     std::string name;
+
 
    // primitives	primitive [1-*]	An array of primitives, each defining geometry to be rendered with a material.	white_check_mark Yes
     //weights	number [1-*]	Array of weights to be applied to the Morph Targets.	No
@@ -1273,6 +1386,18 @@ inline void from_json(const json & j, Mesh & B)
     B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
 
     B.weights        = _getValue(j, "weights", std::vector<float>());
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 
@@ -1381,6 +1506,18 @@ inline void from_json(const json & j, Skin & B)
     B.joints              = _getValue(j, "joints", std::vector<uint32_t>());
     B.skeleton            = _getValue(j, "skeleton", -1);
     //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 
 }
 
@@ -1504,6 +1641,18 @@ inline void from_json(const json & j, AnimationSampler & B)
     if( interpolation == "STEP")         B.interpolation = AnimationInterpolation::STEP;
     if( interpolation == "LINEAR")       B.interpolation = AnimationInterpolation::LINEAR;
     if( interpolation == "CUBICSPLINE")  B.interpolation = AnimationInterpolation::CUBICSPLINE;
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 
@@ -1560,11 +1709,13 @@ public:
     {
         auto & S = samplers.emplace_back();
         S._parent = _parent;
+        return S;
     }
     AnimationChannel & newChannel()
     {
         auto & S = channels.emplace_back();
         S._parent = _parent;
+        return S;
     }
 
 
@@ -1586,6 +1737,18 @@ inline void from_json(const json & j, Animation & B)
     B.channels            = _getValue(j, "channels", std::vector<AnimationChannel>());
     B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
     B.name                = _getValue(j, "name", std::string(""));
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 
@@ -1652,6 +1815,18 @@ inline void from_json(const json & j, Image & B)
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
     B.bufferView  = _getValue(j, "bufferView", std::numeric_limits<uint32_t>::max());
     B.name        = _getValue(j, "name", std::string(""));
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 class Image;
@@ -1694,6 +1869,19 @@ inline void from_json(const json & j, Texture & B)
     B.source  = _getValue(j, "source",  std::numeric_limits<uint32_t>::max() );
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max() );
     B.name    = _getValue(j, "name", std::string(""));
+
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 enum class Filter : uint32_t
@@ -1744,6 +1932,18 @@ inline void from_json(const json & j, Sampler & B)
     B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS",  10497u) ); // magic values defined by spec
     B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT",  10497u) ); // magic values defined by spec
     B.name    = _getValue(j, "name", std::string(""));
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 class TextureInfo
@@ -1791,6 +1991,18 @@ inline void from_json(const json & j, TextureInfo & B)
     {
         B.strength = 1.0f;
     }
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 }
 
 
@@ -1901,7 +2113,9 @@ inline void to_json(json & j, Material const & B)
     j["emissiveFactor"] = B.emissiveFactor;
 
     j["alphaMode"]   = to_string(B.alphaMode);
-    j["alphaCutoff"] = B.alphaCutoff;
+    if( B.alphaMode == MaterialAlphaMode::MASK)
+        j["alphaCutoff"] = B.alphaCutoff;
+
     j["doubleSided"] = B.doubleSided;
 
 }
@@ -1937,6 +2151,18 @@ inline void from_json(const json & j, Material & B)
         B.alphaMode = MaterialAlphaMode::MASK;
     if( alphaMode == "BLEND")
         B.alphaMode = MaterialAlphaMode::BLEND;
+
+#if defined PRINT_CONV
+    std::cout << "=======================" << std::endl;
+    std::cout << "original: " << std::endl;
+    std::cout << j.dump(2) << std::endl;
+    std::cout << "=======================" << std::endl;
+    std::cout << "mine: " << std::endl;
+    json J;
+    to_json(J,B);
+    std::cout << J.dump(2);
+    std::cout << "=======================" << std::endl;
+#endif
 
 }
 
@@ -2104,6 +2330,13 @@ public:
         jsonChunk.chunkData.push_back(0);
         _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
         auto & J = _json;
+
+
+        std::cout << "=====================================================" << std::endl;;
+        std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
+        std::cout << "=====================================================" << std::endl;;
+        std::cout << _json.dump(4);
+        std::cout << "=====================================================" << std::endl << std::endl;
 
         if(J.count("asset") == 1)
         {
@@ -2280,18 +2513,45 @@ public:
         auto & J = root;
 
         J["asset"]       =  asset;
-        J["accessors"]   =  accessors;
-        J["bufferViews"] =  bufferViews;
-        J["nodes"]       =  nodes;
-        J["meshes"]      =  meshes;
-        J["scenes"]      =  scenes;
-        J["skins"]       =  skins;
-        J["animations"]  =  animations;
-        J["images"]      =  images;
-        J["textures"]    =  textures;
-        J["samplers"]    =  samplers;
-        J["cameras"]     =  cameras;
-        J["materials"]   =  materials;
+
+        if( accessors.size() )
+            J["accessors"]   =  accessors;
+
+        if( buffers.size() )
+            J["buffers"] =  buffers;
+
+        if( bufferViews.size() )
+            J["bufferViews"] =  bufferViews;
+
+        if(nodes.size())
+            J["nodes"]       =  nodes;
+
+        if(meshes.size())
+            J["meshes"]      =  meshes;
+
+        if( scenes.size())
+            J["scenes"]      =  scenes;
+
+        if( skins.size())
+            J["skins"]       =  skins;
+
+        if( animations.size() )
+            J["animations"]  =  animations;
+
+        if( images.size() )
+            J["images"]      =  images;
+
+        if(textures.size())
+            J["textures"]    =  textures;
+
+        if( samplers.size() )
+            J["samplers"]    =  samplers;
+
+        if( cameras.size() )
+            J["cameras"]     =  cameras;
+
+        if( materials.size() )
+            J["materials"]   =  materials;
 
         return root;
     }
@@ -2310,8 +2570,18 @@ public:
 
         auto j = generateJSON();
 
-        std::string j_str = j.dump(4);
-        std::cout << j_str << std::endl;
+        std::string j_str = j.dump();
+        std::string j_str1 = j.dump(4);
+        std::cout << j_str1 << std::endl;
+
+        if( j_str.size() %4 != 0)
+        {
+           // std::cout << "json string is not aligned to a 4 byte boundary: size: " << j_str.size() << std::endl;
+            j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
+           // std::cout << "Resizing to: " << j_str.size() << std::endl;
+            assert( j_str.size() % 4 == 0);
+        }
+
         length += 8;
         length += j_str.size();
 
@@ -2329,7 +2599,8 @@ public:
             uint32_t chunkType   = 0x4E4F534A; // json
 
             out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
-            out.write( reinterpret_cast<char*>(&chunkType ) , sizeof(chunkType));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+
             out.write( j_str.data(), j_str.size());
         }
 
@@ -2370,6 +2641,8 @@ public:
      */
     static void _writeBuffer(const void * data, size_t bytes, std::ostream &out )
     {
+        TRACE("Writing Buffer: {}", bytes );
+
         uint32_t chunkLength = static_cast<uint32_t>(bytes);
         uint32_t chunkType   = 0x004E4942;
 

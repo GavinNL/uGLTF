@@ -414,7 +414,7 @@ SCENARIO( "Loading " )
                         auto const & Smc = Sm;
 
                         auto & timeAccc = Smc.getInputAccessor();
-                        auto timec      = Smc.getInputSpan();
+//                        auto timec      = Smc.getInputSpan();
 
 
 
