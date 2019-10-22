@@ -13,6 +13,12 @@
 
 #include <spdlog/spdlog.h>
 
+int main(int argc, char **argv)
+{
+    assert( argv != nullptr);
+    return argc;
+}
+#if 0
 void printAttributes(uGLTF::Primitive const & P)
 {
     uGLTF::PrimitiveAttribute attr[] =
@@ -82,11 +88,11 @@ int copyAnimations2(uGLTF::GLTFModel const & src, uGLTF::GLTFModel & dst )
             uGLTF::AnimationSampler & newS = newA.newSampler();
 
             // get the accessor for the input value
-            auto & input  = s.getInputAccessor();
-            auto & output = s.getOutputAccessor();
+          //  auto & input  = s.getInputAccessor();
+          //  auto & output = s.getOutputAccessor();
 
-            newS.input  = newBuffer.createNewAccessor(input);
-            newS.output = newBuffer.createNewAccessor(output);
+            //newS.input  = newBuffer.createNewAccessor(input);
+            //newS.output = newBuffer.createNewAccessor(output);
             newS.interpolation = s.interpolation;
 
         }
@@ -201,6 +207,7 @@ void makeDouble(uGLTF::GLTFModel & M, std::string out)
 
 }
 
+
 int main(int argc, char **argv)
 {
 
@@ -225,3 +232,4 @@ int main(int argc, char **argv)
     return  1;
 }
 
+#endif

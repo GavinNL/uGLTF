@@ -13,8 +13,12 @@
     #define UGLTF_NAMESPACE uGLTF
 #endif
 
+#if 1
+#define TRACE(...)
+#else
 #include <spdlog/spdlog.h>
 #define TRACE(...) spdlog::info(__VA_ARGS__)
+#endif
 
 
 /*
@@ -403,36 +407,20 @@ class Buffer
         uint32_t             byteLength;
         std::vector<uint8_t> m_data;
 
-
         /**
-         * @brief createNewAccessor
-         * @param count
-         * @param type
-         * @param comp
+         * @brief createNewBufferView
+         * @param bytes
+         * @param alignment
          * @return
          *
-         * Create a new accessor within this buffer. This will also create a
-         * unique bufferView for the accessor. The buffer's vector data
-         * will be expanded
-         *
-         * Retuns the accessor index
+         * Create a new bufferView from this buffer. The data will be
+         * appended to the end of the buffer.
          */
-        size_t createNewAccessor(size_t count, AccessorType type, ComponentType comp);
-
-        /**
-         * @brief createNewAccessor
-         * @param A
-         * @return
-         *
-         * Create a new accessor and copy the data from A
-         *
-         * Retuns the accessor index
-         */
-        size_t createNewAccessor(Accessor const & A);
+        size_t createNewBufferView(size_t bytes, size_t alignment=1);
 
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -490,8 +478,22 @@ public:
 
     void const* data() const;
 
+
+    /**
+     * @brief createNewAccessor
+     * @param byteOffset
+     * @param count
+     * @param type
+     * @param comp
+     * @return
+     *
+     * Create a new accessor in this buffer view a the specified byteOffset. Returns the accessor index
+     * which must be looked up in the MODEL.accessors array.
+     */
+    size_t createNewAccessor(size_t byteOffset, size_t count, AccessorType type, ComponentType comp);
+
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
     friend class Buffer;
 
@@ -794,56 +796,152 @@ class Accessor
     }\
     for(size_t i=0;i< N;i++)\
     {\
-        min.push_back( l_min[i] );\
-        max.push_back( l_max[i] );\
+        min.push_back( static_cast<T>(l_min[i]) );\
+        max.push_back( static_cast<T>(l_max[i]) );\
     }\
     break;\
 }\
 
-#define DOMINMAX_TYPE(T) \
-switch (type)\
-{\
-    case AccessorType::UNKNOWN: break;\
-    case AccessorType::SCALAR:\
-        DOMINMAX(std::int8_t,1)\
-    case AccessorType::VEC2:\
-        DOMINMAX(std::int8_t,2)\
-    case AccessorType::VEC3:\
-        DOMINMAX(std::int8_t,3)\
-    case AccessorType::VEC4:\
-        DOMINMAX(std::int8_t,4)\
-    case AccessorType::MAT2: break;\
-    case AccessorType::MAT3: break;\
-    case AccessorType::MAT4: break;\
-}\
 
             min.clear();
             max.clear();
             switch (componentType)
             {
                 case ComponentType::BYTE:
-                    DOMINMAX_TYPE(std::int8_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::int8_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::int8_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::int8_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::int8_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::UNSIGNED_BYTE :
-                    DOMINMAX_TYPE(std::uint8_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::uint8_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::uint8_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::uint8_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::uint8_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::SHORT         :
-                    DOMINMAX_TYPE(std::int16_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::int16_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::int16_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::int16_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::int16_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::UNSIGNED_SHORT:
-                    DOMINMAX_TYPE(std::uint16_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::uint16_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::uint16_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::uint16_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::uint16_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::INT  :
-                    DOMINMAX_TYPE(std::int32_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::int32_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::int32_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::int32_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::int32_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::UNSIGNED_INT  :
-                    DOMINMAX_TYPE(std::uint32_t)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(std::uint32_t,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(std::uint32_t,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(std::uint32_t,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(std::uint32_t,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::FLOAT         :
-                    DOMINMAX_TYPE(float)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(float,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(float,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(float,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(float,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
                 case ComponentType::DOUBLE        :
-                    DOMINMAX_TYPE(double)
+                    switch (type)
+                    {
+                        case AccessorType::UNKNOWN: break;
+                        case AccessorType::SCALAR:
+                            DOMINMAX(double,1)
+                        case AccessorType::VEC2:
+                            DOMINMAX(double,2)
+                        case AccessorType::VEC3:
+                            DOMINMAX(double,3)
+                        case AccessorType::VEC4:
+                            DOMINMAX(double,4)
+                        case AccessorType::MAT2: break;
+                        case AccessorType::MAT3: break;
+                        case AccessorType::MAT4: break;
+                    }
                     break;
 
             }
@@ -904,7 +1002,7 @@ switch (type)\
         }
 
     private:
-        GLTFModel * _parent;
+        GLTFModel * _parent = nullptr;
         friend class GLTFModel;
         friend class Buffer;
 
@@ -1112,7 +1210,7 @@ public:
 private:
     bool _hasMatrix=false;
     bool _hasTransforms=false;
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend void from_json(const json & j, Node & B);
     friend class GLTFModel;
 };
@@ -1396,7 +1494,7 @@ public:
         return A.getSpan<T>();
     }
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -1466,7 +1564,7 @@ public:
 //    extensions	object	Dictionary object with extension-specific objects.	No
 //    extras	any	Application-specific data.	No
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -1525,7 +1623,7 @@ public:
     Node* operator[](size_t i);
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -1583,7 +1681,7 @@ public:
     }
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -1722,7 +1820,7 @@ public:
     Accessor const & getInputAccessor() const ;
     Accessor const & getOutputAccessor() const;
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
     friend class Animation;
 };
@@ -1772,7 +1870,7 @@ public:
     } target;
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
     friend class Animation;
 };
@@ -1823,7 +1921,7 @@ public:
 
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 
 };
@@ -1892,7 +1990,7 @@ public:
     BufferView       & getBufferView();
     BufferView const & getBufferView() const;
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 
 };
@@ -1950,7 +2048,7 @@ public:
     Image const & getImage() const;
 
 private:
-    GLTFModel * _parent;
+    GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -2113,7 +2211,7 @@ enum class MaterialAlphaMode
     BLEND
 };
 
-std::string to_string(MaterialAlphaMode d)
+inline std::string to_string(MaterialAlphaMode d)
 {
     switch(d)
     {
@@ -2181,7 +2279,7 @@ public:
         return static_cast<bool>(emissiveTexture);
     }
 private:
-  //  GLTFModel * _parent;
+  //  GLTFModel * _parent = nullptr;
     friend class GLTFModel;
 };
 
@@ -2432,11 +2530,11 @@ public:
         auto & J = _json;
 
 
-        std::cout << "=====================================================" << std::endl;;
-        std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
-        std::cout << "=====================================================" << std::endl;;
-        std::cout << _json.dump(4);
-        std::cout << "=====================================================" << std::endl << std::endl;
+        //std::cout << "=====================================================" << std::endl;;
+        //std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
+        //std::cout << "=====================================================" << std::endl;;
+        //std::cout << _json.dump(4);
+        //std::cout << "=====================================================" << std::endl << std::endl;
 
         if(J.count("asset") == 1)
         {
@@ -2594,6 +2692,7 @@ public:
                 materials.emplace_back( std::move(B) );
             }
         }
+        _setParents(this);
         return true;
     }
 
@@ -2671,8 +2770,8 @@ public:
         auto j = generateJSON();
 
         std::string j_str = j.dump();
-        std::string j_str1 = j.dump(4);
-        std::cout << j_str1 << std::endl;
+       // std::string j_str1 = j.dump(4);
+    //    std::cout << j_str1 << std::endl;
 
         if( j_str.size() %4 != 0)
         {
@@ -2763,6 +2862,13 @@ public:
     Animation& newAnimation()
     {
         auto & b = animations.emplace_back();
+        b._parent = this;
+        return b;
+    }
+
+    Accessor& newAccessor()
+    {
+        auto & b = accessors.emplace_back();
         b._parent = this;
         return b;
     }
@@ -3127,11 +3233,16 @@ inline Accessor const & Skin::getInverseBindMatricesAccessor() const
     return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
 }
 
-void Accessor::copyDataFrom(Accessor const & A)
+inline void Accessor::copyDataFrom(Accessor const & A)
 {
-    uint8_t * dst       = static_cast<uint8_t*>( getBufferView().data() );
+    if( componentType != A.componentType )
+        throw std::runtime_error( std::string("Component types are not the same: " + to_string(componentType) + " != " + to_string(A.componentType)) );
 
-    uint8_t const * src = static_cast<uint8_t const*>( A.getBufferView().data() ) + A.byteOffset;
+    if( type != A.type )
+        throw std::runtime_error( std::string("Accessor types are not the same: " + to_string(type) + " != " + to_string(A.type)) );
+
+    if( count < A.count)
+        throw std::runtime_error( std::string("Not enough room in source accessor to copy data. Requires: " + std::to_string(A.count) + ", available: " + std::to_string(count)) );
 
     size_t srcStride=0;
     // byte stride has not been set by the bufferView, so
@@ -3148,69 +3259,101 @@ void Accessor::copyDataFrom(Accessor const & A)
         }
     }
 
-    auto totalBytesForData = A.accessorSize() * A.count;
-    if( getBufferView().byteLength < totalBytesForData   )
-    {
-        throw std::runtime_error("This destination Accessor does not have enough space for the data");
-    }
+    //auto totalBytesForData = A.accessorSize() * A.count;
+    //if( getBufferView().byteLength < totalBytesForData   )
+    //{
+    //    throw std::runtime_error("This destination Accessor does not have enough space for the data");
+    //}
 
     auto count = A.count;
+
     auto elmentSize = A.accessorSize();
-    auto dstStride = elmentSize;
+
+    // get the byte offset;
+    uint8_t * dst       = static_cast<uint8_t*>( getBufferView().data() ) + byteOffset;
+    uint8_t const * src = static_cast<uint8_t const*>( A.getBufferView().data() ) + A.byteOffset;
+    auto dstStride      = elmentSize;
 
     while(count--)
     {
+//        TRACE("Copying src[{}] to dst[{}]", std::distance(srcStart,src), std::distance(dstStart,dst));
         std::memcpy( dst, src, elmentSize);
 
         dst += dstStride;
         src += srcStride;
+
     }
 
 }
 
-inline size_t Buffer::createNewAccessor(Accessor const & A)
+// create a new buffer view by expanding the current
+// buffer and placing the bytes at the end.
+inline size_t Buffer::createNewBufferView(size_t bytes, size_t alignment)
 {
-    auto i = createNewAccessor(A.count, A.type, A.componentType);
+    _parent->bufferViews.push_back(BufferView());//.emplace_back();
+    BufferView & Bv = _parent->bufferViews.back();
+    Bv._parent = _parent;
 
-    auto & B = _parent->accessors[i];
-    B.min = A.min;
-    B.max = A.max;
-    B.normalized = A.normalized;
-    B.name = A.name;
+    size_t i=0;
+    for(auto & buffer : _parent->buffers)
+    {
+        if(&buffer == this)
+        {
+            break;
+        }
+        ++i;
+    }
 
-    B.copyDataFrom(A);
+    if( alignment != 0 )
+    {
+        if( m_data.size() % alignment != 0)
+        {
+            m_data.insert(m_data.end(), alignment - m_data.size()%alignment, 0);
+        }
+    }
 
-    return i;
+    Bv.buffer     = i;
+    Bv.byteLength = bytes;
+    Bv.byteOffset = m_data.size();
+    Bv.byteStride = 0;
+
+    // expand the buffer.
+    m_data.insert( m_data.end(), bytes, 0);
+
+    return _parent->bufferViews.size()-1;
 }
 
-inline size_t Buffer::createNewAccessor(size_t count, AccessorType type, ComponentType comp)
+inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, AccessorType type, ComponentType comp)
 {
-    // reserve data for the new accessor
-    auto offset = m_data.size();
+    Accessor _temp;
+    _temp.type = type;
+    _temp.componentType = comp;
+    _temp.count = count;
+    _temp.byteOffset = byteOffset; // byteOffset from start of view.
 
 
-    auto & newBufferView = _parent->bufferViews.emplace_back();
-    auto & newAccessor   = _parent->accessors.emplace_back();
+    // calculate the total number of bytes required
+    auto bytes = _temp.componentSize() * count;
 
-    newBufferView._parent = _parent;
-    newAccessor._parent = _parent;
+    if( byteOffset+bytes > byteLength)
+    {
+        throw std::runtime_error("Not enough room in the buffer view to allocate this accessor. Required " + std::to_string(byteOffset+bytes));
+        exit(1);
+    }
 
-    newAccessor.bufferView = _parent->bufferViews.size()-1;
-    newAccessor.byteOffset=0; // byte offset from start of bufferview?
-    newAccessor.count=count;
-    newAccessor.componentType = comp;
-    newAccessor.type = type;
-    //newAccessor.normalized;
+    uint32_t i=0;
+    for(auto & v : _parent->bufferViews)
+    {
+        if( &v == this) break;
+        ++i;
+    }
 
-    auto bytes = newAccessor.accessorSize() * count;
-
-    newBufferView.buffer = _parent->buffers.size()-1;
-    newBufferView.byteLength = bytes;
-    newBufferView.byteOffset = offset;
-    newBufferView.byteStride = 0;
-
-    m_data.insert( m_data.end(), bytes, 0);
-    byteLength += bytes;
+    auto & aa = _parent->newAccessor();
+    aa.type = type;
+    aa.componentType = comp;
+    aa.count = count;
+    aa.byteOffset = byteOffset; // byteOffset from start of view.
+    aa.bufferView = i;
 
     return _parent->accessors.size()-1;
 }

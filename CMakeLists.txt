@@ -191,6 +191,15 @@ add_executable(
 target_link_libraries(readWrite ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
+
+
+add_executable(
+    extractAnimations
+    examples/extractAnimations.cpp
+)
+target_link_libraries(extractAnimations ${PROJECT_NAME}::${PROJECT_NAME})
+
+
 #################################################################################################
 #
 #################################################################################################

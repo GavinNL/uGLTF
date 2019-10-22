@@ -467,6 +467,173 @@ SCENARIO( "Loading " )
     }
 }
 
+SCENARIO("Creating new BufferViews")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1020);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1020);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+                WHEN("We create another buffer view")
+                {
+                    auto viewIndex2 = buff.createNewBufferView(1024, 8);
+
+                    auto & view2 = M.bufferViews[viewIndex2];
+
+                    REQUIRE( view2.buffer == 0);
+                    REQUIRE( view2.target == uGLTF::BufferViewTarget::UNKNOWN);
+                    REQUIRE( view2.byteLength == 1024);
+                    REQUIRE( view2.byteOffset == 1024); // because we set the alignment
+                    REQUIRE( view2.byteStride == 0);
+                }
+
+            }
+        }
+    }
+}
+
+SCENARIO("Creating new Accessors from bufferViews")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1000);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1000);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+
+                THEN("We can create new accessors")
+                {
+                    auto aIndex = view.createNewAccessor(0, 10, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::FLOAT);
+
+                    auto & a = M.accessors[aIndex];
+
+                    REQUIRE( a.count          == 10);
+                    REQUIRE( a.type           == uGLTF::AccessorType::VEC2);
+                    REQUIRE( a.componentType  == uGLTF::ComponentType::FLOAT);
+                    REQUIRE( a.bufferView     == 0);
+
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Copying data from one accessor to another")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1000);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1000);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+
+                THEN("We can create new accessors")
+                {
+                    auto aIndex = view.createNewAccessor(0, 2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
+
+                    auto & a = M.accessors[aIndex];
+
+                    REQUIRE( a.count          == 2);
+                    REQUIRE( a.type           == uGLTF::AccessorType::VEC2);
+                    REQUIRE( a.componentType  == uGLTF::ComponentType::UNSIGNED_INT);
+                    REQUIRE( a.bufferView     == 0);
+
+                    auto S = a.getSpan< std::array<uint32_t,2> >();
+                    S[0][0] = 1;
+                    S[0][1] = 2;
+                    S[1][0] = 3;
+                    S[1][1] = 4;
+
+
+                    THEN("We create a new accessor with different strides")
+                    {
+                        auto bIndex = view.createNewAccessor(16, 2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
+                        auto & b = M.accessors[bIndex];
+
+                        b.copyDataFrom( M.accessors[aIndex] );
+
+                        THEN("The values are the same")
+                        {
+                            auto T = b.getSpan< std::array<uint32_t,2> >();
+                            REQUIRE( T[0][0] == 1 );
+                            REQUIRE( T[0][1] == 2 );
+                            REQUIRE( T[1][0] == 3 );
+                            REQUIRE( T[1][1] == 4 );
+
+                            THEN("We can calculatte the min and max")
+                            {
+                                b.calculateMinMax();
+
+                                REQUIRE( b.min.size() == 2);
+                                REQUIRE( b.max.size() == 2);
+
+                                REQUIRE( b.min[0] == Approx(1) );
+                                REQUIRE( b.min[1] == Approx(2) );
+                                REQUIRE( b.max[0] == Approx(3) );
+                                REQUIRE( b.max[1] == Approx(4) );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+#if 0
+
 SCENARIO("Creating new Accessors")
 {
     GIVEN("Given a Model and a single buffer")
@@ -525,3 +692,5 @@ SCENARIO("Creating new Accessors")
 
     }
 }
+
+#endif

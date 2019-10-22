@@ -43,200 +43,31 @@ void printAttributes(uGLTF::Primitive const & P)
     std::cout << INDENT INDENT "Attributes: " << out << std::endl;
 }
 
-std::vector<uint8_t> toRawData(uGLTF::Accessor const & A)
-{
-    std::vector<uint8_t> d;
-
-    auto srcData = static_cast<uint8_t const*>( A.getBufferView().data() );
-    auto stride  = A.getBufferView().byteStride==0 ? A.componentSize() : A.getBufferView().byteStride;
-
-    //auto compSize = A.componentSize();
-    auto accessorSize = A.accessorSize();
-    auto count = A.count;
-
-    d.resize( count * accessorSize );
-
-    spdlog::info("Copying {} items of size {} ", count, accessorSize);
-
-    auto dstData = d.data();
-    while(count--)
-    {
-        std::memcpy( dstData, srcData, accessorSize);
-
-        srcData += stride;
-        dstData += accessorSize;
-    }
-    return d;
-}
-
-int copyAnimations2(uGLTF::GLTFModel const & src, uGLTF::GLTFModel & dst )
-{
-    for(auto & a : src.animations)
-    {
-        uGLTF::Buffer & newBuffer = dst.newBuffer();
-
-        uGLTF::Animation & newA = dst.newAnimation();
-
-        for(auto & s : a.samplers)
-        {
-            uGLTF::AnimationSampler & newS = newA.newSampler();
-
-            // get the accessor for the input value
-            auto & input  = s.getInputAccessor();
-            auto & output = s.getOutputAccessor();
-
-            newS.input  = newBuffer.createNewAccessor(input);
-            newS.output = newBuffer.createNewAccessor(output);
-            newS.interpolation = s.interpolation;
-        }
-
-        for(auto & c : a.channels)
-        {
-            newA.channels.push_back(c);
-        }
-
-    }
-
-    dst._setParents(&dst);
-    return 0;
-}
-
-
-int copyAnimations(uGLTF::GLTFModel const & src, uGLTF::GLTFModel & dst )
-{
-
-    std::vector< uGLTF::Accessor >   & newAccessors   = dst.accessors;
-    std::vector< uGLTF::BufferView > & newBufferViews = dst.bufferViews;
-    std::vector< uGLTF::Buffer  >    & newBuffers     = dst.buffers;
-
-    for(auto & a : src.animations)
-    {
-        uGLTF::Animation & newA = dst.animations.emplace_back();
-
-        uGLTF::Buffer & newBuffer = newBuffers.emplace_back();
-
-        for(auto & s : a.samplers)
-        {
-            uGLTF::AnimationSampler & newS = newA.samplers.emplace_back();
-
-            {
-                // get the accessor for the input value
-                auto input  = s.getInputAccessor();
-                // and make a copy of the data
-                auto rawData = toRawData(input);
-
-                // merge the hew data into the buffer
-                newBuffer.m_data.insert( newBuffer.m_data.end(), rawData.begin(), rawData.end() );
-
-                uGLTF::BufferView & newBufferView    = newBufferViews.emplace_back();
-
-                newBufferView.buffer     = newBuffers.size()-1;
-                newBufferView.byteLength = rawData.size();
-                newBufferView.byteOffset = newBuffer.m_data.size();
-                newBufferView.byteStride = 0;
-                newBufferView.target     = uGLTF::BufferViewTarget::UNKNOWN; // unknown since this isn't actually drawn
-
-
-                uGLTF::Accessor   & newInputAccessor = newAccessors.emplace_back();
-                newInputAccessor = input;
-
-                newInputAccessor.bufferView = newBufferViews.size()-1;
-                newInputAccessor.byteOffset = 0; // we will have a unique buffer view for each
-
-                newS.input = newAccessors.size()-1;
-            }
-
-            {
-                // get the accessor for the input value
-                auto input  = s.getOutputAccessor();
-                // and make a copy of the data
-                auto rawData = toRawData(input);
-
-                // merge the hew data into the buffer
-                newBuffer.m_data.insert( newBuffer.m_data.end(), rawData.begin(), rawData.end() );
-
-                uGLTF::BufferView & newBufferView    = newBufferViews.emplace_back();
-
-                newBufferView.buffer     = newBuffers.size()-1;
-                newBufferView.byteLength = rawData.size();
-                newBufferView.byteOffset = newBuffer.m_data.size();
-                newBufferView.byteStride = 0;
-                newBufferView.target     = uGLTF::BufferViewTarget::UNKNOWN; // unknown since this isn't actually drawn
-
-
-                uGLTF::Accessor   & newInputAccessor = newAccessors.emplace_back();
-                newInputAccessor = input;
-
-                newInputAccessor.bufferView = newBufferViews.size()-1;
-                newInputAccessor.byteOffset = 0; // we will have a unique buffer view for each
-
-                newS.output = newAccessors.size()-1;
-            }
-
-        }
-
-        for(auto & c : a.channels)
-        {
-            newA.channels.push_back(c);
-        }
-
-
-        newBuffer.byteLength = newBuffer.m_data.size();
-
-    }
-
-    dst._setParents(&dst);
-    return 0;
-}
-
-
-void makeDouble(uGLTF::GLTFModel & M, std::string out)
-{
-    auto m2 = M;
-    copyAnimations2(M, m2);
-
-    std::ofstream fout(out);
-    m2.writeGLB( fout);
-
-}
-
 int main(int argc, char **argv)
 {
-//    uGLTF::GLTFModel M;
-//    uGLTF::GLTFModel M2;
-
-//    std::ifstream in("/home/globo/Other_Projects/models/test_blend.glb");
-
-//    M.load(in);
-
-//    copyAnimations(M, M2);
-//    return 0;
     if( argc >= 2)
     {
         uGLTF::GLTFModel M_in;
 
-        //std::ifstream in( argv[1] );
-        std::ifstream in("/home/globo/Other_Projects/uGLTF/build/test/BoxAnimated.glb");
+        std::ifstream in( argv[1] );
 
         M_in.load(in);
-
-        uGLTF::GLTFModel M = M_in;
-        copyAnimations2(M_in, M);
-
-        //makeDouble(M, "test.glb");
-        //return 0;
+        auto & M = M_in;
 
         std::cout << "Asset: " << argv[1] << std::endl;
 
         std::cout << "Nodes: " << M.nodes.size() << std::endl;
 
 
-        std::cout << "Root Nodes: " ;
-        for(auto & r : M.scenes[0].nodes)
+        if( M.scenes.size())
         {
-            std::cout << " " << r;
+            std::cout << "Root Nodes: " ;
+            for(auto & r : M.scenes[0].nodes)
+            {
+                std::cout << " " << r;
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
         size_t i=0;
         for(auto & m : M.nodes)
         {
