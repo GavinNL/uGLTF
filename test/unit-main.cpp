@@ -226,7 +226,7 @@ SCENARIO( "Extracting Buffers" )
 }
 
 
-SCENARIO( "Loading " )
+SCENARIO( "Loading GLB files" )
 {
     std::vector< std::string > models = {"BoomBox.glb", "BrainStem.glb", "CesiumMan.glb"};
 
@@ -290,41 +290,9 @@ SCENARIO( "Loading " )
         {
             for(auto & I : M.images)
             {
-                REQUIRE( I.bufferView != std::numeric_limits<uint32_t>::max() );
-
-                //("We can get the bufferView")
-                {
-                    auto & Bv = I.getBufferView();
-
-                    REQUIRE( Bv.buffer != -1 );
-
-                    //("We can get the buffer")
-                    {
-                        auto & B = Bv.getBuffer();
-
-                        REQUIRE(B.byteLength != 0);
-
-                        //("We can get the span of the image")
-
-                            auto img = I.getSpan();
-
-                            REQUIRE( img.size() > 0 );
-                            REQUIRE( img.stride() == 1);
-
-                            auto const & cI = I;
-
-                            auto img_c = cI.getSpan();
-
-                            REQUIRE( img_c.size() > 0 );
-                            REQUIRE( img_c.stride() == 1);
-
-                    }
-
-
-                }
-
-
-
+                auto img_c = I.getSpan();
+                REQUIRE( img_c.size() > 0 );
+                REQUIRE( img_c.stride() == 1);
             }
 
           //  REQUIRE(img.size()==40);

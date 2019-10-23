@@ -604,14 +604,14 @@ inline void to_json(json& j, const Buffer & p)
 
 inline void from_json(const json & j, Buffer & B)
 {
-    std::string uri = _getValue(j, "uri"    , std::string(""));
+    B.uri = _getValue(j, "uri"    , std::string(""));
 
     B.byteLength     = _getValue(j, "byteLength"    , 0u);
 
-    if( uri != "" )
+    if( B.uri != "" )
     {
-        auto comma = std::find( uri.begin(), uri.end(), ',');
-        if( comma == uri.end() ) // is a file
+        auto comma = std::find( B.uri.begin(), B.uri.end(), ',');
+        if( comma == B.uri.end() ) // is a file
         {
             // uri is a file
         }
@@ -619,8 +619,8 @@ inline void from_json(const json & j, Buffer & B)
         {
             TRACE("Decoding Base64 buffer");
             // uri is base64 encoded
-            auto i = std::distance(uri.begin(), comma);
-            B.m_data = _fromBase64( &comma[i], &uri.back() );
+            auto i = std::distance(B.uri.begin(), comma);
+            B.m_data = _fromBase64( &comma[i], &B.uri.back() );
         }
     }
 #if defined PRINT_CONV
@@ -661,8 +661,13 @@ public:
     template<typename T>
     aspan<typename std::add_const<T>::type > getSpan() const;
 
+    /**
+     * @brief data
+     * @return
+     *
+     * Returns a pointer to the BufferView's data.
+     */
     void* data();
-
     void const* data() const;
 
 
@@ -2151,6 +2156,9 @@ public:
     std::string mimeType;
     std::string name;
 
+    std::vector<uint8_t> m_imageData; // if bufferView is not given
+
+
     /**
      * @brief getSpan
      * @return
@@ -2174,8 +2182,8 @@ public:
 
     aspan<uint8_t> data();
 
-    BufferView       & getBufferView();
-    BufferView const & getBufferView() const;
+    //BufferView       & getBufferView();
+    //BufferView const & getBufferView() const;
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2199,10 +2207,27 @@ inline void to_json(json& j, const Image & p)
 
 inline void from_json(const json & j, Image & B)
 {
-    B.uri         = _getValue(j, "uri", std::string(""));
+    std::string uri  = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
     B.bufferView  = _getValue(j, "bufferView", std::numeric_limits<uint32_t>::max());
     B.name        = _getValue(j, "name", std::string(""));
+
+    if( uri != "" )
+    {
+        auto comma = std::find( uri.begin(), uri.end(), ',');
+        if( comma == uri.end() ) // is a file
+        {
+            // uri is a file
+            B.uri = uri;
+        }
+        else
+        {
+            TRACE("Decoding Base64 buffer");
+            // uri is base64 encoded
+            auto i = std::distance(uri.begin(), comma);
+            B.m_imageData = _fromBase64( &comma[i], &uri.back() );
+        }
+    }
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
@@ -3397,23 +3422,43 @@ inline aspan< typename std::add_const<T>::type > BufferView::getSpan() const
 
 inline aspan<uint8_t> Image::getSpan()
 {
-    return getBufferView().getSpan<uint8_t>();
+    if( bufferView != std::numeric_limits<uint32_t>::max() )
+    {
+        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+
+        return Bv.getSpan<uint8_t>();
+    }
+
+    if( m_imageData.size() > 0)
+        return aspan<uint8_t>( m_imageData.data(), m_imageData.size(), 1);
+
+    throw std::runtime_error("Image Data has not been loaded yet.");
 }
 
 inline aspan<const uint8_t> Image::getSpan() const
 {
-    return getBufferView().getSpan<const uint8_t>();
+    if( bufferView != std::numeric_limits<uint32_t>::max() )
+    {
+        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+
+        return Bv.getSpan<uint8_t const>();
+    }
+
+    if( m_imageData.size() > 0)
+        return aspan<uint8_t const>( m_imageData.data(), m_imageData.size(), 1);
+
+    throw std::runtime_error("Image Data has not been loaded yet.");
 }
 
-inline BufferView       & Image::getBufferView()
-{
-    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-}
-
-inline BufferView const & Image::getBufferView() const
-{
-    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-}
+// inline BufferView       & Image::getBufferView()
+// {
+//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+// }
+//
+// inline BufferView const & Image::getBufferView() const
+// {
+//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+// }
 
 
 inline Mesh const   & Node::getMesh() const
