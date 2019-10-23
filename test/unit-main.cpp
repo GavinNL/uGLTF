@@ -4,6 +4,26 @@
 #include <fstream>
 #include <set>
 
+#include <regex>
+
+SCENARIO("uGLTF::uriData")
+{
+    std::string SRC2="data:image/gif;base64,R0lGODdhMAAwAPAAAAAAAP///ywAAAAAMAAw"
+       "AAAC8IyPqcvt3wCcDkiLc7C0qwyGHhSWpjQu5yqmCYsapyuvUUlvONmOZtfzgFz"
+       "ByTB10QgxOR0TqBQejhRNzOfkVJ+5YiUqrXF5Y5lKh/DeuNcP5yLWGsEbtLiOSp"
+       "a/TPg7JpJHxyendzWTBfX0cxOnKPjgBzi4diinWGdkF8kjdfnycQZXZeYGejmJl"
+       "ZeGl9i2icVqaNVailT6F5iJ90m6mvuTS4OK05M0vDk0Q4XUtwvKOzrcd3iq9uis"
+       "F81M1OIcR7lEewwcLp7tuNNkM3uNna3F2JQFo97Vriy/Xl4/f1cf5VWzXyym7PH"
+       "hhx4dbgYKAAA7";
+
+    uGLTF::uriData v;
+    v.uri = SRC2;
+
+    REQUIRE( v.decode() );
+    //REQUIRE( v.media_type == "image/gif");
+    //REQUIRE( v.parameter  == ";base64");
+    REQUIRE( v.byteLength() > 0);
+}
 
 SCENARIO("Test Base64 decode")
 {
@@ -19,6 +39,7 @@ SCENARIO("Test Base64 decode")
         REQUIRE( r == *x++);
     }
 }
+
 
 
 SCENARIO("Aspan")
@@ -765,3 +786,22 @@ SCENARIO("Creating new Accessors")
 
 #endif
 
+
+
+SCENARIO("Loading BoxAnimated.gltf")
+{
+    uGLTF::GLTFModel M;
+    std::ifstream in("BoxAnimated.gltf");
+    M.load(in);
+}
+
+
+SCENARIO("Loading BoxTextured.gltf")
+{
+    uGLTF::GLTFModel M;
+    std::ifstream in("BoxTextured.gltf");
+    REQUIRE( M.load(in) );
+
+    REQUIRE( M.buffers.size() == 1);
+    REQUIRE( M.buffers[0].byteLength == 840);
+}

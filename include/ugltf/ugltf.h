@@ -13,7 +13,7 @@
     #define UGLTF_NAMESPACE uGLTF
 #endif
 
-#if 1
+#if 0
 #define TRACE(...)
 #else
 #include <spdlog/spdlog.h>
@@ -407,7 +407,7 @@ struct uriData
     std::string fileName() const
     {
         assert(uri.size() > 0);
-        auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
+        //auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
 
         auto comma = std::find( &uri[0], &uri[ uri.size() ], ',');
         if( comma != &uri[ uri.size() ] )
@@ -477,7 +477,7 @@ struct uriData
 protected:
     static std::vector<uint8_t> _decode(char const * begin, char const  * end)
     {
-        auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
+        //auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
 
         auto comma = std::find( begin, end, ',');
 
@@ -572,7 +572,9 @@ class BufferView;
 class Buffer
 {
     public:
+        std::string          uri;
         uint32_t             byteLength;
+
         std::vector<uint8_t> m_data;
 
         /**
@@ -602,8 +604,25 @@ inline void to_json(json& j, const Buffer & p)
 
 inline void from_json(const json & j, Buffer & B)
 {
+    std::string uri = _getValue(j, "uri"    , std::string(""));
+
     B.byteLength     = _getValue(j, "byteLength"    , 0u);
 
+    if( uri != "" )
+    {
+        auto comma = std::find( uri.begin(), uri.end(), ',');
+        if( comma == uri.end() ) // is a file
+        {
+            // uri is a file
+        }
+        else
+        {
+            TRACE("Decoding Base64 buffer");
+            // uri is base64 encoded
+            auto i = std::distance(uri.begin(), comma);
+            B.m_data = _fromBase64( &comma[i], &uri.back() );
+        }
+    }
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
     std::cout << "original: " << std::endl;
@@ -2682,21 +2701,30 @@ public:
 
     bool load( std::istream & i)
     {
-        auto header    = _readHeader(i);
-        auto jsonChunk = _readChunk(i);
+        bool isGLB = false;
+        auto firstChar = i.peek();
+        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
+        {
+            // it's a GLB file.
+            auto header    = _readHeader(i);
+            if(header.magic != 0x46546C67) return false;
+            if(header.version < 2)         return false;
 
-        if(header.magic != 0x46546C67)
-        {
-            return false;
+
+            auto jsonChunk = _readChunk(i);
+            jsonChunk.chunkData.push_back(0);
+
+            _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+
+            isGLB = true;
         }
-        if( header.version < 2)
+        else  // is pure json file
         {
-            return false;
+            i >> _json;
         }
-        jsonChunk.chunkData.push_back(0);
-        _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+
+
         auto & J = _json;
-
 
         //std::cout << "=====================================================" << std::endl;;
         //std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
@@ -2711,7 +2739,14 @@ public:
 
         if(J.count("buffers") == 1)
         {
-            buffers = _readBuffers(i, J["buffers"]);
+            if( isGLB)
+            {
+                buffers = _readBuffers(i, J["buffers"]);
+            }
+            else
+            {
+                buffers = J["buffers"].get< std::vector<Buffer> >();
+            }
         }
 
 
