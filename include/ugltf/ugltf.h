@@ -2770,14 +2770,12 @@ public:
         auto j = generateJSON();
 
         std::string j_str = j.dump();
-       // std::string j_str1 = j.dump(4);
-    //    std::cout << j_str1 << std::endl;
 
+        // make sure that the string is aligned to a 4-byte boundary
+        // according to the specifications
         if( j_str.size() %4 != 0)
         {
-           // std::cout << "json string is not aligned to a 4 byte boundary: size: " << j_str.size() << std::endl;
             j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
-           // std::cout << "Resizing to: " << j_str.size() << std::endl;
             assert( j_str.size() % 4 == 0);
         }
 
@@ -2872,6 +2870,43 @@ public:
         b._parent = this;
         return b;
     }
+
+    /**
+     * @brief mergeBuffers
+     *
+     * Merges all the buffers into a single buffer.
+     * This is required for saving to a GLB format.
+     */
+    void mergeBuffers()
+    {
+        std::vector<uint8_t> newBuffer;
+
+        uint32_t i=0;
+        for(auto & b : buffers)
+        {
+            uint32_t byteOffset = static_cast<uint32_t>( newBuffer.size() );
+
+            // add this buffer to the end of the new buffer
+            newBuffer.insert( newBuffer.end(), b.m_data.begin(), b.m_data.end() );
+
+            // loop through all the buffer views
+            // and check if that view is referencing the current buffer, i,
+            // if it is, set it to reference buffer 0 and update it's byteOffset
+            for(auto & v : bufferViews)
+            {
+                if( v.buffer == i )
+                {
+                    v.buffer      = 0;
+                    v.byteOffset += byteOffset;
+                }
+            }
+            i++;
+        }
+        buffers.resize(1);
+        buffers[0].byteLength = newBuffer.size();
+        buffers[0].m_data = std::move(newBuffer);
+    }
+
 
     static header_t _readHeader(std::istream & in)
     {
