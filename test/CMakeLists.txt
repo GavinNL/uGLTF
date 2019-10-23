@@ -70,12 +70,18 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.glb" )
 endif()
 
 
+
+
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
+    file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxAnimated/glTF-Embedded/BoxAnimated.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
+endif()
+
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.gltf" )
     file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxTextured/glTF-Embedded/BoxTextured.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.gltf" )
 endif()
 
-if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
-    file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxAnimated/glTF-Embedded/BoxAnimated.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
+if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.glb" )
+    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/blob/master/2.0/BoxTextured/glTF-Binary/BoxTextured.glb?raw=true" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.glb" )
 endif()
 
 

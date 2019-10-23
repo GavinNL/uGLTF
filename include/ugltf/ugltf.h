@@ -292,44 +292,6 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
     return default_val;
 }
 #if 1
-inline std::vector<uint8_t> _parseURI(const std::string & uri)
-{
-    std::vector<uint8_t> out;
-    static bool init=false;
-    static std::vector<int32_t> T(256,-1);
-    if(!init)
-    {
-        init = true;
-        for (int32_t i=0; i<64; i++)
-        {
-            T[ static_cast<size_t>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]) ] = i;
-        }
-    }
-
-
-    int val=0, valb=-8;
-
-    auto size = uri.size();
-    //for (unsigned char c : in)
-    for(size_t i=0;i<size;i++)
-    {
-        unsigned char c = static_cast<unsigned char>(uri[i]);
-
-        if (T[c] == -1)
-            break;
-
-        val = (val<<6) + T[c];
-        valb += 6;
-        if (valb>=0)
-        {
-            out.push_back( static_cast<uint8_t>( (val>>valb)&0xFF) );
-            valb-=8;
-        }
-    }
-    return out;
-}
-
-
 
 /**
  * @brief _fromBase64
@@ -377,124 +339,6 @@ inline std::vector<uint8_t> _fromBase64(char const * begin, char const *end)
     }
     return out;
 }
-
-/**
- * @brief The URI struct
- *
- * Struct to hold informationa about a URI.
- * This class is inherted by Buffer and Image.
- */
-struct uriData
-{
-    std::string          uri;
-    std::vector<uint8_t> m_data;
-
-    uriData()
-    {
-    }
-
-    /**
-     * @brief byteLength
-     * @return
-     *
-     * Returns the byteLength of the data. Returns zero if the uri has not been loaded from
-     * the filesystem or decoded (if it was in base64)
-     */
-    size_t byteLength() const
-    {
-        return m_data.size();
-    }
-    std::string fileName() const
-    {
-        assert(uri.size() > 0);
-        //auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
-
-        auto comma = std::find( &uri[0], &uri[ uri.size() ], ',');
-        if( comma != &uri[ uri.size() ] )
-        {
-            return "";
-            // We found a comma so it's likely a URI
-            //std::string header = std::string(begin, comma);
-            //std::smatch match;
-            //std::regex_match(header, match, header_pattern);
-            //
-            //if(match.size() > 0)
-            //{
-            //    media_type = match[1];
-            //    parameter  = match[2];
-            //}
-        }
-        else
-        {
-            return uri;
-        }
-    }
-
-    /**
-     * @brief loadFile
-     * @param fl
-     * @return
-     *
-     * Loads the content of the input stream into
-     * the data method.
-     * Use this method to load the content ot URI.filename into
-     * the data method. This does not open the file for you because
-     * you might want to store the JSON and the binary data in a ziparchive
-     * that way you'll provide your own method to get the binary data.
-     */
-    bool loadFile( std::istream & fl)
-    {
-        //ifstream fl(name);
-        fl.seekg( 0, std::ios::end );
-        size_t len = fl.tellg();
-        m_data.resize(len);
-
-        fl.seekg(0, std::ios::beg);
-        fl.read( reinterpret_cast<char*>(&m_data[0]), len);
-
-        return true;
-    }
-
-
-
-    /**
-     * @brief decode
-     * @return
-     *
-     * Decodes the URI data into byte values. Returns true
-     * if it was able to decode the data.
-     */
-    bool decode()
-    {
-        m_data = _decode( &uri[0], &uri[ uri.size() ]);
-        return m_data.size() > 0;
-    }
-
-    void encode()
-    {
-
-    }
-protected:
-    static std::vector<uint8_t> _decode(char const * begin, char const  * end)
-    {
-        //auto header_pattern = std::regex( R"regex(^data:((?:\w+\/(?:(?!;).)+)?)((?:;[\w\W]*?[^;])*))regex");
-
-        auto comma = std::find( begin, end, ',');
-
-        if( comma != end )
-        {
-            // We found a comma so it's likely a URI
-            std::string header = std::string(begin, comma);
-            return _fromBase64(comma+1, end);
-        }
-        else
-        {
-            // not a URI, probably a local file. We should load the file
-            // into memory.
-            return {};
-        }
-    }
-};
 
 #endif
 enum class BufferViewTarget : uint32_t
@@ -604,23 +448,38 @@ inline void to_json(json& j, const Buffer & p)
 
 inline void from_json(const json & j, Buffer & B)
 {
-    B.uri = _getValue(j, "uri"    , std::string(""));
+    std::string uri = _getValue(j, "uri"    , std::string(""));
 
     B.byteLength     = _getValue(j, "byteLength"    , 0u);
 
-    if( B.uri != "" )
+    if( uri != "" )
     {
-        auto comma = std::find( B.uri.begin(), B.uri.end(), ',');
-        if( comma == B.uri.end() ) // is a file
+        auto comma = std::find( uri.begin(), uri.end(), ',');
+        if( comma == uri.end() ) // is a file
         {
             // uri is a file
+            B.uri = std::move(uri);
         }
         else
         {
+            //image/png
+            //image/jpeg
+            auto colon     = std::find( uri.begin(), comma, ':');
+            auto semicolon = std::find( uri.begin(), comma, ';');
+
+            if( colon != comma && semicolon != comma )
+            {
+                auto mimeType = std::string(colon+1, semicolon);
+
+                assert( mimeType == "application/octet-stream");
+            }
+
             TRACE("Decoding Base64 buffer");
             // uri is base64 encoded
-            auto i = std::distance(B.uri.begin(), comma);
-            B.m_data = _fromBase64( &comma[i], &B.uri.back() );
+            auto i = std::distance(uri.begin(), comma);
+            B.m_data = _fromBase64( &uri[i+1], &uri.back() +1 );
+
+            assert( B.m_data.size() == B.byteLength);
         }
     }
 #if defined PRINT_CONV
@@ -2222,10 +2081,27 @@ inline void from_json(const json & j, Image & B)
         }
         else
         {
+            //image/png
+            //image/jpeg
+            auto colon     = std::find( uri.begin(), comma, ':');
+            auto semicolon = std::find( uri.begin(), comma, ';');
+
+            if( colon != comma && semicolon != comma )
+            {
+                if( B.mimeType == "")
+                {
+                    B.mimeType = std::string(colon+1, semicolon);
+
+                    assert( B.mimeType == "image/png" ||
+                            B.mimeType == "image/jpeg");
+                }
+
+            }
+
             TRACE("Decoding Base64 buffer");
             // uri is base64 encoded
             auto i = std::distance(uri.begin(), comma);
-            B.m_imageData = _fromBase64( &comma[i], &uri.back() );
+            B.m_imageData = _fromBase64( &uri[i]+1, &uri.back()+1 );
         }
     }
 
