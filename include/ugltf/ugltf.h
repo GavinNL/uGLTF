@@ -13,13 +13,12 @@
     #define UGLTF_NAMESPACE uGLTF
 #endif
 
-#if 1
+#if 0
 #define TRACE(...)
 #else
 #include <spdlog/spdlog.h>
 #define TRACE(...) spdlog::info(__VA_ARGS__)
 #endif
-
 
 /*
 
@@ -292,7 +291,17 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
     return default_val;
 }
 #if 1
-inline std::vector<uint8_t> _parseURI(const std::string & uri)
+
+/**
+ * @brief _fromBase64
+ * @param begin
+ * @param end
+ * @return
+ *
+ * Takes a start and end iterator of Base64 characters and returns
+ * a vector of bytes.
+ */
+inline std::vector<uint8_t> _fromBase64(char const * begin, char const *end)
 {
     std::vector<uint8_t> out;
     static bool init=false;
@@ -309,25 +318,58 @@ inline std::vector<uint8_t> _parseURI(const std::string & uri)
 
     int val=0, valb=-8;
 
-    auto size = uri.size();
-    //for (unsigned char c : in)
-    for(size_t i=0;i<size;i++)
+    while( begin != end)
     {
-        unsigned char c = static_cast<unsigned char>(uri[i]);
+        unsigned char c = static_cast<unsigned char>( *begin );
 
         if (T[c] == -1)
             break;
 
-        val = (val<<6) + T[c];
+        val   = (val<<6) + T[c];
         valb += 6;
+
         if (valb>=0)
         {
             out.push_back( static_cast<uint8_t>( (val>>valb)&0xFF) );
             valb-=8;
         }
+
+        ++begin;
     }
     return out;
 }
+
+inline std::string _toBase64(void const * begin_v, void const *end_v)
+{
+    auto begin = static_cast<char const *>(begin_v);
+    auto end   = static_cast<char const *>(end_v);
+    std::string out;
+
+    static const char symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    int val=0, valb=-6;
+    //for (char c : in)
+    while(begin != end)
+    {
+        auto c = *begin++;
+
+        val = (val<<8) + c;
+        valb += 8;
+        while (valb>=0) {
+            out.push_back(symbols[(val>>valb)&0x3F]);
+            valb-=6;
+        }
+    }
+
+    if (valb>-6)
+        out.push_back( symbols[((val<<8)>>(valb+8))&0x3F]);
+
+    while (out.size()%4)
+        out.push_back('=');
+
+    return out;
+}
+
 #endif
 enum class BufferViewTarget : uint32_t
 {
@@ -404,7 +446,9 @@ class BufferView;
 class Buffer
 {
     public:
+        std::string          uri;
         uint32_t             byteLength;
+
         std::vector<uint8_t> m_data;
 
         /**
@@ -416,7 +460,7 @@ class Buffer
          * Create a new bufferView from this buffer. The data will be
          * appended to the end of the buffer.
          */
-        size_t createNewBufferView(size_t bytes, size_t alignment=1);
+        size_t createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment=1);
 
 
 private:
@@ -434,8 +478,40 @@ inline void to_json(json& j, const Buffer & p)
 
 inline void from_json(const json & j, Buffer & B)
 {
+    std::string uri = _getValue(j, "uri"    , std::string(""));
+
     B.byteLength     = _getValue(j, "byteLength"    , 0u);
 
+    if( uri != "" )
+    {
+        auto comma = std::find( uri.begin(), uri.end(), ',');
+        if( comma == uri.end() ) // is a file
+        {
+            // uri is a file
+            B.uri = std::move(uri);
+        }
+        else
+        {
+            //image/png
+            //image/jpeg
+            auto colon     = std::find( uri.begin(), comma, ':');
+            auto semicolon = std::find( uri.begin(), comma, ';');
+
+            if( colon != comma && semicolon != comma )
+            {
+                auto mimeType = std::string(colon+1, semicolon);
+
+                assert( mimeType == "application/octet-stream");
+            }
+
+            TRACE("Decoding Base64 buffer");
+            // uri is base64 encoded
+            auto i = std::distance(uri.begin(), comma);
+            B.m_data = _fromBase64( &uri[i+1], &uri.back() +1 );
+
+            assert( B.m_data.size() == B.byteLength);
+        }
+    }
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
     std::cout << "original: " << std::endl;
@@ -474,8 +550,13 @@ public:
     template<typename T>
     aspan<typename std::add_const<T>::type > getSpan() const;
 
+    /**
+     * @brief data
+     * @return
+     *
+     * Returns a pointer to the BufferView's data.
+     */
     void* data();
-
     void const* data() const;
 
 
@@ -1005,6 +1086,7 @@ class Accessor
         GLTFModel * _parent = nullptr;
         friend class GLTFModel;
         friend class Buffer;
+        friend class BufferView;
 
         template<typename T, size_t N>
         std::array<T, N> _min( std::array<T, N> a, std::array<T, N> b)
@@ -1964,6 +2046,9 @@ public:
     std::string mimeType;
     std::string name;
 
+    std::vector<uint8_t> m_imageData; // if bufferView is not given
+
+
     /**
      * @brief getSpan
      * @return
@@ -1985,10 +2070,6 @@ public:
     aspan<uint8_t> getSpan();
     aspan<const uint8_t> getSpan() const;
 
-    aspan<uint8_t> data();
-
-    BufferView       & getBufferView();
-    BufferView const & getBufferView() const;
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -1997,8 +2078,24 @@ private:
 
 inline void to_json(json& j, const Image & p)
 {
-    if( p.uri.size())
-        j["uri"] = p.uri;
+    // if the image has data, then we should write it out as
+    // encoded data.
+    if( p.m_imageData.size() )
+    {
+        if( p.mimeType == "")
+        {
+            j["uri"] = "data:application/octet-stream;base64," + _toBase64( &p.m_imageData[0], &p.m_imageData[ p.m_imageData.size() ]);
+        }
+        else
+        {
+            j["uri"] = "data:" + p.mimeType +";base64," + _toBase64( &p.m_imageData[0], &p.m_imageData[ p.m_imageData.size() ]);
+        }
+    }
+    else
+    {
+        if( p.uri.size())
+            j["uri"] = p.uri;
+    }
 
     if(p.mimeType.size())
         j["mimeType"] = p.mimeType;
@@ -2012,10 +2109,44 @@ inline void to_json(json& j, const Image & p)
 
 inline void from_json(const json & j, Image & B)
 {
-    B.uri         = _getValue(j, "uri", std::string(""));
+    std::string uri  = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
     B.bufferView  = _getValue(j, "bufferView", std::numeric_limits<uint32_t>::max());
     B.name        = _getValue(j, "name", std::string(""));
+
+    if( uri != "" )
+    {
+        auto comma = std::find( uri.begin(), uri.end(), ',');
+        if( comma == uri.end() ) // is a file
+        {
+            // uri is a file
+            B.uri = uri;
+        }
+        else
+        {
+            //image/png
+            //image/jpeg
+            auto colon     = std::find( uri.begin(), comma, ':');
+            auto semicolon = std::find( uri.begin(), comma, ';');
+
+            if( colon != comma && semicolon != comma )
+            {
+                if( B.mimeType == "")
+                {
+                    B.mimeType = std::string(colon+1, semicolon);
+
+                    assert( B.mimeType == "image/png" ||
+                            B.mimeType == "image/jpeg");
+                }
+
+            }
+
+            TRACE("Decoding Base64 buffer");
+            // uri is base64 encoded
+            auto i = std::distance(uri.begin(), comma);
+            B.m_imageData = _fromBase64( &uri[i]+1, &uri.back()+1 );
+        }
+    }
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
@@ -2514,21 +2645,30 @@ public:
 
     bool load( std::istream & i)
     {
-        auto header    = _readHeader(i);
-        auto jsonChunk = _readChunk(i);
+        bool isGLB = false;
+        auto firstChar = i.peek();
+        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
+        {
+            // it's a GLB file.
+            auto header    = _readHeader(i);
+            if(header.magic != 0x46546C67) return false;
+            if(header.version < 2)         return false;
 
-        if(header.magic != 0x46546C67)
-        {
-            return false;
+
+            auto jsonChunk = _readChunk(i);
+            jsonChunk.chunkData.push_back(0);
+
+            _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+
+            isGLB = true;
         }
-        if( header.version < 2)
+        else  // is pure json file
         {
-            return false;
+            i >> _json;
         }
-        jsonChunk.chunkData.push_back(0);
-        _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+
+
         auto & J = _json;
-
 
         //std::cout << "=====================================================" << std::endl;;
         //std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
@@ -2543,7 +2683,14 @@ public:
 
         if(J.count("buffers") == 1)
         {
-            buffers = _readBuffers(i, J["buffers"]);
+            if( isGLB)
+            {
+                buffers = _readBuffers(i, J["buffers"]);
+            }
+            else
+            {
+                buffers = J["buffers"].get< std::vector<Buffer> >();
+            }
         }
 
 
@@ -2849,6 +2996,36 @@ public:
 
     }
 
+    /**
+     * @brief writeEmbedded
+     * @param out
+     *
+     * Writes the Model as a .gltf JSON file with embedded buffers
+     * encoded in base64.
+     */
+    void writeEmbedded(std::ostream & out) const
+    {
+        auto j = generateJSON();
+
+        j["buffers"].clear();
+        uint32_t i=0;
+        for(auto & b : buffers)
+        {
+            j["buffers"][i]["byteLength"] = b.m_data.size();
+            j["buffers"][i]["uri"] = std::string("data:application/octet-stream;base64,") + _toBase64( &b.m_data[0] , &b.m_data[ b.m_data.size() ]);
+            i++;
+        }
+
+        out << j.dump(4);
+    }
+
+
+    Image & newImage()
+    {
+        auto & b = images.emplace_back();
+        b._parent = this;
+        return b;
+    }
 
     Buffer & newBuffer()
     {
@@ -2864,12 +3041,7 @@ public:
         return b;
     }
 
-    Accessor& newAccessor()
-    {
-        auto & b = accessors.emplace_back();
-        b._parent = this;
-        return b;
-    }
+
 
     /**
      * @brief mergeBuffers
@@ -2907,6 +3079,35 @@ public:
         buffers[0].m_data = std::move(newBuffer);
     }
 
+    /**
+     * @brief convertImagesToBuffers
+     *
+     * Converts all images which have local image storage (ie: the data is
+     * not stored in a bufferView.
+     *
+     * All images which are converted at stored in a single newly created buffer.
+     *
+     */
+    void convertImagesToBuffers()
+    {
+        auto & newB = newBuffer();
+
+        for(auto & b : images)
+        {
+            if( b.m_imageData.size() )
+            {
+                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN);
+
+                void * bufferViewData = bufferViews[imageBufferViewIndex].data();
+
+                std::memcpy( bufferViewData, b.m_imageData.data(), b.m_imageData.size() );
+
+                b.bufferView = imageBufferViewIndex;
+                b.m_imageData.clear();
+            }
+
+        }
+    }
 
     static header_t _readHeader(std::istream & in)
     {
@@ -3194,23 +3395,43 @@ inline aspan< typename std::add_const<T>::type > BufferView::getSpan() const
 
 inline aspan<uint8_t> Image::getSpan()
 {
-    return getBufferView().getSpan<uint8_t>();
+    if( bufferView != std::numeric_limits<uint32_t>::max() )
+    {
+        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+
+        return Bv.getSpan<uint8_t>();
+    }
+
+    if( m_imageData.size() > 0)
+        return aspan<uint8_t>( m_imageData.data(), m_imageData.size(), 1);
+
+    throw std::runtime_error("Image Data has not been loaded yet.");
 }
 
 inline aspan<const uint8_t> Image::getSpan() const
 {
-    return getBufferView().getSpan<const uint8_t>();
+    if( bufferView != std::numeric_limits<uint32_t>::max() )
+    {
+        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+
+        return Bv.getSpan<uint8_t const>();
+    }
+
+    if( m_imageData.size() > 0)
+        return aspan<uint8_t const>( m_imageData.data(), m_imageData.size(), 1);
+
+    throw std::runtime_error("Image Data has not been loaded yet.");
 }
 
-inline BufferView       & Image::getBufferView()
-{
-    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-}
-
-inline BufferView const & Image::getBufferView() const
-{
-    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-}
+// inline BufferView       & Image::getBufferView()
+// {
+//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+// }
+//
+// inline BufferView const & Image::getBufferView() const
+// {
+//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+// }
 
 
 inline Mesh const   & Node::getMesh() const
@@ -3323,11 +3544,12 @@ inline void Accessor::copyDataFrom(Accessor const & A)
 
 // create a new buffer view by expanding the current
 // buffer and placing the bytes at the end.
-inline size_t Buffer::createNewBufferView(size_t bytes, size_t alignment)
+inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment)
 {
     _parent->bufferViews.push_back(BufferView());//.emplace_back();
     BufferView & Bv = _parent->bufferViews.back();
     Bv._parent = _parent;
+    Bv.target  = target;
 
     size_t i=0;
     for(auto & buffer : _parent->buffers)
@@ -3366,7 +3588,6 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
     _temp.count = count;
     _temp.byteOffset = byteOffset; // byteOffset from start of view.
 
-
     // calculate the total number of bytes required
     auto bytes = _temp.componentSize() * count;
 
@@ -3383,7 +3604,9 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
         ++i;
     }
 
-    auto & aa = _parent->newAccessor();
+
+    auto & aa = _parent->accessors.emplace_back();
+    aa._parent = _parent;
     aa.type = type;
     aa.componentType = comp;
     aa.count = count;

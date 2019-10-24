@@ -4,21 +4,7 @@
 #include <fstream>
 #include <set>
 
-
-SCENARIO("Test Base64 decode")
-{
-    std::string orig = "Hello! This is a test.";
-    std::string enc = "SGVsbG8hIFRoaXMgaXMgYSB0ZXN0Lg==";
-
-    auto ret = uGLTF::_parseURI(enc);
-
-    REQUIRE( ret.size() == orig.size() );
-    auto x = orig.begin();
-    for(auto & r : ret)
-    {
-        REQUIRE( r == *x++);
-    }
-}
+#include <regex>
 
 
 SCENARIO("Aspan")
@@ -205,7 +191,7 @@ SCENARIO( "Extracting Buffers" )
 }
 
 
-SCENARIO( "Loading " )
+SCENARIO( "Loading GLB files" )
 {
     std::vector< std::string > models = {"BoomBox.glb", "BrainStem.glb", "CesiumMan.glb"};
 
@@ -269,41 +255,9 @@ SCENARIO( "Loading " )
         {
             for(auto & I : M.images)
             {
-                REQUIRE( I.bufferView != std::numeric_limits<uint32_t>::max() );
-
-                //("We can get the bufferView")
-                {
-                    auto & Bv = I.getBufferView();
-
-                    REQUIRE( Bv.buffer != -1 );
-
-                    //("We can get the buffer")
-                    {
-                        auto & B = Bv.getBuffer();
-
-                        REQUIRE(B.byteLength != 0);
-
-                        //("We can get the span of the image")
-
-                            auto img = I.getSpan();
-
-                            REQUIRE( img.size() > 0 );
-                            REQUIRE( img.stride() == 1);
-
-                            auto const & cI = I;
-
-                            auto img_c = cI.getSpan();
-
-                            REQUIRE( img_c.size() > 0 );
-                            REQUIRE( img_c.stride() == 1);
-
-                    }
-
-
-                }
-
-
-
+                auto img_c = I.getSpan();
+                REQUIRE( img_c.size() > 0 );
+                REQUIRE( img_c.stride() == 1);
             }
 
           //  REQUIRE(img.size()==40);
@@ -481,7 +435,7 @@ SCENARIO("Creating new BufferViews")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1020);
+                auto viewIndex1 = buff.createNewBufferView(1020, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 
@@ -491,9 +445,9 @@ SCENARIO("Creating new BufferViews")
                 REQUIRE( view.byteOffset == 0);
                 REQUIRE( view.byteStride == 0);
 
-                WHEN("We create another buffer view")
+                WHEN("We create another buffer view with alignment")
                 {
-                    auto viewIndex2 = buff.createNewBufferView(1024, 8);
+                    auto viewIndex2 = buff.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN, 8);
 
                     auto & view2 = M.bufferViews[viewIndex2];
 
@@ -523,7 +477,7 @@ SCENARIO("Creating new Accessors from bufferViews")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1000);
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 
@@ -566,7 +520,7 @@ SCENARIO("Copying data from one accessor to another")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1000);
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 
@@ -631,137 +585,40 @@ SCENARIO("Copying data from one accessor to another")
 }
 
 
-
-SCENARIO("Merging Buffers")
+SCENARIO("Loading BoxAnimated.gltf")
 {
-    GIVEN("A GLTF Model with multiple buffers and multiple buffer views")
+    uGLTF::GLTFModel M;
+    std::ifstream in("BoxAnimated.gltf");
+    M.load(in);
+}
+
+
+SCENARIO("Loading BoxTextured.gltf")
+{
+    GIVEN("A GLTF model")
     {
         uGLTF::GLTFModel M;
 
-        M.newBuffer();
-        M.newBuffer();
-
-        auto & B1 = M.buffers[0];
-        auto & B2 = M.buffers[1];
-
-        B1.createNewBufferView(1024);
-        B1.createNewBufferView(512);
-
-        B2.createNewBufferView(1024);
-        B2.createNewBufferView(512);
-
-        REQUIRE( M.bufferViews[0].buffer     == 0);
-        REQUIRE( M.bufferViews[0].byteOffset == 0);
-        REQUIRE( M.bufferViews[0].byteLength == 1024);
-
-        REQUIRE( M.bufferViews[1].buffer     == 0);
-        REQUIRE( M.bufferViews[1].byteOffset == 1024);
-        REQUIRE( M.bufferViews[1].byteLength == 512);
-
-        REQUIRE( M.bufferViews[2].buffer     == 1);
-        REQUIRE( M.bufferViews[2].byteOffset == 0);
-        REQUIRE( M.bufferViews[2].byteLength == 1024);
-
-        REQUIRE( M.bufferViews[3].buffer     == 1);
-        REQUIRE( M.bufferViews[3].byteOffset == 1024);
-        REQUIRE( M.bufferViews[3].byteLength == 512);
-
-
-        WHEN("We merge buffers")
+        WHEN("We load a GLTF embedded file")
         {
-            M.mergeBuffers();
+            std::ifstream in("BoxTextured.gltf");
+            REQUIRE( M.load(in) );
 
-            THEN("There will be only one buffer in the model")
+            THEN("The embedded buffers are loaded into the m_data variable")
             {
-                REQUIRE( M.buffers.size()==1 );
-            }
-            THEN("The byte length will the sum of all the buffers")
-            {
-                REQUIRE( M.buffers[0].byteLength == 3*1024);
-            }
-
-            THEN("All buffer views will have their buffers updated")
-            {
-                REQUIRE( M.bufferViews[0].buffer     == 0);
-                REQUIRE( M.bufferViews[0].byteOffset == 0);
-                REQUIRE( M.bufferViews[0].byteLength == 1024);
-
-                REQUIRE( M.bufferViews[1].buffer     == 0);
-                REQUIRE( M.bufferViews[1].byteOffset == 1024);
-                REQUIRE( M.bufferViews[1].byteLength == 512);
-
-                REQUIRE( M.bufferViews[2].buffer     == 0);
-                REQUIRE( M.bufferViews[2].byteOffset == 1536);
-                REQUIRE( M.bufferViews[2].byteLength == 1024);
-
-                REQUIRE( M.bufferViews[3].buffer     == 0);
-                REQUIRE( M.bufferViews[3].byteOffset == 2560);
-                REQUIRE( M.bufferViews[3].byteLength == 512);
+                REQUIRE( M.buffers.size() == 1);
+                REQUIRE( M.buffers[0].byteLength == 840);
+                REQUIRE( M.buffers[0].m_data.size() == 840);
+                REQUIRE( M.buffers[0].uri == "");
             }
 
+
+            THEN("The images are loaded into the m_imageData variable")
+            {
+                REQUIRE( M.images.size() == 1);
+                REQUIRE( M.images[0].bufferView == std::numeric_limits<uint32_t>::max() );
+                REQUIRE( M.images[0].m_imageData.size() == 23516);
+            }
         }
     }
 }
-#if 0
-
-SCENARIO("Creating new Accessors")
-{
-    GIVEN("Given a Model and a single buffer")
-    {
-        uGLTF::GLTFModel M;
-
-        THEN("We can create a new buffer")
-        {
-            auto & buff = M.newBuffer();
-            REQUIRE( M.buffers.size() == 1);
-
-            THEN("We can create a new accessor from that buffer")
-            {
-                auto i= buff.createNewAccessor(2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
-
-                REQUIRE( M.accessors[i].count == 2 );
-                REQUIRE( M.accessors[i].accessorSize() == 4*2);
-
-                REQUIRE( M.bufferViews.size() == 1);
-                REQUIRE( M.accessors.size() == 1);
-
-                REQUIRE( M.accessors[i].getBufferView().byteOffset == 0);
-
-                auto S = M.accessors[i].getSpan< std::array<uint32_t,2> >();
-
-                REQUIRE( S.size() == 2 );
-                S[0][0] = 0xABCDECBA;
-                S[0][1] = 0x12345678;
-                S[1][0] = 0x87654321;
-                S[1][1] = 0x1A2B3C4D;
-
-                THEN("We can create a new accessor with the old accessor")
-                {
-                    auto j = buff.createNewAccessor(2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT)   ;
-
-
-                    REQUIRE( M.bufferViews.size() == 2);
-                    REQUIRE( M.accessors.size()   == 2);
-
-                    REQUIRE( M.accessors[j].getBufferView().byteOffset == 16);
-                    REQUIRE( M.accessors[j].getBufferView().byteLength == 16);
-
-
-                    M.accessors[j].copyDataFrom( M.accessors[i] );
-
-                    auto S2 = M.accessors[j].getSpan< std::array<uint32_t,2> >();
-
-                    REQUIRE( S2.size() == 2 );
-                    REQUIRE( S2[0][0] == 0xABCDECBA );
-                    REQUIRE( S2[0][1] == 0x12345678 );
-                    REQUIRE( S2[1][0] == 0x87654321 );
-                    REQUIRE( S2[1][1] == 0x1A2B3C4D );
-                }
-            }
-        }
-
-    }
-}
-
-#endif
-
