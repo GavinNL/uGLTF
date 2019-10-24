@@ -339,8 +339,10 @@ inline std::vector<uint8_t> _fromBase64(char const * begin, char const *end)
     return out;
 }
 
-inline std::string _toBase64(char const * begin, char const *end)
+inline std::string _toBase64(void const * begin_v, void const *end_v)
 {
+    auto begin = static_cast<char const *>(begin_v);
+    auto end   = static_cast<char const *>(end_v);
     std::string out;
 
     static const char symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -2067,10 +2069,6 @@ public:
     aspan<uint8_t> getSpan();
     aspan<const uint8_t> getSpan() const;
 
-    aspan<uint8_t> data();
-
-    //BufferView       & getBufferView();
-    //BufferView const & getBufferView() const;
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2079,8 +2077,24 @@ private:
 
 inline void to_json(json& j, const Image & p)
 {
-    if( p.uri.size())
-        j["uri"] = p.uri;
+    // if the image has data, then we should write it out as
+    // encoded data.
+    if( p.m_imageData.size() )
+    {
+        if( p.mimeType == "")
+        {
+            j["uri"] = "data:application/octet-stream;base64," + _toBase64( &p.m_imageData[0], &p.m_imageData[ p.m_imageData.size() ]);
+        }
+        else
+        {
+            j["uri"] = "data:" + p.mimeType +";base64," + _toBase64( &p.m_imageData[0], &p.m_imageData[ p.m_imageData.size() ]);
+        }
+    }
+    else
+    {
+        if( p.uri.size())
+            j["uri"] = p.uri;
+    }
 
     if(p.mimeType.size())
         j["mimeType"] = p.mimeType;
@@ -2981,6 +2995,12 @@ public:
 
     }
 
+    Image & newImage()
+    {
+        auto & b = images.emplace_back();
+        b._parent = this;
+        return b;
+    }
 
     Buffer & newBuffer()
     {
@@ -3039,6 +3059,35 @@ public:
         buffers[0].m_data = std::move(newBuffer);
     }
 
+    /**
+     * @brief convertImagesToBuffers
+     *
+     * Converts all images which have local image storage (ie: the data is
+     * not stored in a bufferView.
+     *
+     * All images which are converted at stored in a single newly created buffer.
+     *
+     */
+    void convertImagesToBuffers()
+    {
+        auto & newB = newBuffer();
+
+        for(auto & b : images)
+        {
+            if( b.m_imageData.size() )
+            {
+                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() );
+
+                void * bufferViewData = bufferViews[imageBufferViewIndex].data();
+
+                std::memcpy( bufferViewData, b.m_imageData.data(), b.m_imageData.size() );
+
+                b.bufferView = imageBufferViewIndex;
+                b.m_imageData.clear();
+            }
+
+        }
+    }
 
     static header_t _readHeader(std::istream & in)
     {
