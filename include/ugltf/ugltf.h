@@ -2995,6 +2995,30 @@ public:
 
     }
 
+    /**
+     * @brief writeEmbedded
+     * @param out
+     *
+     * Writes the Model as a .gltf JSON file with embedded buffers
+     * encoded in base64.
+     */
+    void writeEmbedded(std::ostream & out) const
+    {
+        auto j = generateJSON();
+
+        j["buffers"].clear();
+        uint32_t i=0;
+        for(auto & b : buffers)
+        {
+            j["buffers"][i]["byteLength"] = b.m_data.size();
+            j["buffers"][i]["uri"] = std::string("data:application/octet-stream;base64,") + _toBase64( &b.m_data[0] , &b.m_data[ b.m_data.size() ]);
+            i++;
+        }
+
+        out << j.dump(4);
+    }
+
+
     Image & newImage()
     {
         auto & b = images.emplace_back();
