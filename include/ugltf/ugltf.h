@@ -443,6 +443,13 @@ inline void from_json(const json & j, Asset & B)
 class Accessor;
 class BufferView;
 
+
+/**
+ * @brief The Buffer class
+ *
+ * The Buffer class is used to store raw data. It does not
+ * hold any type information.
+ */
 class Buffer
 {
     public:
@@ -525,6 +532,17 @@ inline void from_json(const json & j, Buffer & B)
 #endif
 }
 
+/**
+ * @brief The BufferView class
+ *
+ * The BufferView class specifies a subset of a buffer. It is
+ * essentially the buffer reference and the offset from the start
+ * of the buffer.
+ *
+ * The BufferView can also have a BufferViewTarget which specificies
+ * whether this view can be used for Vertex data or Element data.
+ *
+ */
 class BufferView
 {
 public:
@@ -544,6 +562,15 @@ public:
     Buffer & getBuffer();
     Buffer const & getBuffer() const;
 
+    /**
+     * @brief getSpan
+     * @return
+     *
+     * Returns an typed view into this buffer view
+     * The returned aspan behaves like a fixed length array
+     *
+     * Note: You probably shouldn't use this
+     */
     template<typename T>
     aspan<T> getSpan();
 
@@ -568,8 +595,10 @@ public:
      * @param comp
      * @return
      *
-     * Create a new accessor in this buffer view a the specified byteOffset. Returns the accessor index
+     * Create a new accessor in this buffer view at the specified byteOffset. Returns the accessor index
      * which must be looked up in the MODEL.accessors array.
+     *
+     * Multiple accessors are allowed to overlap in the BufferView.
      */
     size_t createNewAccessor(size_t byteOffset, size_t count, AccessorType type, ComponentType comp);
 
@@ -821,6 +850,14 @@ inline void from_json(const json & j, Camera & B)
 
 }
 
+/**
+ * @brief The Accessor class
+ *
+ * "An accessor defines a method for retrieving data as typed arrays from a bufferView" - GLTF Specification
+ *
+ * Accessors are the main way to access typed data for various purposes such as vertex attributes,
+ * element indices, animation samplers, etc.
+ */
 class Accessor
 {
     public:
@@ -1033,6 +1070,14 @@ class Accessor
          * @param A
          *
          * Copies data from accessor A to this accessor.
+         *
+         * Will throw an error if:
+         *  - acessors types are different (eg: vec3 vs vec2)
+         *  - accessors componentTypes are different (eg: float vs uint)
+         *  - the accessor is not large enough to hold all of values in A.
+         *
+         * All the values from A are copied over, but the .count values is
+         * not updated for this accessor.
          */
         void copyDataFrom(Accessor const & A);
 
@@ -1040,7 +1085,7 @@ class Accessor
          * @brief componentSize
          * @return
          *
-         * Returns the component size. That is the size, in bytes, of teh base datatype.
+         * Returns the component size. That is the size, in bytes, of the base datatype.
          */
         size_t componentSize() const
         {
@@ -1165,12 +1210,7 @@ inline void from_json(const json & j, Accessor & B)
 #endif
 
 }
-struct Transform
-{
-    std::array<float,3> scale       = {1,1,1};
-    std::array<float,4> rotation    = {0,0,0,1};
-    std::array<float,3> translation = {0,0,0};
-};
+
 
 class Mesh;
 class Skin;
@@ -1265,30 +1305,6 @@ public:
     Node* getChild(size_t childIndex);
     Node const * getChild(size_t childIndex) const;
 
-
-    template<typename Callable_t>
-    void depthFirstTraverse(Callable_t && C)
-    {
-        C(*this);
-        uint32_t childIndex=0;
-        for(auto & i : children)
-        {
-            auto * N = getChild(childIndex++);
-            N->depthFirstTraverse(C);
-        }
-    }
-
-    template<typename Callable_t>
-    void descendTree(Callable_t && C)
-    {
-        C(*this);
-        uint32_t childIndex=0;
-        for(auto & i : children)
-        {
-            auto * N = getChild(childIndex++);
-            N->descendTree(C);
-        }
-    }
 private:
     bool _hasMatrix=false;
     bool _hasTransforms=false;
@@ -1423,6 +1439,14 @@ inline std::string to_string(const PrimitiveMode & p)
     return std::string("UNKNOWN");
 }
 
+/**
+ * @brief The Primitive class
+ *
+ * The Primitive class represents an actual mesh that can be rendered in some way.
+ *
+ * It contains a set of attributes which must be looked up in the .accessors array
+ *
+ */
 class Primitive
 {
 public:
@@ -1631,7 +1655,13 @@ inline void from_json(const json & j, Primitive & B)
 
 }
 
-
+/**
+ * @brief The Mesh class
+ *
+ * The Mesh class defines a list or primitives that can be rendered.
+ *
+ * Each primitive can have a different material.
+ */
 class Mesh
 {
 public:
@@ -3359,8 +3389,7 @@ inline aspan<T> BufferView::getSpan()
     {
         if( static_cast<size_t>(byteStride) < sizeof(T) )
         {
-            // warning: the defined byteStride is less than the requested
-            //          stride, consequitive data will overlap.
+            throw std::runtime_error("The defined byteStride is less than the requested stride, consequitive data will overlap.");
         }
     }
 
