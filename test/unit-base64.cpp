@@ -27,3 +27,18 @@ SCENARIO("Test Base64 decode")
         REQUIRE( r == *x++);
     }
 }
+
+SCENARIO("Test Base64 encode")
+{
+    std::string orig = "Hello! This is a test.";
+    std::string enc = "SGVsbG8hIFRoaXMgaXMgYSB0ZXN0Lg==";
+
+    auto ret = uGLTF::_toBase64(&orig[0], &orig[ orig.size() ] );
+
+    REQUIRE( ret.size() == enc.size() );
+    auto x = enc.begin();
+    for(auto & r : ret)
+    {
+        REQUIRE( r == *x++);
+    }
+}
