@@ -1086,6 +1086,7 @@ class Accessor
         GLTFModel * _parent = nullptr;
         friend class GLTFModel;
         friend class Buffer;
+        friend class BufferView;
 
         template<typename T, size_t N>
         std::array<T, N> _min( std::array<T, N> a, std::array<T, N> b)
@@ -3040,12 +3041,7 @@ public:
         return b;
     }
 
-    Accessor& newAccessor()
-    {
-        auto & b = accessors.emplace_back();
-        b._parent = this;
-        return b;
-    }
+
 
     /**
      * @brief mergeBuffers
@@ -3608,7 +3604,9 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
         ++i;
     }
 
-    auto & aa = _parent->newAccessor();
+
+    auto & aa = _parent->accessors.emplace_back();
+    aa._parent = _parent;
     aa.type = type;
     aa.componentType = comp;
     aa.count = count;
