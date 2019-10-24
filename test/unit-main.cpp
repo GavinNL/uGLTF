@@ -435,7 +435,7 @@ SCENARIO("Creating new BufferViews")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1020);
+                auto viewIndex1 = buff.createNewBufferView(1020, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 
@@ -445,9 +445,9 @@ SCENARIO("Creating new BufferViews")
                 REQUIRE( view.byteOffset == 0);
                 REQUIRE( view.byteStride == 0);
 
-                WHEN("We create another buffer view")
+                WHEN("We create another buffer view with alignment")
                 {
-                    auto viewIndex2 = buff.createNewBufferView(1024, 8);
+                    auto viewIndex2 = buff.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN, 8);
 
                     auto & view2 = M.bufferViews[viewIndex2];
 
@@ -477,7 +477,7 @@ SCENARIO("Creating new Accessors from bufferViews")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1000);
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 
@@ -520,7 +520,7 @@ SCENARIO("Copying data from one accessor to another")
 
             THEN("We can create a new BufferView")
             {
-                auto viewIndex1 = buff.createNewBufferView(1000);
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN);
 
                 auto & view = M.bufferViews[viewIndex1];
 

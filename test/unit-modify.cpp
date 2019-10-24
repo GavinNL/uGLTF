@@ -18,12 +18,12 @@ SCENARIO("Merging Buffers")
         auto & B1 = M.buffers[0];
         auto & B2 = M.buffers[1];
 
-        B1.createNewBufferView(1024);
-        B1.createNewBufferView(512);
+        B1.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN);
+        B1.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN);
 
 
-        B2.createNewBufferView(1024);
-        B2.createNewBufferView(512);
+        B2.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN);
+        B2.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN);
 
         REQUIRE( M.bufferViews.size() == 4);
 
@@ -110,11 +110,11 @@ SCENARIO("ImageData to Buffer Views")
         auto & B1 = M.buffers[0];
         auto & B2 = M.buffers[1];
 
-        B1.createNewBufferView(1024);
-        B1.createNewBufferView(512);
+        B1.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN);
+        B1.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN);
 
-        B2.createNewBufferView(1024);
-        B2.createNewBufferView(512);
+        B2.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN );
+        B2.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN );
 
         REQUIRE( M.bufferViews.size() == 4);
 

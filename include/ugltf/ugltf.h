@@ -460,7 +460,7 @@ class Buffer
          * Create a new bufferView from this buffer. The data will be
          * appended to the end of the buffer.
          */
-        size_t createNewBufferView(size_t bytes, size_t alignment=1);
+        size_t createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment=1);
 
 
 private:
@@ -3096,7 +3096,7 @@ public:
         {
             if( b.m_imageData.size() )
             {
-                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() );
+                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN);
 
                 void * bufferViewData = bufferViews[imageBufferViewIndex].data();
 
@@ -3544,11 +3544,12 @@ inline void Accessor::copyDataFrom(Accessor const & A)
 
 // create a new buffer view by expanding the current
 // buffer and placing the bytes at the end.
-inline size_t Buffer::createNewBufferView(size_t bytes, size_t alignment)
+inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment)
 {
     _parent->bufferViews.push_back(BufferView());//.emplace_back();
     BufferView & Bv = _parent->bufferViews.back();
     Bv._parent = _parent;
+    Bv.target  = target;
 
     size_t i=0;
     for(auto & buffer : _parent->buffers)
@@ -3586,7 +3587,6 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
     _temp.componentType = comp;
     _temp.count = count;
     _temp.byteOffset = byteOffset; // byteOffset from start of view.
-
 
     // calculate the total number of bytes required
     auto bytes = _temp.componentSize() * count;
