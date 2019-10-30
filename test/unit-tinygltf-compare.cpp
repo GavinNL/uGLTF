@@ -100,9 +100,9 @@ SCENARIO( "Loading " )
 
                 REQUIRE( byteSpan.size() == T.count );
                 REQUIRE( byteSpan._stride == TByteStride );
-                REQUIRE( byteSpan[0] == TB.data[ TBv.byteOffset + U.byteOffset]);
+                REQUIRE( byteSpan.get(0) == TB.data[ TBv.byteOffset + U.byteOffset]);
 
-                REQUIRE( byteSpan[1] == TB.data[ TBv.byteOffset + U.byteOffset + TByteStride]);
+                REQUIRE( byteSpan.get(1) == TB.data[ TBv.byteOffset + U.byteOffset + TByteStride]);
 
                 if( U.type == uGLTF::AccessorType::VEC3 && U.componentType == uGLTF::ComponentType::FLOAT)
                 {
@@ -110,15 +110,14 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<std::array<uint32_t,3>* >(&TB.data[ TBv.byteOffset + U.byteOffset + TByteStride*i]);
 
                         REQUIRE( vT[0] == v[0] );
                         REQUIRE( vT[1] == v[1] );
                         REQUIRE( vT[2] == v[2] );
-                        i++;
                     }
                 }
                 if( U.type == uGLTF::AccessorType::VEC4 && U.componentType == uGLTF::ComponentType::FLOAT)
@@ -127,16 +126,16 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<std::array<uint32_t,4>* >(&TB.data[ TBv.byteOffset + U.byteOffset +  TByteStride*i]);
 
                         REQUIRE( vT[0] == v[0] );
                         REQUIRE( vT[1] == v[1] );
                         REQUIRE( vT[2] == v[2] );
                         REQUIRE( vT[3] == v[3] );
-                        i++;
                     }
                 }
                 if( U.type == uGLTF::AccessorType::VEC4 && U.componentType == uGLTF::ComponentType::UNSIGNED_BYTE)
@@ -145,16 +144,15 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<std::array<uint8_t,4>* >(&TB.data[ TBv.byteOffset + U.byteOffset +  TByteStride*i]);
 
                         REQUIRE( vT[0] == v[0] );
                         REQUIRE( vT[1] == v[1] );
                         REQUIRE( vT[2] == v[2] );
                         REQUIRE( vT[3] == v[3] );
-                        i++;
                     }
                 }
                 if( U.type == uGLTF::AccessorType::VEC4 && U.componentType == uGLTF::ComponentType::UNSIGNED_SHORT)
@@ -163,16 +161,15 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<std::array<uint16_t,4>* >(&TB.data[ TBv.byteOffset + U.byteOffset +  TByteStride*i]);
 
                         REQUIRE( vT[0] == v[0] );
                         REQUIRE( vT[1] == v[1] );
                         REQUIRE( vT[2] == v[2] );
                         REQUIRE( vT[3] == v[3] );
-                        i++;
                     }
                 }
                 if( U.type == uGLTF::AccessorType::SCALAR && U.componentType == uGLTF::ComponentType::UNSIGNED_SHORT)
@@ -181,13 +178,12 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<uint16_t* >(&TB.data[ TBv.byteOffset + U.byteOffset +  TByteStride*i]);
 
                         REQUIRE( vT == v );
-                        i++;
                     }
                 }
                 if( U.type == uGLTF::AccessorType::SCALAR && U.componentType == uGLTF::ComponentType::UNSIGNED_INT)
@@ -196,13 +192,13 @@ SCENARIO( "Loading " )
 
                     REQUIRE( byteSpanVec3f.size() == T.count);
 
-                    uint32_t i=0;
-                    for(auto & v : byteSpanVec3f)
+                    for(uint32_t i=0; i < byteSpanVec3f.size(); i++)
                     {
+                        auto v = byteSpanVec3f.get(i);
                         auto & vT = *reinterpret_cast<uint32_t* >(&TB.data[ TBv.byteOffset + U.byteOffset +  TByteStride*i]);
 
                         REQUIRE( vT == v );
-                        i++;
+
                     }
                 }
             }

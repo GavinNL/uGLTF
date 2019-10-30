@@ -18,12 +18,12 @@ SCENARIO("Merging Buffers")
         auto & B1 = M.buffers[0];
         auto & B2 = M.buffers[1];
 
-        B1.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN);
-        B1.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN);
+        B1.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B1.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
 
 
-        B2.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN);
-        B2.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN);
+        B2.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B2.createNewBufferView(512 , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
 
         REQUIRE( M.bufferViews.size() == 4);
 
@@ -110,11 +110,11 @@ SCENARIO("ImageData to Buffer Views")
         auto & B1 = M.buffers[0];
         auto & B2 = M.buffers[1];
 
-        B1.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN);
-        B1.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN);
+        B1.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B1.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
 
-        B2.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN );
-        B2.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN );
+        B2.createNewBufferView(1024 , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B2.createNewBufferView(512  , uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
 
         REQUIRE( M.bufferViews.size() == 4);
 
@@ -158,14 +158,14 @@ SCENARIO("ImageData to Buffer Views")
             THEN("The image data is the same")
             {
                 auto d = M.images[0].getSpan();
-                REQUIRE( d[0] == 0xAA);
-                REQUIRE( d[1] == 0xBB);
-                REQUIRE( d[2] == 0xCC);
-                REQUIRE( d[3] == 0xDD);
-                REQUIRE( d[4] == 0x11);
-                REQUIRE( d[5] == 0x22);
-                REQUIRE( d[6] == 0x33);
-                REQUIRE( d[7] == 0x44);
+                REQUIRE( d.get(0) == 0xAA);
+                REQUIRE( d.get(1) == 0xBB);
+                REQUIRE( d.get(2) == 0xCC);
+                REQUIRE( d.get(3) == 0xDD);
+                REQUIRE( d.get(4) == 0x11);
+                REQUIRE( d.get(5) == 0x22);
+                REQUIRE( d.get(6) == 0x33);
+                REQUIRE( d.get(7) == 0x44);
             }
 
 

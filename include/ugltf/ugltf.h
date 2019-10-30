@@ -87,114 +87,6 @@ public:
     using const_value_type = const typename std::remove_cv<value_type>::type;
 
 
-    /**
-     * @brief The _iterator class
-     * Iterator for non-const data
-     */
-    template<typename V>
-    class _iterator :  public std::iterator<std::random_access_iterator_tag, V>
-    {
-            using char_type  = unsigned char;
-            using value_type = V;
-            char_type     * p;
-            std::ptrdiff_t stride;
-
-          public:
-
-            _iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
-            _iterator(const _iterator& mit) : p(mit.p), stride(mit.stride) {}
-
-            // return the number of elements between two iterators
-            bool operator<(const _iterator & other) const
-            {
-                return p < other.p;
-            }
-
-            std::ptrdiff_t operator-(const _iterator & other) const
-            {
-                return (p - other.p) / stride;
-            }
-            _iterator operator-(int inc) const
-            {
-                return _iterator( p - inc*stride, stride);
-            }
-            _iterator operator+(int inc) const
-            {
-                return _iterator( p + inc*stride, stride);
-            }
-
-            _iterator& operator--() {p-=stride;return *this;}
-            _iterator  operator--(int) {_iterator tmp(*this); operator--(); return tmp;}
-
-            _iterator& operator++() {p+=stride;return *this;}
-            _iterator operator++(int) {_iterator tmp(*this); operator++(); return tmp;}
-
-            bool operator==(const _iterator& rhs) const {return p==rhs.p;}
-            bool operator!=(const _iterator& rhs) const {return p!=rhs.p;}
-
-            value_type & operator*()
-            {
-                return *static_cast<value_type*>(static_cast<void*>(p));
-            }
-
-            value_type const & operator*() const
-            {
-                return *static_cast<value_type const*>(static_cast<void const*>(p));
-            }
-     };
-    template<typename V>
-    class _const_iterator :  public std::iterator<std::random_access_iterator_tag, V>
-    {
-            using char_type  = const unsigned char;
-            using value_type = const V;
-            char_type     * p;
-            std::ptrdiff_t stride;
-
-          public:
-
-            _const_iterator(char_type* x, std::ptrdiff_t _stride) : p(x), stride(_stride) {}
-            _const_iterator(const _const_iterator& mit) : p(mit.p), stride(mit.stride) {}
-
-            // return the number of elements between two iterators
-            bool operator<(const _const_iterator & other) const
-            {
-                return p < other.p;
-            }
-
-            std::ptrdiff_t operator-(const _const_iterator & other) const
-            {
-                return (p - other.p) / stride;
-            }
-            _const_iterator operator-(int inc) const
-            {
-                return _iterator( p - inc*stride, stride);
-            }
-            _const_iterator operator+(int inc) const
-            {
-                return _iterator( p + inc*stride, stride);
-            }
-
-            _const_iterator& operator--() {p-=stride;return *this;}
-            _const_iterator  operator--(int) {_const_iterator tmp(*this); operator--(); return tmp;}
-
-            _const_iterator& operator++() {p+=stride;return *this;}
-            _const_iterator operator++(int) {_const_iterator tmp(*this); operator++(); return tmp;}
-
-            bool operator==(const _const_iterator& rhs) const {return p==rhs.p;}
-            bool operator!=(const _const_iterator& rhs) const {return p!=rhs.p;}
-
-            value_type & operator*() const
-            {
-                return *static_cast<value_type const*>(static_cast<void const*>(p));
-            }
-            value_type & operator*()
-            {
-                return *static_cast<value_type const*>(static_cast<void const*>(p));
-            }
-     };
-
-    using iterator       = _iterator<value_type>;
-    using const_iterator = _const_iterator<base_value_type>;
     using void_type      = typename std::conditional< std::is_const<value_type>::value, const void, void>::type;
     using char_type      = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
 
@@ -206,59 +98,17 @@ public:
 
     }
 
-    const_value_type & operator[](size_t i) const
+
+    value_type  back() const
     {
-        return *reinterpret_cast<value_type*>(_begin + _stride*i);
-    }
-    value_type & operator[](size_t i)
-    {
-        return *reinterpret_cast<value_type*>(_begin + _stride*i);
+        return get( size() - 1);
     }
 
-    const_iterator begin() const
+    value_type front() const
     {
-        return const_iterator( _begin, _stride);
-    }
-    const_iterator end() const
-    {
-        return const_iterator( _begin + _stride*size(), _stride);
+        return get( 0);
     }
 
-    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
-    begin()
-    {
-        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
-        return __it( _begin, _stride);
-    }
-
-    typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type
-    end()
-    {
-        using __it = typename std::conditional< std::is_const<value_type>::value, const_iterator, iterator>::type;
-        return __it( _begin + _stride*size(), _stride);
-    }
-
-//    iterator end()
-//    {
-//        return iterator( _begin + _stride*size(), _stride);
-//    }
-
-    value_type & back()
-    {
-        return this->operator[](_size-1);
-    }
-    value_type const & back() const
-    {
-        return this->operator[](_size-1);
-    }
-    value_type & front()
-    {
-        return this->operator[](0);
-    }
-    value_type const & front() const
-    {
-        return this->operator[](0);
-    }
 
     size_t size() const
     {
@@ -268,6 +118,38 @@ public:
     size_t stride() const
     {
         return _stride;
+    }
+
+    /**
+     * @brief get
+     * @param index
+     * @return
+     *
+     * Returns the value of the data stored in index n.
+     *
+     * You should use this method rather than indexing using the []
+     * operator as this does not invoke undefined behaviour
+     */
+    value_type get(size_t i) const
+    {
+        value_type c;
+        std::memcpy(&c, _begin+_stride*i, sizeof(value_type));
+        return c;
+    }
+
+    /**
+     * @brief set
+     * @param i
+     * @param v
+     *
+     * Sets the value at index, i, to v.
+     *
+     * You should use this method rather than indexing using the []
+     * operator as this does not invoke undefined behaviour
+     */
+    void set(size_t i, value_type const & v)
+    {
+        std::memcpy(_begin+_stride*i, &v, sizeof(value_type));
     }
 
 public:
@@ -467,8 +349,23 @@ class Buffer
          * Create a new bufferView from this buffer. The data will be
          * appended to the end of the buffer.
          */
-        size_t createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment=1);
+        size_t createNewBufferView(size_t bytes, BufferViewTarget target, size_t stride, size_t alignment);
 
+
+        /**
+         * @brief createNewAccessor
+         * @param byteOffset
+         * @param count
+         * @param type
+         * @param comp
+         * @return
+         *
+         * Creates a new accessor AND bufferView within this buffer. This createsa  bufferView which
+         * holds only a single accessor
+         *
+         * Returns the index of the Accessor
+         */
+        size_t createNewAccessor(size_t count,  BufferViewTarget target, AccessorType type, ComponentType comp);
 
 private:
     GLTFModel * _parent = nullptr;
@@ -571,11 +468,11 @@ public:
      *
      * Note: You probably shouldn't use this
      */
-    template<typename T>
-    aspan<T> getSpan();
-
-    template<typename T>
-    aspan<typename std::add_const<T>::type > getSpan() const;
+    //template<typename T>
+    //aspan<T> getSpan();
+    //
+    //template<typename T>
+    //aspan<typename std::add_const<T>::type > getSpan() const;
 
     /**
      * @brief data
@@ -905,12 +802,13 @@ class Accessor
 #define DOMINMAX(T, N) \
 {\
     auto S = getSpan< std::array<T, N> >();\
-    auto l_min = S[0];\
-    auto l_max = S[0];\
-    for(auto & s : S)\
+    auto l_min = S.front();\
+    auto l_max = S.front();\
+    auto size = S.size();\
+    for(size_t i=0;i<size;i++)\
     {\
-        l_min = _min<T,N>( s, l_min);\
-        l_max = _max<T,N>( s, l_max);\
+        l_min = _min<T,N>( S.get(i), l_min);\
+        l_max = _max<T,N>( S.get(i), l_max);\
     }\
     for(size_t i=0;i< N;i++)\
     {\
@@ -2079,6 +1977,9 @@ public:
     std::vector<uint8_t> m_imageData; // if bufferView is not given
 
 
+    BufferView       &  getBufferView();
+    BufferView const &  getBufferView() const;
+
     /**
      * @brief getSpan
      * @return
@@ -3126,7 +3027,7 @@ public:
         {
             if( b.m_imageData.size() )
             {
-                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN);
+                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN, 0, 1);
 
                 void * bufferViewData = bufferViews[imageBufferViewIndex].data();
 
@@ -3341,11 +3242,20 @@ inline aspan<T> Accessor::getSpan()
 {
     auto & bv = getBufferView();
 
-    auto stride = accessorSize();
+    auto stride = bv.byteStride;
 
-    if( stride < sizeof(T) )
+    // if the bufferView's stride is zero, that means the accessor's data
+    // is tightly packed
+    if( stride == 0 )
     {
-        throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+        auto accSize = accessorSize();
+
+        if( accSize < sizeof(T) )
+        {
+            throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+        }
+
+        stride = accSize;
     }
 
     return
@@ -3359,11 +3269,24 @@ inline aspan< typename std::add_const<T>::type > Accessor::getSpan() const
 {
     auto & bv = getBufferView();
 
-    auto stride = accessorSize();
+    auto stride = bv.byteStride;
 
-    if( stride < sizeof(T) )
+    // if the bufferView's stride is zero, that means the accessor's data
+    // is tightly packed
+    if( stride == 0 )
     {
-        throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+        auto accSize = accessorSize();
+
+        if( accSize < sizeof(T) )
+        {
+            throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
+        }
+
+        stride = accSize;
+    }
+    else  // the buffer view is not packed
+    {
+
     }
 
     return
@@ -3373,62 +3296,14 @@ inline aspan< typename std::add_const<T>::type > Accessor::getSpan() const
 }
 
 
-template<typename T>
-inline aspan<T> BufferView::getSpan()
-{
-    auto d  = getBuffer().m_data.data() + byteOffset;
-
-    auto stride = sizeof(T);
-
-    // byteStride not given, so data is tightly packed
-    if( byteStride <= 0) // the stride is defined so its likely an attribute byffer
-    {
-        stride = sizeof(T);
-    }
-    else
-    {
-        if( static_cast<size_t>(byteStride) < sizeof(T) )
-        {
-            throw std::runtime_error("The defined byteStride is less than the requested stride, consequitive data will overlap.");
-        }
-    }
-
-    auto count = static_cast<size_t>(byteLength) / stride;
-    return aspan<T>(d, count, stride);
-}
-
-template<typename T>
-inline aspan< typename std::add_const<T>::type > BufferView::getSpan() const
-{
-    auto d  = getBuffer().m_data.data() + byteOffset;
-
-    auto stride = sizeof(T);
-
-    // byteStride not given, so data is tightly packed
-    if( byteStride <= 0) // the stride is defined so its likely an attribute byffer
-    {
-        stride = sizeof(T);
-    }
-    else
-    {
-        if( static_cast<size_t>(byteStride) < sizeof(T) )
-        {
-            // warning: the defined byteStride is less than the requested
-            //          stride, consequitive data will overlap.
-        }
-    }
-
-    auto count = static_cast<size_t>(byteLength) / stride;
-    return aspan< typename std::add_const<T>::type >(d, count, stride);
-}
-
 inline aspan<uint8_t> Image::getSpan()
 {
     if( bufferView != std::numeric_limits<uint32_t>::max() )
     {
         auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
 
-        return Bv.getSpan<uint8_t>();
+        return aspan<uint8_t>( Bv.data(), Bv.byteLength, 1);// aspan(uint8_t)
+        //return Bv.getSpan<uint8_t>();
     }
 
     if( m_imageData.size() > 0)
@@ -3443,7 +3318,8 @@ inline aspan<const uint8_t> Image::getSpan() const
     {
         auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
 
-        return Bv.getSpan<uint8_t const>();
+        return aspan<uint8_t const>( Bv.data(), Bv.byteLength, 1);// aspan(uint8_t)
+        //return Bv.getSpan<uint8_t const>();
     }
 
     if( m_imageData.size() > 0)
@@ -3452,15 +3328,15 @@ inline aspan<const uint8_t> Image::getSpan() const
     throw std::runtime_error("Image Data has not been loaded yet.");
 }
 
-// inline BufferView       & Image::getBufferView()
-// {
-//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-// }
-//
-// inline BufferView const & Image::getBufferView() const
-// {
-//     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-// }
+inline BufferView       & Image::getBufferView()
+{
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+}
+
+inline BufferView const & Image::getBufferView() const
+{
+    return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
+}
 
 
 inline Mesh const   & Node::getMesh() const
@@ -3571,9 +3447,23 @@ inline void Accessor::copyDataFrom(Accessor const & A)
 
 }
 
+inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, AccessorType type, ComponentType comp)
+{
+    size_t alignment = 1;
+
+    Accessor a;
+    a.type = type;
+    a.componentType = comp;
+
+    auto bytes = a.accessorSize() * count;
+
+    auto bv_i = createNewBufferView( bytes, target, alignment, 1);
+    return _parent->bufferViews[bv_i].createNewAccessor(0, count, type, comp);
+}
+
 // create a new buffer view by expanding the current
 // buffer and placing the bytes at the end.
-inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target, size_t alignment)
+inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target, size_t stride, size_t alignment)
 {
     _parent->bufferViews.push_back(BufferView());//.emplace_back();
     BufferView & Bv = _parent->bufferViews.back();
@@ -3601,7 +3491,7 @@ inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target,
     Bv.buffer     = i;
     Bv.byteLength = bytes;
     Bv.byteOffset = m_data.size();
-    Bv.byteStride = 0;
+    Bv.byteStride = stride;
 
     // expand the buffer.
     m_data.insert( m_data.end(), bytes, 0);
