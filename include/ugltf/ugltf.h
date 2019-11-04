@@ -13,7 +13,7 @@
     #define UGLTF_NAMESPACE uGLTF
 #endif
 
-#if 0
+#if 1
 #define TRACE(...)
 #else
 #include <spdlog/spdlog.h>
@@ -172,7 +172,7 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
     }
     return default_val;
 }
-#if 1
+#if 0
 
 /**
  * @brief _fromBase64
@@ -250,6 +250,118 @@ inline std::string _toBase64(void const * begin_v, void const *end_v)
         out.push_back('=');
 
     return out;
+}
+
+#else
+
+
+// https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+
+inline bool is_base64(unsigned char c) {
+  return (isalnum(c) || (c == '+') || (c == '/'));
+}
+
+std::string _toBase64( void const* src, void const* src_end)
+{
+    static const std::string base64_chars =
+                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                 "abcdefghijklmnopqrstuvwxyz"
+                 "0123456789+/";
+
+    auto bytes_to_encode     = static_cast<unsigned char const*>(src);
+    auto bytes_to_encode_end = static_cast<unsigned char const*>(src_end);
+
+    unsigned int in_len = bytes_to_encode_end - bytes_to_encode;
+
+  std::string ret;
+
+  int i = 0;
+  int j = 0;
+  unsigned char char_array_3[3];
+  unsigned char char_array_4[4];
+
+  while (in_len--) {
+    char_array_3[i++] = *(bytes_to_encode++);
+    if (i == 3) {
+      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+      char_array_4[3] = char_array_3[2] & 0x3f;
+
+      for(i = 0; (i <4) ; i++)
+        ret += base64_chars[char_array_4[i]];
+      i = 0;
+    }
+  }
+
+  if (i)
+  {
+    for(j = i; j < 3; j++)
+      char_array_3[j] = '\0';
+
+    char_array_4[0] = ( char_array_3[0] & 0xfc) >> 2;
+    char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+    char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+
+    for (j = 0; (j < i + 1); j++)
+      ret += base64_chars[char_array_4[j]];
+
+    while((i++ < 3))
+      ret += '=';
+
+  }
+
+  return ret;
+
+}
+
+inline std::vector<uint8_t> _fromBase64( void const* src, void const* src_end)
+{
+    static const std::string base64_chars =
+                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                 "abcdefghijklmnopqrstuvwxyz"
+                 "0123456789+/";
+
+    auto bytes_to_encode     = static_cast<unsigned char const*>(src);
+    auto bytes_to_encode_end = static_cast<unsigned char const*>(src_end);
+
+    auto encoded_string = bytes_to_encode;
+    int in_len = bytes_to_encode_end - bytes_to_encode;
+  //int in_len = encoded_string.size();
+  int i = 0;
+  int j = 0;
+  int in_ = 0;
+  unsigned char char_array_4[4], char_array_3[3];
+  std::vector<uint8_t> ret;
+
+  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
+    char_array_4[i++] = encoded_string[in_]; in_++;
+    if (i ==4) {
+      for (i = 0; i <4; i++)
+        char_array_4[i] = base64_chars.find(char_array_4[i]);
+
+      char_array_3[0] = ( char_array_4[0] << 2       ) + ((char_array_4[1] & 0x30) >> 4);
+      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) +   char_array_4[3];
+
+      for (i = 0; (i < 3); i++)
+        ret.push_back( char_array_3[i] );
+      i = 0;
+    }
+  }
+
+  if (i) {
+    for (j = 0; j < i; j++)
+      char_array_4[j] = base64_chars.find(char_array_4[j]);
+
+    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+
+    for (j = 0; (j < i - 1); j++)
+        ret.push_back( char_array_3[j] );
+  }
+
+  return ret;
 }
 
 #endif
@@ -365,7 +477,7 @@ class Buffer
          *
          * Returns the index of the Accessor
          */
-        size_t createNewAccessor(size_t count,  BufferViewTarget target, AccessorType type, ComponentType comp);
+        size_t createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment, AccessorType type, ComponentType comp);
 
 private:
     GLTFModel * _parent = nullptr;
@@ -2934,10 +3046,32 @@ public:
      * Writes the Model as a .gltf JSON file with embedded buffers
      * encoded in base64.
      */
-    void writeEmbedded(std::ostream & out) const
+    void writeEmbeddedGLTF(std::ostream & out) const
     {
         auto j = generateJSON();
+        writeEmbeddedBuffers(j);
+        out << j.dump(4);
+    }
 
+
+    /**
+     * @brief writeEmbeddedBuffers
+     *
+     * Populates the GLTF["buffers"] property with the the embedded data
+     *
+     * {
+     *     "buffers" : {
+     *        [
+     *          {
+     *            "byteLength":  xxx,
+     *            "uri" : "data:application/octet-stream;base64NERDH3245HJ23K2J3NHBDH5J23HKJ25NBKJ"
+     *          }
+     *        ]
+     *     }
+     * }
+     */
+    void writeEmbeddedBuffers( json & j ) const
+    {
         j["buffers"].clear();
         uint32_t i=0;
         for(auto & b : buffers)
@@ -2946,10 +3080,7 @@ public:
             j["buffers"][i]["uri"] = std::string("data:application/octet-stream;base64,") + _toBase64( &b.m_data[0] , &b.m_data[ b.m_data.size() ]);
             i++;
         }
-
-        out << j.dump(4);
     }
-
 
     Image & newImage()
     {
@@ -3447,9 +3578,9 @@ inline void Accessor::copyDataFrom(Accessor const & A)
 
 }
 
-inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, AccessorType type, ComponentType comp)
+inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment,AccessorType type, ComponentType comp)
 {
-    size_t alignment = 1;
+   // size_t alignment = 1;
 
     Accessor a;
     a.type = type;
@@ -3457,7 +3588,8 @@ inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, 
 
     auto bytes = a.accessorSize() * count;
 
-    auto bv_i = createNewBufferView( bytes, target, alignment, 1);
+    auto bv_i = createNewBufferView( bytes, target, bufferViewStride, bufferViewAlignment);
+
     return _parent->bufferViews[bv_i].createNewAccessor(0, count, type, comp);
 }
 

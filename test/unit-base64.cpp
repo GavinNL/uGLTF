@@ -42,3 +42,25 @@ SCENARIO("Test Base64 encode")
         REQUIRE( r == *x++);
     }
 }
+
+
+SCENARIO("Test Base64 encode 2")
+{
+    float orig[] = {1,2,3,4,5};
+
+
+    auto enc = uGLTF::_toBase64(&orig[0], &orig[ 5 ] );
+
+
+    auto dec = uGLTF::_fromBase64( &enc[0], &enc[ enc.size() ] );
+
+    float dec2[] = {9,9,9,9,9};
+
+    std::memcpy(dec2,dec.data(), sizeof(float)*5);
+
+    REQUIRE( orig[0] == Approx(dec2[0] ));
+    REQUIRE( orig[1] == Approx(dec2[1] ));
+    REQUIRE( orig[2] == Approx(dec2[2] ));
+    REQUIRE( orig[3] == Approx(dec2[3] ));
+    REQUIRE( orig[4] == Approx(dec2[4] ));
+}

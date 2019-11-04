@@ -62,7 +62,7 @@ SCENARIO("Writing a GLTF embedded")
         WHEN("We save the model as a GLTF embedded file")
         {
             std::ofstream out("BoxTextured.gltf.gltf");
-            M.writeEmbedded( out );
+            M.writeEmbeddedGLTF( out );
             out.close();
 
             WHEN("We can load model again")
