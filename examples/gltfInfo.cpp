@@ -267,11 +267,13 @@ int main(int argc, char **argv)
             std::cout << INDENT INDENT << "img mime type     : " << I.mimeType << std::endl;
 
             {
-                auto data = I.getSpan();
-                std::cout << INDENT INDENT << "img data size     : " << data.size() << std::endl;
+//                auto data = I.getSpan();
+
+                auto & bufferView = I.getBufferView();
+                std::cout << INDENT INDENT << "img data size     : " << bufferView.byteLength << std::endl;
 
                 int x,y,comp;
-                auto * img = stbi_load_from_memory( &data[0], data.size(), &x, &y, &comp, 3);
+                auto * img = stbi_load_from_memory( static_cast<const stbi_uc*>(bufferView.data()) , bufferView.byteLength , &x, &y, &comp, 3);
 
                 std::cout << INDENT INDENT << "Dimensions  e     : " << x << " x " << y << std::endl;
 

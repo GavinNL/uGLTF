@@ -79,11 +79,11 @@ int copyAnimations2(uGLTF::GLTFModel const & src, uGLTF::GLTFModel & dst )
 
             // this buffer view should ahve enough space to hold all the input (time values) accessors
             // for all the samplers.
-            auto inputBufferViewIndex = newBuffer.createNewBufferView( inputCount * sizeof(float), uGLTF::BufferViewTarget::UNKNOWN, 4);
+            auto inputBufferViewIndex = newBuffer.createNewBufferView( inputCount * sizeof(float), uGLTF::BufferViewTarget::UNKNOWN, 4, 1);
 
             // Ouptut buffers, one for vec3 elements and one for vec4 elements.
-            auto outputBufferViewIndexVec3 = newBuffer.createNewBufferView( vec3Count * sizeof(float) * 3, uGLTF::BufferViewTarget::UNKNOWN, 4);
-            auto outputBufferViewIndexVec4 = newBuffer.createNewBufferView( vec4Count * sizeof(float) * 4, uGLTF::BufferViewTarget::UNKNOWN, 4);
+            auto outputBufferViewIndexVec3 = newBuffer.createNewBufferView( vec3Count * sizeof(float) * 3, uGLTF::BufferViewTarget::UNKNOWN, 4, 1);
+            auto outputBufferViewIndexVec4 = newBuffer.createNewBufferView( vec4Count * sizeof(float) * 4, uGLTF::BufferViewTarget::UNKNOWN, 4, 1);
 
             TRACE("inputBufferViewIndex : {}", inputBufferViewIndex);
             TRACE("outputBufferViewIndexVec3 : {}", outputBufferViewIndexVec3);
