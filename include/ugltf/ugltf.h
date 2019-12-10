@@ -132,7 +132,7 @@ public:
      */
     value_type get(size_t i) const
     {
-        value_type c;
+        typename std::remove_cv<value_type>::type c;
         std::memcpy(&c, _begin+_stride*i, sizeof(value_type));
         return c;
     }
@@ -261,7 +261,7 @@ inline bool is_base64(unsigned char c) {
   return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-std::string _toBase64( void const* src, void const* src_end)
+inline std::string _toBase64( void const* src, void const* src_end)
 {
     static const std::string base64_chars =
                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -902,7 +902,34 @@ class Accessor
         BufferView & getBufferView();
 
 
+        /**
+         * @brief memcpy_all
+         * @param dst
+         *
+         * Copy all the accessor values into the dst
+         * buffer.
+         */
+        void memcpy_all( void * dst ) const
+        {
+            auto & bv = getBufferView();
 
+            auto * src_c = static_cast<const unsigned char*>(bv.data()) + byteOffset;
+            auto * dst_c = static_cast< unsigned char*>( dst );
+
+            auto aSize = accessorSize();
+
+            auto stride = bv.byteStride;
+            if( stride == 0)
+            {
+                stride = aSize;
+            }
+            for(size_t i=0;i<count;i++)
+            {
+                std::memcpy(dst_c + i * aSize,
+                            src_c + i * stride, aSize );
+
+            }
+        }
 
         /**
          * @brief calculateMinMax
