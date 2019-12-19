@@ -2677,7 +2677,7 @@ public:
          samplers    = std::move(  other.samplers);
          cameras     = std::move(  other.cameras);
          materials   = std::move(  other.materials);
-
+         extensions  = std::move( other.extensions );
          _setParents(this);
     }
     GLTFModel(GLTFModel const & other)
@@ -2695,6 +2695,7 @@ public:
          samplers    = other.samplers;
          cameras     = other.cameras;
          materials   = other.materials;
+         extensions  = other.extensions;
 
          _setParents(this);
     }
@@ -2716,7 +2717,7 @@ public:
              samplers    = other.samplers;
              cameras     = other.cameras;
              materials   = other.materials;
-
+             extensions  = other.extensions;
              _setParents(this);
          }
          return *this;
@@ -2738,6 +2739,7 @@ public:
              samplers    = std::move(  other.samplers);
              cameras     = std::move(  other.cameras);
              materials   = std::move(  other.materials);
+             extensions  = std::move(  other.extensions );
 
              _setParents(this);
          }
@@ -2979,6 +2981,11 @@ public:
                 materials.emplace_back( std::move(B) );
             }
         }
+
+        if( J.count("extensions") == 1)
+        {
+            extensions = J["extensions"];
+        }
         _setParents(this);
         return true;
     }
@@ -3039,6 +3046,7 @@ public:
         if( materials.size() )
             J["materials"]   =  materials;
 
+        J["extensions"] = extensions;
         return root;
     }
 
@@ -3365,7 +3373,7 @@ public:
     std::vector<Sampler>    samplers;
     std::vector<Camera>     cameras;
     std::vector<Material>   materials;
-
+    json                    extensions;
     json                    _json;
 };
 
