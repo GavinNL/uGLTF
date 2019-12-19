@@ -882,6 +882,7 @@ class Accessor
 
         std::string  name;
 
+
         /**
          * @brief getSpan
          * @return
@@ -1102,6 +1103,72 @@ class Accessor
             }
         }
 
+
+        template<typename T>
+        inline void getValue(size_t index, T & dst)
+        {
+            auto * src = _getData(index);
+            auto as = accessorSize();
+            assert( as == sizeof(T) );
+            std::memcpy(&dst, src,sizeof(T) );
+        }
+        template<typename T>
+        inline size_t getValues(size_t startIndex, T * dst, size_t totalElements) const
+        {
+            auto * src = _getData(startIndex);
+            auto as = accessorSize();
+            assert( as == sizeof(T) );
+            auto stride = getBufferView().byteStride;
+
+            if( startIndex + totalElements > count )
+            {
+                totalElements = count - startIndex;
+            }
+
+            for(uint32_t i=0;i<totalElements;i++)
+            {
+                std::memcpy(dst, src, sizeof(T) );
+                dst++;
+                src+=stride;
+            }
+
+            return totalElements;
+        }
+
+
+        template<typename T>
+        inline void setValue(size_t index, T const & src)
+        {
+            auto * dst = _getData(index);
+            auto as = accessorSize();
+            assert( as == sizeof(T) );
+            std::memcpy(dst, &src, sizeof(T) );
+        }
+
+        template<typename T>
+        inline size_t setValues(size_t startIndex, T const * src, size_t totalElements)
+        {
+            auto * dst = _getData(startIndex);
+            auto as = accessorSize();
+            assert( as == sizeof(T) );
+            auto stride = getBufferView().byteStride;
+
+            if( startIndex + totalElements > count )
+            {
+                totalElements = count - startIndex;
+            }
+
+            for(uint32_t i=0;i<totalElements;i++)
+            {
+                std::memcpy(dst, src, sizeof(T) );
+                dst += stride;
+                src++;
+            }
+
+            return totalElements;
+        }
+
+
         /**
          * @brief copyDataFrom
          * @param A
@@ -1193,6 +1260,9 @@ class Accessor
             }
             return m;
         }
+
+        uint8_t * _getData(size_t index);
+        uint8_t const * _getData(size_t index) const;
 };
 
 inline void to_json(json& j, const Accessor & p)
@@ -3551,6 +3621,21 @@ inline Accessor const & Skin::getInverseBindMatricesAccessor() const
 {
     return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
 }
+
+uint8_t* Accessor::_getData(size_t index)
+{
+    auto & v = getBufferView();
+    uint8_t * dst = static_cast<uint8_t*>( v.data() ) + byteOffset + index * v.byteStride;
+    return dst;
+}
+
+uint8_t const * Accessor::_getData(size_t index) const
+{
+    auto & v = getBufferView();
+    uint8_t const * dst = static_cast<uint8_t const*>( getBufferView().data() ) + byteOffset + index * v.byteStride;
+    return dst;
+}
+
 
 inline void Accessor::copyDataFrom(Accessor const & A)
 {
