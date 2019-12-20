@@ -528,6 +528,7 @@ inline void from_json(const json & j, Buffer & B)
             assert( B.m_data.size() == B.byteLength);
         }
     }
+    B.m_data.resize(B.byteLength);
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
     std::cout << "original: " << std::endl;
@@ -1105,7 +1106,18 @@ class Accessor
 
 
         template<typename T>
-        inline void getValue(size_t index, T & dst)
+        inline T getValue(size_t index) const
+        {
+            T dst;
+            auto * src = _getData(index);
+            auto as = accessorSize();
+            assert( as == sizeof(T) );
+            std::memcpy(&dst, src,sizeof(T) );
+            return dst;
+        }
+
+        template<typename T>
+        inline void getValue(size_t index, T & dst) const
         {
             auto * src = _getData(index);
             auto as = accessorSize();
@@ -1139,10 +1151,18 @@ class Accessor
         template<typename T>
         inline void setValue(size_t index, T const & src)
         {
-            auto * dst = _getData(index);
-            auto as = accessorSize();
-            assert( as == sizeof(T) );
-            std::memcpy(dst, &src, sizeof(T) );
+            if( index < count)
+            {
+                auto * dst = _getData(index);
+                auto as = accessorSize();
+                assert( as == sizeof(T) );
+
+                std::memcpy(dst, &src, sizeof(T) );
+            }
+            else
+            {
+                throw std::out_of_range("Index out of range");
+            }
         }
 
         template<typename T>
@@ -1155,7 +1175,7 @@ class Accessor
 
             if( startIndex + totalElements > count )
             {
-                totalElements = count - startIndex;
+                throw std::out_of_range("Index out of range");
             }
 
             for(uint32_t i=0;i<totalElements;i++)
@@ -2784,40 +2804,8 @@ public:
         }
     }
 
-
-    bool load( std::istream & i)
+    bool fromJSON(json const & J)
     {
-        bool isGLB = false;
-        auto firstChar = i.peek();
-        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
-        {
-            // it's a GLB file.
-            auto header    = _readHeader(i);
-            if(header.magic != 0x46546C67) return false;
-            if(header.version < 2)         return false;
-
-
-            auto jsonChunk = _readChunk(i);
-            jsonChunk.chunkData.push_back(0);
-
-            _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
-
-            isGLB = true;
-        }
-        else  // is pure json file
-        {
-            i >> _json;
-        }
-
-
-        auto & J = _json;
-
-        //std::cout << "=====================================================" << std::endl;;
-        //std::cout << "ORIGINAL JSON             ===========================" << std::endl;;
-        //std::cout << "=====================================================" << std::endl;;
-        //std::cout << _json.dump(4);
-        //std::cout << "=====================================================" << std::endl << std::endl;
-
         if(J.count("asset") == 1)
         {
             asset = J["asset"].get<Asset>();
@@ -2825,16 +2813,8 @@ public:
 
         if(J.count("buffers") == 1)
         {
-            if( isGLB)
-            {
-                buffers = _readBuffers(i, J["buffers"]);
-            }
-            else
-            {
-                buffers = J["buffers"].get< std::vector<Buffer> >();
-            }
+            buffers = J["buffers"].get< std::vector<Buffer> >();
         }
-
 
         if(J.count("bufferViews") == 1)
         {
@@ -2982,11 +2962,49 @@ public:
             }
         }
 
+        _setParents(this);
+
         if( J.count("extensions") == 1)
         {
             extensions = J["extensions"];
         }
-        _setParents(this);
+
+        return true;
+    }
+
+    bool load( std::istream & i)
+    {
+        bool isGLB = false;
+        auto firstChar = i.peek();
+        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
+        {
+            // it's a GLB file.
+            auto header    = _readHeader(i);
+            if(header.magic != 0x46546C67) return false;
+            if(header.version < 2)         return false;
+
+
+            auto jsonChunk = _readChunk(i);
+            jsonChunk.chunkData.push_back(0);
+
+            _json = _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+
+            isGLB = true;
+        }
+        else  // is pure json file
+        {
+            i >> _json;
+        }
+
+
+        auto & J = _json;
+
+        fromJSON(J);
+
+        if( isGLB)
+        {
+            _readGLBBuffers( i, buffers, J["buffers"] );
+        }
         return true;
     }
 
@@ -3315,6 +3333,35 @@ public:
         json J;
 
         return J.parse(data);
+    }
+
+
+    static void _readGLBBuffers( std::istream & in, std::vector<Buffer> & buffers, json const & jBuffers )
+    {
+        if( buffers.size() != jBuffers.size())
+        {
+            throw std::runtime_error("In a GLB file there can only be 1 buffer");
+        }
+        chunk_t h;
+        uint32_t i=0;
+        if(in.read(reinterpret_cast<char*>(&h), sizeof(uint32_t)*2))
+        {
+            if( h.chunkType == 0x4E4F534A || h.chunkType == 0x004E4942)
+            {
+                for(auto & b : jBuffers)
+                {
+                    Buffer & B   = buffers[i];
+                    B.byteLength = b["byteLength"].get<int32_t>();
+                    B.m_data.resize( B.byteLength );
+
+                    // read exactly byteLength bytes from the input stream
+                    in.read( reinterpret_cast<char*>(B.m_data.data()), B.m_data.size());
+
+                    i++;
+                }
+
+            }
+        }
     }
 
     /**
