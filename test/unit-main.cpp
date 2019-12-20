@@ -1,4 +1,6 @@
 #include "catch.hpp"
+#define UGLTF_PRIVATE   public
+#define UGLTF_PROTECTED public
 #include <ugltf/ugltf.h>
 #include <iostream>
 #include <fstream>
@@ -112,7 +114,7 @@ SCENARIO( "Read Header" )
                 THEN("We can parse the JSON")
                 {
                     cJ.chunkData.push_back(0);
-                    auto J = M._parseJson( reinterpret_cast<char*>(cJ.chunkData.data()) );
+                    auto J = uGLTF::json::parse( reinterpret_cast<char*>(cJ.chunkData.data()) );
 
                     REQUIRE(J.count("asset") == 1 );
                  //   std::cout << J["asset"].dump(4) << std::endl;
@@ -160,7 +162,7 @@ SCENARIO( "Extracting Buffers" )
 
 
                 cJ.chunkData.push_back(0);
-                auto J = M._parseJson( reinterpret_cast<char*>(cJ.chunkData.data()) );
+                auto J = uGLTF::json::parse( reinterpret_cast<char*>(cJ.chunkData.data()) );
 
 
                 REQUIRE( J.count("asset") == 1 );

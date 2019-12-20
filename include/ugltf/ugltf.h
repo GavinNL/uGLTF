@@ -408,6 +408,14 @@ class Buffer
          */
         size_t createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment, AccessorType type, ComponentType comp);
 
+
+
+        void append(Buffer const & B)
+        {
+            // add this buffer to the end of the new buffer
+            m_data.insert( m_data.end(), B.m_data.begin(), B.m_data.end() );
+            byteLength = m_data.size();
+        }
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2638,9 +2646,9 @@ class GLTFModel
 public:
     struct header_t
     {
-        uint32_t magic;
-        uint32_t version;
-        uint32_t length;
+        uint32_t magic   = 0x46546C67;
+        uint32_t version = 2;
+        uint32_t length  = 12;
     };
 
     struct chunk_t
@@ -2987,224 +2995,11 @@ public:
 
 
 
-
-    /**
-     * @brief generateJSON
-     * @return
-     *
-     * Generates the JSON component of the GLB file.
-     */
-    json generateJSON() const
-    {
-        json root;
-
-        auto & J = root;
-
-        J["asset"]       =  asset;
-
-        if( accessors.size() )
-            J["accessors"]   =  accessors;
-
-        if( buffers.size() )
-            J["buffers"] =  buffers;
-
-        if( bufferViews.size() )
-            J["bufferViews"] =  bufferViews;
-
-        if(nodes.size())
-            J["nodes"]       =  nodes;
-
-        if(meshes.size())
-            J["meshes"]      =  meshes;
-
-        if( scenes.size())
-            J["scenes"]      =  scenes;
-
-        if( skins.size())
-            J["skins"]       =  skins;
-
-        if( animations.size() )
-            J["animations"]  =  animations;
-
-        if( images.size() )
-            J["images"]      =  images;
-
-        if(textures.size())
-            J["textures"]    =  textures;
-
-        if( samplers.size() )
-            J["samplers"]    =  samplers;
-
-        if( cameras.size() )
-            J["cameras"]     =  cameras;
-
-        if( materials.size() )
-            J["materials"]   =  materials;
-
-        J["extensions"] = extensions;
-        return root;
-    }
-
-    /**
-     * @brief writeGLB
-     * @param out
-     *
-     * Writes the GLTF file to an output stream in GLB format
-     */
-    void writeGLB(std::ostream & out) const
-    {
-        uint32_t magic   = 0x46546C67;
-        uint32_t version = 2;
-        uint32_t length  = 12;
-
-        auto j = generateJSON();
-
-        std::string j_str = j.dump();
-
-        // make sure that the string is aligned to a 4-byte boundary
-        // according to the specifications
-        if( j_str.size() %4 != 0)
-        {
-            j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
-            assert( j_str.size() % 4 == 0);
-        }
-
-        length += 8;
-        length += j_str.size();
-
-        uint32_t bufferChunkSize=8;
-        for(auto & c : buffers)
-        {
-            bufferChunkSize += c.m_data.size();
-        }
-        if(bufferChunkSize%4!=0)
-            bufferChunkSize += 4-bufferChunkSize%4;
-
-        TRACE("Buffer Chunk Size   : {}", bufferChunkSize);
-        TRACE("Buffer Chunk%4 Check: {}", bufferChunkSize%4);
-
-        length += bufferChunkSize;
-
-        out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
-        out.write( reinterpret_cast<char*>(&version) , sizeof(version));
-        out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
-
-        // Write the JSON chunk.
-        {
-            uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
-            uint32_t chunkType   = 0x4E4F534A; // json
-
-            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
-            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
-
-            out.write( j_str.data(), j_str.size());
-        }
-
-        // write the Buffers chunk.
-        {
-            uint32_t chunkLength = 0;//
-            uint32_t chunkType   = 0x004E4942; // bin
-
-            for(auto & c : buffers)
-            {
-                chunkLength += c.m_data.size();
-            }
-            TRACE("Total Buffer bytes: {}", chunkLength);
-            // Make sure that the total data is aligned to a 4byte boundary.
-            uint32_t padding=0;
-            if( chunkLength % 4!=0)
-            {
-                padding = 4-chunkLength%4;
-                chunkLength += padding;
-                TRACE("Adding padding: {}", padding);
-            }
-
-            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
-            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
-
-            for(auto & c : buffers)
-            {
-                out.write( reinterpret_cast<char const*>(c.m_data.data()) , c.m_data.size() );
-                //chunkLength += c.m_data.size();
-            }
-
-            if(padding)
-            {
-                std::array<char, 8> _padd = {};
-                out.write( _padd.data() , padding );
-            }
-
-
-        }
-
-    }
-
-    /**
-     * @brief writeEmbedded
-     * @param out
-     *
-     * Writes the Model as a .gltf JSON file with embedded buffers
-     * encoded in base64.
-     */
-    void writeEmbeddedGLTF(std::ostream & out) const
-    {
-        auto j = generateJSON();
-        writeEmbeddedBuffers(j);
-        out << j.dump(4);
-    }
-
-
-    /**
-     * @brief writeEmbeddedBuffers
-     *
-     * Populates the GLTF["buffers"] property with the the embedded data
-     *
-     * {
-     *     "buffers" : {
-     *        [
-     *          {
-     *            "byteLength":  xxx,
-     *            "uri" : "data:application/octet-stream;base64NERDH3245HJ23K2J3NHBDH5J23HKJ25NBKJ"
-     *          }
-     *        ]
-     *     }
-     * }
-     */
-    void writeEmbeddedBuffers( json & j ) const
-    {
-        j["buffers"].clear();
-        uint32_t i=0;
-        for(auto & b : buffers)
-        {
-            j["buffers"][i]["byteLength"] = b.m_data.size();
-            j["buffers"][i]["uri"] = std::string("data:application/octet-stream;base64,") + _toBase64( &b.m_data[0] , &b.m_data[ b.m_data.size() ]);
-            i++;
-        }
-    }
-
-    Image & newImage()
-    {
-        auto & b = images.emplace_back();
-        b._parent = this;
-        return b;
-    }
-
-    Buffer & newBuffer()
-    {
-        auto & b = buffers.emplace_back();
-        b._parent = this;
-        return b;
-    }
-
-    Animation& newAnimation()
-    {
-        auto & b = animations.emplace_back();
-        b._parent = this;
-        return b;
-    }
-
-
-
+    //=========================================================================================
+    // MODIFICATION methods
+    //
+    // Methods which modify an already set up GLTFModel
+    //=========================================================================================
     /**
      * @brief mergeBuffers
      *
@@ -3214,6 +3009,9 @@ public:
     void mergeBuffers()
     {
         std::vector<uint8_t> newBuffer;
+
+        if(buffers.size() <= 1)
+            return;
 
         uint32_t i=0;
         for(auto & b : buffers)
@@ -3266,11 +3064,281 @@ public:
 
                 b.bufferView = imageBufferViewIndex;
                 b.m_imageData.clear();
+                b.uri.clear();
             }
 
         }
     }
 
+
+
+
+    //=========================================================================================
+    // Generation Methods
+    //
+    // Methods which modify an already set up GLTFModel
+    //=========================================================================================
+
+    /**
+     * @brief getMergedBuffer
+     * @return
+     *
+     * Returns a single buffer which is the merge of
+     * all the current buffers. This does not
+     * update the bufferViews.
+     */
+    Buffer generateMergedBuffer() const
+    {
+        Buffer newBuffer;
+
+        for(auto & b : buffers)
+        {
+            newBuffer.append(b);
+        }
+        return newBuffer;
+    }
+    /**
+     * @brief getMergedBufferViews
+     * @return
+     *
+     * Returns a new vector of BufferViews which have been
+     * updated to all point to single merged buffer.
+     */
+    std::vector<BufferView> generateMergedBufferViews() const
+    {
+        if(buffers.size() <= 1)
+            return bufferViews;
+
+        std::vector<BufferView> merged = bufferViews;
+
+        uint32_t i=0;
+        uint32_t byteOffset = 0;
+        for(auto & b : buffers)
+        {
+            // loop through all the buffer views
+            // and check if that view is referencing the current buffer, i,
+            // if it is, set it to reference buffer 0 and update it's byteOffset
+            for(auto & v : merged)
+            {
+                if( v.buffer == i )
+                {
+                    v.buffer      = 0;
+                    v.byteOffset += byteOffset;
+                }
+            }
+
+            byteOffset = static_cast<uint32_t>( b.byteLength );
+            i++;
+        }
+        return merged;
+    }
+
+    /**
+     * @brief generateJSON
+     * @return
+     *
+     * Generates the JSON component of the GLB file. If _writeEmbeddedBuffers
+     * is set, it will write the buffes as base64.
+     *
+     * all Images[] data will be written as base64 in the .uri field
+     * whether _writeEmbeddedBuffers is set or not.
+     *
+     */
+    json generateJSON(bool _writeEmbeddedBuffers) const
+    {
+        json root;
+
+        auto & J = root;
+
+        J["asset"]       =  asset;
+
+        if( accessors.size() )
+            J["accessors"]   =  accessors;
+
+        if( buffers.size() )
+            J["buffers"] =  buffers;
+
+        if( bufferViews.size() )
+            J["bufferViews"] =  bufferViews;
+
+        if(nodes.size())
+            J["nodes"]       =  nodes;
+
+        if(meshes.size())
+            J["meshes"]      =  meshes;
+
+        if( scenes.size())
+            J["scenes"]      =  scenes;
+
+        if( skins.size())
+            J["skins"]       =  skins;
+
+        if( animations.size() )
+            J["animations"]  =  animations;
+
+        if( images.size() )
+            J["images"]      =  images;
+
+        if(textures.size())
+            J["textures"]    =  textures;
+
+        if( samplers.size() )
+            J["samplers"]    =  samplers;
+
+        if( cameras.size() )
+            J["cameras"]     =  cameras;
+
+        if( materials.size() )
+            J["materials"]   =  materials;
+
+        J["extensions"] = extensions;
+
+        if( _writeEmbeddedBuffers)
+        {
+            writeEmbeddedBuffers(J);
+        }
+        return root;
+    }
+
+
+
+
+
+    /**
+     * @brief writeGLB
+     * @param out
+     *
+     * Writes the Model to a GLB file. Writing to a GLB file will change the
+     * internal structure of the GLTF file.
+     *
+     * The following changes will be made:
+     *  1. All images will now be stored in BufferViews
+     *  2. All buffers will be combined into a single buffer (bufferViews updated)
+     */
+    void writeGLB(std::ostream & out) const
+    {
+        // generate the JSON with
+        auto j = generateJSON(false);
+
+        auto bv = generateMergedBufferViews();
+        auto b  = generateMergedBuffer();
+
+        std::vector<Image> img;
+        for(auto & I : images)
+        {
+            img.push_back( _appendImage(I, bv, b) );
+        }
+
+        j.erase("buffers");
+        j.erase("images");
+
+        j["buffers"][0] = b;
+        j["bufferViews"] = bv;
+
+        if(img.size())
+        {
+            j["images"] = img;
+        }
+        _writeGLB(out, j, b);
+    }
+
+    /**
+     * @brief writeEmbedded
+     * @param out
+     *
+     * Writes the Model as a .gltf JSON file with embedded buffers
+     * encoded in base64.
+     */
+    void writeEmbeddedGLTF(std::ostream & out) const
+    {
+        auto j = generateJSON(true);
+        out << j.dump(4);
+    }
+
+
+    /**
+     * @brief writeEmbeddedBuffers
+     *
+     * Populates the GLTF["buffers"] property with the the embedded data
+     *
+     * {
+     *     "buffers" : {
+     *        [
+     *          {
+     *            "byteLength":  xxx,
+     *            "uri" : "data:application/octet-stream;base64NERDH3245HJ23K2J3NHBDH5J23HKJ25NBKJ"
+     *          }
+     *        ]
+     *     }
+     * }
+     */
+    void writeEmbeddedBuffers( json & j ) const
+    {
+        j["buffers"].clear();
+        uint32_t i=0;
+        for(auto & b : buffers)
+        {
+            j["buffers"][i]["byteLength"] = b.m_data.size();
+            j["buffers"][i]["uri"] = std::string("data:application/octet-stream;base64,") + _toBase64( &b.m_data[0] , &b.m_data[ b.m_data.size() ]);
+            i++;
+        }
+    }
+
+
+
+
+    //=========================================================================================
+    // Object Creation Methods
+    //
+    // Methods which can create new objects
+    //=========================================================================================
+    /**
+     * @brief newImage
+     * @return
+     *
+     * Creates a new image
+     */
+    Image & newImage()
+    {
+        auto & b = images.emplace_back();
+        b._parent = this;
+        return b;
+    }
+
+    Buffer & newBuffer()
+    {
+        auto & b = buffers.emplace_back();
+        b._parent = this;
+        return b;
+    }
+
+    Animation& newAnimation()
+    {
+        auto & b = animations.emplace_back();
+        b._parent = this;
+        return b;
+    }
+
+
+public:
+    Asset                   asset;
+    std::vector<Accessor>   accessors;
+    std::vector<Buffer>     buffers;
+    std::vector<BufferView> bufferViews;
+    std::vector<Node>       nodes;
+    std::vector<Mesh>       meshes;
+    std::vector<Scene>      scenes;
+    std::vector<Skin>       skins;
+    std::vector<Animation>  animations;
+    std::vector<Image>      images;
+    std::vector<Texture>    textures;
+    std::vector<Sampler>    samplers;
+    std::vector<Camera>     cameras;
+    std::vector<Material>   materials;
+    json                    extensions;
+    json                    _json;
+
+UGLTF_PROTECTED:
     static header_t _readHeader(std::istream & in)
     {
         header_t h{0,0,0};
@@ -3350,64 +3418,112 @@ public:
         }
     }
 
-    /**
-     * @brief _extractBuffers
-     * @param buffersChunk
-     * @param jBuffers
-     *
-     * Extract each of the buffers from the buffersDataChunk and add them
-     * to the buffers array.
-     */
-    static std::vector<Buffer> _readBuffers2(std::istream & in, json const & jBuffers)
+    static void _writeGLB(std::ostream & out, json const & J, Buffer const & B)
     {
-        std::vector<Buffer> outputBuffers;
+        uint32_t magic   = 0x46546C67;
+        uint32_t version = 2;
+        uint32_t length  = 12;
 
-        uint32_t offset=0;
+        std::string j_str = J.dump();
 
-        chunk_t h;
-        if(in.read(reinterpret_cast<char*>(&h), sizeof(uint32_t)*2))
+        // make sure that the string is aligned to a 4-byte boundary
+        // according to the specifications
+        if( j_str.size() %4 != 0)
         {
-            if( h.chunkType == 0x4E4F534A || h.chunkType == 0x004E4942)
-            {
-
-                for(auto & b : jBuffers)
-                {
-                    Buffer B;
-                    B.byteLength = b["byteLength"].get<int32_t>();
-                    B.m_data.resize( B.byteLength );
-
-                    // read exactly byteLength bytes from the input stream
-                    in.read( reinterpret_cast<char*>(B.m_data.data()), B.m_data.size());
-
-                    outputBuffers.emplace_back( std::move(B) );
-
-                    offset += B.m_data.size();
-                }
-
-            }
+            j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
+            assert( j_str.size() % 4 == 0);
         }
 
+        length += 8;
+        length += j_str.size();
 
-        return outputBuffers;
+        uint32_t bufferChunkSize=8;
+        bufferChunkSize += B.m_data.size();
+
+        if(bufferChunkSize%4!=0)
+            bufferChunkSize += 4-bufferChunkSize%4;
+
+        TRACE("Buffer Chunk Size   : {}", bufferChunkSize);
+        TRACE("Buffer Chunk%4 Check: {}", bufferChunkSize%4);
+
+        length += bufferChunkSize;
+
+        out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
+        out.write( reinterpret_cast<char*>(&version) , sizeof(version));
+        out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
+
+        // Write the JSON chunk.
+        {
+            uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
+            uint32_t chunkType   = 0x4E4F534A; // json
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+
+            out.write( j_str.data(), j_str.size());
+        }
+
+        // write the Buffers chunk.
+        {
+            uint32_t chunkLength = 0;//
+            uint32_t chunkType   = 0x004E4942; // bin
+
+            chunkLength += B.m_data.size();
+
+            TRACE("Total Buffer bytes: {}", chunkLength);
+            // Make sure that the total data is aligned to a 4byte boundary.
+            uint32_t padding=0;
+            if( chunkLength % 4!=0)
+            {
+                padding = 4-chunkLength%4;
+                chunkLength += padding;
+                TRACE("Adding padding: {}", padding);
+            }
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+            out.write( reinterpret_cast<char const*>(B.m_data.data()) , B.m_data.size() );
+
+            if(padding)
+            {
+                std::array<char, 8> _padd = {};
+                out.write( _padd.data() , padding );
+            }
+
+        }
     }
 
-public:
-    Asset                   asset;
-    std::vector<Accessor>   accessors;
-    std::vector<Buffer>     buffers;
-    std::vector<BufferView> bufferViews;
-    std::vector<Node>       nodes;
-    std::vector<Mesh>       meshes;
-    std::vector<Scene>      scenes;
-    std::vector<Skin>       skins;
-    std::vector<Animation>  animations;
-    std::vector<Image>      images;
-    std::vector<Texture>    textures;
-    std::vector<Sampler>    samplers;
-    std::vector<Camera>     cameras;
-    std::vector<Material>   materials;
-    json                    extensions;
-    json                    _json;
+    /**
+     * @brief _appendImage
+     * @param I
+     * @param views
+     * @param B
+     * @return
+     *
+     * Appends an image into the buffer and returns a new image object which references
+     * the new imageview
+     */
+    static Image _appendImage(Image const & I, std::vector<BufferView> & views, Buffer & B)
+    {
+        Image out;
+        out.bufferView = views.size();
+        out.name       = I.name;
+        out.mimeType   = I.mimeType;
+
+        BufferView v;
+
+        v.buffer = 0;
+        v.byteLength = I.m_imageData.size();
+        v.byteOffset = B.m_data.size();
+        v.byteStride = 0;
+
+        B.m_data.insert( B.m_data.end(), I.m_imageData.begin(), I.m_imageData.end() );
+        B.byteLength = B.m_data.size();
+
+        views.push_back(v);
+
+        return out;
+    }
 };
 
 
@@ -3780,7 +3896,7 @@ inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target,
 
     // expand the buffer.
     m_data.insert( m_data.end(), bytes, 0);
-
+    byteLength += bytes;
     return _parent->bufferViews.size()-1;
 }
 

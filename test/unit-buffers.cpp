@@ -64,7 +64,7 @@ SCENARIO("Test Writing a GLB with multiple buffers")
 
             REQUIRE( M2.load(in) );
 
-            REQUIRE(M2.buffers.size() == 2);
+            REQUIRE(M2.buffers.size() == 1);
             REQUIRE(M2.bufferViews.size() == 2);
             REQUIRE(M2.accessors.size() == 2);
 
@@ -114,4 +114,7 @@ SCENARIO("Test Writing a GLB with multiple buffers")
     }
 
 }
+
+
+
 
