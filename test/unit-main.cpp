@@ -139,9 +139,9 @@ SCENARIO( "Extracting Buffers" )
 {
     uGLTF::GLTFModel M;
     std::ifstream in("CesiumMan.glb");
+
     GIVEN("A GLTFModel and an input stream")
     {
-
         THEN("We can read the header")
         {
             auto h = M._readHeader(in);
@@ -165,26 +165,6 @@ SCENARIO( "Extracting Buffers" )
 
                 REQUIRE( J.count("asset") == 1 );
 
-
-                THEN("We can read the Buffer chunk")
-                {
-                    M._readBuffers(in, J["buffers"]);
-
-                    // auto cB = M._readChunk(in);
-                    //
-                    // REQUIRE( cB.chunkType == 0x004E4942);
-                    // REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
-                    // REQUIRE( cB.chunkData.size() == cB.chunkLength);
-                    //
-                    //
-                    // THEN("We can extract the buffers")
-                    // {
-                    //     auto buffers = M._extractBuffers(cB, J["buffers"]);
-                    //
-                    //     REQUIRE(buffers.size() == 1);
-                    //
-                    // }
-                }
             }
         }
 

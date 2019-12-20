@@ -22,6 +22,14 @@
 #define TRACE(...) spdlog::info(__VA_ARGS__)
 #endif
 
+
+#ifndef UGLTF_PRIVATE
+    #define UGLTF_PRIVATE private
+#endif
+
+#ifndef UGLTF_PROTECTED
+    #define UGLTF_PROTECTED protected
+#endif
 /*
 
 
@@ -174,87 +182,6 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
     }
     return default_val;
 }
-#if 0
-
-/**
- * @brief _fromBase64
- * @param begin
- * @param end
- * @return
- *
- * Takes a start and end iterator of Base64 characters and returns
- * a vector of bytes.
- */
-inline std::vector<uint8_t> _fromBase64(char const * begin, char const *end)
-{
-    std::vector<uint8_t> out;
-    static bool init=false;
-    static std::vector<int32_t> T(256,-1);
-    if(!init)
-    {
-        init = true;
-        for (int32_t i=0; i<64; i++)
-        {
-            T[ static_cast<size_t>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]) ] = i;
-        }
-    }
-
-
-    int val=0, valb=-8;
-
-    while( begin != end)
-    {
-        unsigned char c = static_cast<unsigned char>( *begin );
-
-        if (T[c] == -1)
-            break;
-
-        val   = (val<<6) + T[c];
-        valb += 6;
-
-        if (valb>=0)
-        {
-            out.push_back( static_cast<uint8_t>( (val>>valb)&0xFF) );
-            valb-=8;
-        }
-
-        ++begin;
-    }
-    return out;
-}
-
-inline std::string _toBase64(void const * begin_v, void const *end_v)
-{
-    auto begin = static_cast<char const *>(begin_v);
-    auto end   = static_cast<char const *>(end_v);
-    std::string out;
-
-    static const char symbols[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    int val=0, valb=-6;
-    //for (char c : in)
-    while(begin != end)
-    {
-        auto c = *begin++;
-
-        val = (val<<8) + c;
-        valb += 8;
-        while (valb>=0) {
-            out.push_back(symbols[(val>>valb)&0x3F]);
-            valb-=6;
-        }
-    }
-
-    if (valb>-6)
-        out.push_back( symbols[((val<<8)>>(valb+8))&0x3F]);
-
-    while (out.size()%4)
-        out.push_back('=');
-
-    return out;
-}
-
-#else
 
 
 // https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
@@ -366,7 +293,7 @@ inline std::vector<uint8_t> _fromBase64( void const* src, void const* src_end)
   return ret;
 }
 
-#endif
+
 enum class BufferViewTarget : uint32_t
 {
     UNKNOWN              = 0,
@@ -1108,6 +1035,15 @@ class Accessor
 
 
         template<typename T>
+        /**
+         * @brief getValue
+         * @param index
+         * @return
+         *
+         * Gets the value of the accessor at index.
+         *
+         * A.getValue<glm::vec3>(3);
+         */
         inline T getValue(size_t index) const
         {
             T dst;
@@ -1118,6 +1054,13 @@ class Accessor
             return dst;
         }
 
+        /**
+         * @brief getValue
+         * @param index
+         * @param dst
+         *
+         * Gets the value at index and copies it into dst.
+         */
         template<typename T>
         inline void getValue(size_t index, T & dst) const
         {
@@ -1126,6 +1069,21 @@ class Accessor
             assert( as == sizeof(T) );
             std::memcpy(&dst, src,sizeof(T) );
         }
+
+
+        /**
+         * @brief getValues
+         * @param startIndex
+         * @param dst
+         * @param totalElements
+         * @return
+         *
+         * Gets totalElements of accessors and copies it into the
+         * random-access memory starting at dst,
+         *
+         * dst must be a pointer to an array of type T, where type T
+         * is a type which is compatible with the accessor.
+         */
         template<typename T>
         inline size_t getValues(size_t startIndex, T * dst, size_t totalElements) const
         {
@@ -1150,6 +1108,13 @@ class Accessor
         }
 
 
+        /**
+         * @brief setValue
+         * @param index
+         * @param src
+         *
+         * Sets the accessor value at index.
+         */
         template<typename T>
         inline void setValue(size_t index, T const & src)
         {
@@ -1167,6 +1132,16 @@ class Accessor
             }
         }
 
+        /**
+         * @brief setValues
+         * @param startIndex
+         * @param src
+         * @param totalElements
+         * @return
+         *
+         * Copies totalElements from the array src[] into the accessor
+         * starting at startIndex.
+         */
         template<typename T>
         inline size_t setValues(size_t startIndex, T const * src, size_t totalElements)
         {
@@ -3338,6 +3313,15 @@ public:
     }
 
 
+    /**
+     * @brief _readGLBBuffers
+     * @param in
+     * @param buffers
+     * @param jBuffers
+     *
+     * Reads the GLB raw data buffers from the input stream, in. "in" must
+     * be pointing to the start of a GLB chunk which contains buffers.
+     */
     static void _readGLBBuffers( std::istream & in, std::vector<Buffer> & buffers, json const & jBuffers )
     {
         if( buffers.size() != jBuffers.size())
@@ -3374,7 +3358,7 @@ public:
      * Extract each of the buffers from the buffersDataChunk and add them
      * to the buffers array.
      */
-    static std::vector<Buffer> _readBuffers(std::istream & in, json const & jBuffers)
+    static std::vector<Buffer> _readBuffers2(std::istream & in, json const & jBuffers)
     {
         std::vector<Buffer> outputBuffers;
 
