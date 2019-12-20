@@ -3075,6 +3075,61 @@ public:
     //
     // Methods which modify an already set up GLTFModel
     //=========================================================================================
+
+    /**
+     * @brief getMergedBuffer
+     * @return
+     *
+     * Returns a single buffer which is the merge of
+     * all the current buffers. This does not
+     * update the bufferViews.
+     */
+    Buffer generateMergedBuffer() const
+    {
+        Buffer newBuffer;
+
+        for(auto & b : buffers)
+        {
+            newBuffer.append(b);
+        }
+        return newBuffer;
+    }
+    /**
+     * @brief getMergedBufferViews
+     * @return
+     *
+     * Returns a new vector of BufferViews which have been
+     * updated to all point to single merged buffer.
+     */
+    std::vector<BufferView> generateMergedBufferViews() const
+    {
+        if(buffers.size() <= 1)
+            return bufferViews;
+
+        std::vector<BufferView> merged = bufferViews;
+
+        uint32_t i=0;
+        uint32_t byteOffset = 0;
+        for(auto & b : buffers)
+        {
+            // loop through all the buffer views
+            // and check if that view is referencing the current buffer, i,
+            // if it is, set it to reference buffer 0 and update it's byteOffset
+            for(auto & v : merged)
+            {
+                if( v.buffer == i )
+                {
+                    v.buffer      = 0;
+                    v.byteOffset += byteOffset;
+                }
+            }
+
+            byteOffset = static_cast<uint32_t>( b.byteLength );
+            i++;
+        }
+        return merged;
+    }
+
     /**
      * @brief generateJSON
      * @return
