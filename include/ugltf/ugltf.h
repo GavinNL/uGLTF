@@ -3010,6 +3010,9 @@ public:
     {
         std::vector<uint8_t> newBuffer;
 
+        if(buffers.size() <= 1)
+            return;
+
         uint32_t i=0;
         for(auto & b : buffers)
         {
@@ -3192,98 +3195,27 @@ public:
         return root;
     }
 
+
+
     /**
      * @brief writeGLB
      * @param out
      *
-     * Writes the GLTF file to an output stream in GLB format
+     * Writes the Model to a GLB file.
      */
     void writeGLB(std::ostream & out) const
     {
-        uint32_t magic   = 0x46546C67;
-        uint32_t version = 2;
-        uint32_t length  = 12;
-
+        // generate the JSON with
         auto j = generateJSON(false);
 
-        std::string j_str = j.dump();
+        auto bv = generateMergedBufferViews();
+        auto b  = generateMergedBuffer();
 
-        // make sure that the string is aligned to a 4-byte boundary
-        // according to the specifications
-        if( j_str.size() %4 != 0)
-        {
-            j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
-            assert( j_str.size() % 4 == 0);
-        }
+        j.erase("buffers");
+        j["buffers"][0] = b;
+        j["bufferViews"] = bv;
 
-        length += 8;
-        length += j_str.size();
-
-        uint32_t bufferChunkSize=8;
-        for(auto & c : buffers)
-        {
-            bufferChunkSize += c.m_data.size();
-        }
-        if(bufferChunkSize%4!=0)
-            bufferChunkSize += 4-bufferChunkSize%4;
-
-        TRACE("Buffer Chunk Size   : {}", bufferChunkSize);
-        TRACE("Buffer Chunk%4 Check: {}", bufferChunkSize%4);
-
-        length += bufferChunkSize;
-
-        out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
-        out.write( reinterpret_cast<char*>(&version) , sizeof(version));
-        out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
-
-        // Write the JSON chunk.
-        {
-            uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
-            uint32_t chunkType   = 0x4E4F534A; // json
-
-            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
-            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
-
-            out.write( j_str.data(), j_str.size());
-        }
-
-        // write the Buffers chunk.
-        {
-            uint32_t chunkLength = 0;//
-            uint32_t chunkType   = 0x004E4942; // bin
-
-            for(auto & c : buffers)
-            {
-                chunkLength += c.m_data.size();
-            }
-            TRACE("Total Buffer bytes: {}", chunkLength);
-            // Make sure that the total data is aligned to a 4byte boundary.
-            uint32_t padding=0;
-            if( chunkLength % 4!=0)
-            {
-                padding = 4-chunkLength%4;
-                chunkLength += padding;
-                TRACE("Adding padding: {}", padding);
-            }
-
-            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
-            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
-
-            for(auto & c : buffers)
-            {
-                out.write( reinterpret_cast<char const*>(c.m_data.data()) , c.m_data.size() );
-                //chunkLength += c.m_data.size();
-            }
-
-            if(padding)
-            {
-                std::array<char, 8> _padd = {};
-                out.write( _padd.data() , padding );
-            }
-
-
-        }
-
+        _writeGLB(out, j, b);
     }
 
     /**
@@ -3462,6 +3394,80 @@ UGLTF_PROTECTED:
         }
     }
 
+    static void _writeGLB(std::ostream & out, json const & J, Buffer const & B)
+    {
+        uint32_t magic   = 0x46546C67;
+        uint32_t version = 2;
+        uint32_t length  = 12;
+
+        std::string j_str = J.dump();
+
+        // make sure that the string is aligned to a 4-byte boundary
+        // according to the specifications
+        if( j_str.size() %4 != 0)
+        {
+            j_str.insert( j_str.end(), 4-j_str.size()%4, ' ');
+            assert( j_str.size() % 4 == 0);
+        }
+
+        length += 8;
+        length += j_str.size();
+
+        uint32_t bufferChunkSize=8;
+        bufferChunkSize += B.m_data.size();
+
+        if(bufferChunkSize%4!=0)
+            bufferChunkSize += 4-bufferChunkSize%4;
+
+        TRACE("Buffer Chunk Size   : {}", bufferChunkSize);
+        TRACE("Buffer Chunk%4 Check: {}", bufferChunkSize%4);
+
+        length += bufferChunkSize;
+
+        out.write( reinterpret_cast<char*>(&magic  ) , sizeof(magic));
+        out.write( reinterpret_cast<char*>(&version) , sizeof(version));
+        out.write( reinterpret_cast<char*>(&length ) , sizeof(length));
+
+        // Write the JSON chunk.
+        {
+            uint32_t chunkLength = static_cast<uint32_t>(j_str.size());
+            uint32_t chunkType   = 0x4E4F534A; // json
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+
+            out.write( j_str.data(), j_str.size());
+        }
+
+        // write the Buffers chunk.
+        {
+            uint32_t chunkLength = 0;//
+            uint32_t chunkType   = 0x004E4942; // bin
+
+            chunkLength += B.m_data.size();
+
+            TRACE("Total Buffer bytes: {}", chunkLength);
+            // Make sure that the total data is aligned to a 4byte boundary.
+            uint32_t padding=0;
+            if( chunkLength % 4!=0)
+            {
+                padding = 4-chunkLength%4;
+                chunkLength += padding;
+                TRACE("Adding padding: {}", padding);
+            }
+
+            out.write( reinterpret_cast<char*>(&chunkLength) , sizeof(chunkLength));
+            out.write( reinterpret_cast<char*>(&chunkType )  , sizeof(chunkType));
+            out.write( reinterpret_cast<char const*>(B.m_data.data()) , B.m_data.size() );
+
+            if(padding)
+            {
+                std::array<char, 8> _padd = {};
+                out.write( _padd.data() , padding );
+            }
+
+        }
+    }
 };
 
 
