@@ -3779,14 +3779,14 @@ inline Accessor const & Skin::getInverseBindMatricesAccessor() const
     return _parent->accessors.at( static_cast<size_t>(inverseBindMatrices ));
 }
 
-uint8_t* Accessor::_getData(size_t index)
+inline uint8_t* Accessor::_getData(size_t index)
 {
     auto & v = getBufferView();
     uint8_t * dst = static_cast<uint8_t*>( v.data() ) + byteOffset + index * v.byteStride;
     return dst;
 }
 
-uint8_t const * Accessor::_getData(size_t index) const
+inline uint8_t const * Accessor::_getData(size_t index) const
 {
     auto & v = getBufferView();
     uint8_t const * dst = static_cast<uint8_t const*>( getBufferView().data() ) + byteOffset + index * v.byteStride;
