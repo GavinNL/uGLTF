@@ -3137,7 +3137,12 @@ public:
      * @brief generateJSON
      * @return
      *
-     * Generates the JSON component of the GLB file.
+     * Generates the JSON component of the GLB file. If _writeEmbeddedBuffers
+     * is set, it will write the buffes as base64.
+     *
+     * all Images[] data will be written as base64 in the .uri field
+     * whether _writeEmbeddedBuffers is set or not.
+     *
      */
     json generateJSON(bool _writeEmbeddedBuffers) const
     {
@@ -3197,11 +3202,18 @@ public:
 
 
 
+
+
     /**
      * @brief writeGLB
      * @param out
      *
-     * Writes the Model to a GLB file.
+     * Writes the Model to a GLB file. Writing to a GLB file will change the
+     * internal structure of the GLTF file.
+     *
+     * The following changes will be made:
+     *  1. All images will now be stored in BufferViews
+     *  2. All buffers will be combined into a single buffer (bufferViews updated)
      */
     void writeGLB(std::ostream & out) const
     {
@@ -3211,10 +3223,22 @@ public:
         auto bv = generateMergedBufferViews();
         auto b  = generateMergedBuffer();
 
+        std::vector<Image> img;
+        for(auto & I : images)
+        {
+            img.push_back( _appendImage(I, bv, b) );
+        }
+
         j.erase("buffers");
+        j.erase("images");
+
         j["buffers"][0] = b;
         j["bufferViews"] = bv;
 
+        if(img.size())
+        {
+            j["images"] = img;
+        }
         _writeGLB(out, j, b);
     }
 
@@ -3467,6 +3491,38 @@ UGLTF_PROTECTED:
             }
 
         }
+    }
+
+    /**
+     * @brief _appendImage
+     * @param I
+     * @param views
+     * @param B
+     * @return
+     *
+     * Appends an image into the buffer and returns a new image object which references
+     * the new imageview
+     */
+    static Image _appendImage(Image const & I, std::vector<BufferView> & views, Buffer & B)
+    {
+        Image out;
+        out.bufferView = views.size();
+        out.name       = I.name;
+        out.mimeType   = I.mimeType;
+
+        BufferView v;
+
+        v.buffer = 0;
+        v.byteLength = I.m_imageData.size();
+        v.byteOffset = B.m_data.size();
+        v.byteStride = 0;
+
+        B.m_data.insert( B.m_data.end(), I.m_imageData.begin(), I.m_imageData.end() );
+        B.byteLength = B.m_data.size();
+
+        views.push_back(v);
+
+        return out;
     }
 };
 

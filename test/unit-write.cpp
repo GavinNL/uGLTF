@@ -25,21 +25,22 @@ SCENARIO("Writing a GLB file")
             {
                 std::ifstream in2("BoxTextured.gltf.glb");
                 uGLTF::GLTFModel M2;
+
                 REQUIRE( M2.load(in2) );
+
                 THEN("The embedded buffers are loaded into the m_data variable")
                 {
                     REQUIRE( M2.buffers.size() == 1);
-                    REQUIRE( M2.buffers[0].byteLength == 840);
-                    REQUIRE( M2.buffers[0].m_data.size() == 840);
+                    REQUIRE( M2.buffers[0].byteLength == 24356);
+                    REQUIRE( M2.buffers[0].m_data.size() == 24356);
                     REQUIRE( M2.buffers[0].uri == "");
                 }
 
 
-                THEN("The images are loaded into the m_imageData variable")
+                THEN("The images are stored in BufferViews")
                 {
                     REQUIRE( M2.images.size() == 1);
-                    REQUIRE( M2.images[0].bufferView == std::numeric_limits<uint32_t>::max() );
-                    REQUIRE( M2.images[0].m_imageData.size() == 23516 );
+                    REQUIRE( M2.images[0].bufferView != std::numeric_limits<uint32_t>::max() );
                 }
             }
 
