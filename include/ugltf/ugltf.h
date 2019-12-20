@@ -408,6 +408,14 @@ class Buffer
          */
         size_t createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment, AccessorType type, ComponentType comp);
 
+
+
+        void append(Buffer const & B)
+        {
+            // add this buffer to the end of the new buffer
+            m_data.insert( m_data.end(), B.m_data.begin(), B.m_data.end() );
+            byteLength = m_data.size();
+        }
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
