@@ -2638,9 +2638,9 @@ class GLTFModel
 public:
     struct header_t
     {
-        uint32_t magic;
-        uint32_t version;
-        uint32_t length;
+        uint32_t magic   = 0x46546C67;
+        uint32_t version = 2;
+        uint32_t length  = 12;
     };
 
     struct chunk_t
@@ -2987,14 +2987,93 @@ public:
 
 
 
+    //=========================================================================================
+    // MODIFICATION methods
+    //
+    // Methods which modify an already set up GLTFModel
+    //=========================================================================================
+    /**
+     * @brief mergeBuffers
+     *
+     * Merges all the buffers into a single buffer.
+     * This is required for saving to a GLB format.
+     */
+    void mergeBuffers()
+    {
+        std::vector<uint8_t> newBuffer;
 
+        uint32_t i=0;
+        for(auto & b : buffers)
+        {
+            uint32_t byteOffset = static_cast<uint32_t>( newBuffer.size() );
+
+            // add this buffer to the end of the new buffer
+            newBuffer.insert( newBuffer.end(), b.m_data.begin(), b.m_data.end() );
+
+            // loop through all the buffer views
+            // and check if that view is referencing the current buffer, i,
+            // if it is, set it to reference buffer 0 and update it's byteOffset
+            for(auto & v : bufferViews)
+            {
+                if( v.buffer == i )
+                {
+                    v.buffer      = 0;
+                    v.byteOffset += byteOffset;
+                }
+            }
+            i++;
+        }
+        buffers.resize(1);
+        buffers[0].byteLength = newBuffer.size();
+        buffers[0].m_data = std::move(newBuffer);
+    }
+
+    /**
+     * @brief convertImagesToBuffers
+     *
+     * Converts all images which have local image storage (ie: the data is
+     * not stored in a bufferView.
+     *
+     * All images which are converted at stored in a single newly created buffer.
+     *
+     */
+    void convertImagesToBuffers()
+    {
+        auto & newB = newBuffer();
+
+        for(auto & b : images)
+        {
+            if( b.m_imageData.size() )
+            {
+                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN, 0, 1);
+
+                void * bufferViewData = bufferViews[imageBufferViewIndex].data();
+
+                std::memcpy( bufferViewData, b.m_imageData.data(), b.m_imageData.size() );
+
+                b.bufferView = imageBufferViewIndex;
+                b.m_imageData.clear();
+                b.uri.clear();
+            }
+
+        }
+    }
+
+
+
+
+    //=========================================================================================
+    // Generation Methods
+    //
+    // Methods which modify an already set up GLTFModel
+    //=========================================================================================
     /**
      * @brief generateJSON
      * @return
      *
      * Generates the JSON component of the GLB file.
      */
-    json generateJSON() const
+    json generateJSON(bool _writeEmbeddedBuffers) const
     {
         json root;
 
@@ -3042,6 +3121,11 @@ public:
             J["materials"]   =  materials;
 
         J["extensions"] = extensions;
+
+        if( _writeEmbeddedBuffers)
+        {
+            writeEmbeddedBuffers(J);
+        }
         return root;
     }
 
@@ -3057,7 +3141,7 @@ public:
         uint32_t version = 2;
         uint32_t length  = 12;
 
-        auto j = generateJSON();
+        auto j = generateJSON(false);
 
         std::string j_str = j.dump();
 
@@ -3148,8 +3232,7 @@ public:
      */
     void writeEmbeddedGLTF(std::ostream & out) const
     {
-        auto j = generateJSON();
-        writeEmbeddedBuffers(j);
+        auto j = generateJSON(true);
         out << j.dump(4);
     }
 
@@ -3182,6 +3265,20 @@ public:
         }
     }
 
+
+
+
+    //=========================================================================================
+    // Object Creation Methods
+    //
+    // Methods which can create new objects
+    //=========================================================================================
+    /**
+     * @brief newImage
+     * @return
+     *
+     * Creates a new image
+     */
     Image & newImage()
     {
         auto & b = images.emplace_back();
@@ -3204,73 +3301,25 @@ public:
     }
 
 
+public:
+    Asset                   asset;
+    std::vector<Accessor>   accessors;
+    std::vector<Buffer>     buffers;
+    std::vector<BufferView> bufferViews;
+    std::vector<Node>       nodes;
+    std::vector<Mesh>       meshes;
+    std::vector<Scene>      scenes;
+    std::vector<Skin>       skins;
+    std::vector<Animation>  animations;
+    std::vector<Image>      images;
+    std::vector<Texture>    textures;
+    std::vector<Sampler>    samplers;
+    std::vector<Camera>     cameras;
+    std::vector<Material>   materials;
+    json                    extensions;
+    json                    _json;
 
-    /**
-     * @brief mergeBuffers
-     *
-     * Merges all the buffers into a single buffer.
-     * This is required for saving to a GLB format.
-     */
-    void mergeBuffers()
-    {
-        std::vector<uint8_t> newBuffer;
-
-        uint32_t i=0;
-        for(auto & b : buffers)
-        {
-            uint32_t byteOffset = static_cast<uint32_t>( newBuffer.size() );
-
-            // add this buffer to the end of the new buffer
-            newBuffer.insert( newBuffer.end(), b.m_data.begin(), b.m_data.end() );
-
-            // loop through all the buffer views
-            // and check if that view is referencing the current buffer, i,
-            // if it is, set it to reference buffer 0 and update it's byteOffset
-            for(auto & v : bufferViews)
-            {
-                if( v.buffer == i )
-                {
-                    v.buffer      = 0;
-                    v.byteOffset += byteOffset;
-                }
-            }
-            i++;
-        }
-        buffers.resize(1);
-        buffers[0].byteLength = newBuffer.size();
-        buffers[0].m_data = std::move(newBuffer);
-    }
-
-    /**
-     * @brief convertImagesToBuffers
-     *
-     * Converts all images which have local image storage (ie: the data is
-     * not stored in a bufferView.
-     *
-     * All images which are converted at stored in a single newly created buffer.
-     *
-     */
-    void convertImagesToBuffers()
-    {
-        auto & newB = newBuffer();
-
-        for(auto & b : images)
-        {
-            if( b.m_imageData.size() )
-            {
-                auto imageBufferViewIndex = newB.createNewBufferView( b.m_imageData.size() , BufferViewTarget::UNKNOWN, 0, 1);
-
-                void * bufferViewData = bufferViews[imageBufferViewIndex].data();
-
-                std::memcpy( bufferViewData, b.m_imageData.data(), b.m_imageData.size() );
-
-                b.bufferView = imageBufferViewIndex;
-                b.m_imageData.clear();
-            }
-
-        }
-    }
-
+UGLTF_PROTECTED:
     static header_t _readHeader(std::istream & in)
     {
         header_t h{0,0,0};
@@ -3350,64 +3399,6 @@ public:
         }
     }
 
-    /**
-     * @brief _extractBuffers
-     * @param buffersChunk
-     * @param jBuffers
-     *
-     * Extract each of the buffers from the buffersDataChunk and add them
-     * to the buffers array.
-     */
-    static std::vector<Buffer> _readBuffers2(std::istream & in, json const & jBuffers)
-    {
-        std::vector<Buffer> outputBuffers;
-
-        uint32_t offset=0;
-
-        chunk_t h;
-        if(in.read(reinterpret_cast<char*>(&h), sizeof(uint32_t)*2))
-        {
-            if( h.chunkType == 0x4E4F534A || h.chunkType == 0x004E4942)
-            {
-
-                for(auto & b : jBuffers)
-                {
-                    Buffer B;
-                    B.byteLength = b["byteLength"].get<int32_t>();
-                    B.m_data.resize( B.byteLength );
-
-                    // read exactly byteLength bytes from the input stream
-                    in.read( reinterpret_cast<char*>(B.m_data.data()), B.m_data.size());
-
-                    outputBuffers.emplace_back( std::move(B) );
-
-                    offset += B.m_data.size();
-                }
-
-            }
-        }
-
-
-        return outputBuffers;
-    }
-
-public:
-    Asset                   asset;
-    std::vector<Accessor>   accessors;
-    std::vector<Buffer>     buffers;
-    std::vector<BufferView> bufferViews;
-    std::vector<Node>       nodes;
-    std::vector<Mesh>       meshes;
-    std::vector<Scene>      scenes;
-    std::vector<Skin>       skins;
-    std::vector<Animation>  animations;
-    std::vector<Image>      images;
-    std::vector<Texture>    textures;
-    std::vector<Sampler>    samplers;
-    std::vector<Camera>     cameras;
-    std::vector<Material>   materials;
-    json                    extensions;
-    json                    _json;
 };
 
 
