@@ -3834,7 +3834,7 @@ inline size_t Buffer::createNewBufferView(size_t bytes, BufferViewTarget target,
 
     // expand the buffer.
     m_data.insert( m_data.end(), bytes, 0);
-
+    byteLength += bytes;
     return _parent->bufferViews.size()-1;
 }
 
