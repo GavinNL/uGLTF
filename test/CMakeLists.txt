@@ -70,8 +70,6 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.glb" )
 endif()
 
 
-
-
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
     file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxAnimated/glTF-Embedded/BoxAnimated.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
 endif()

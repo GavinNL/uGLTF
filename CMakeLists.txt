@@ -18,45 +18,65 @@ add_library(${PROJECT_NAME}_coverage_lib INTERFACE)
 add_library(${PROJECT_NAME}::coverage    ALIAS    ${PROJECT_NAME}_coverage_lib)
 #----------------------------------------------------------------
 
+option(${PROJECT_NAME}_BUILD_TESTS "Build Unit Tests" TRUE)
+
 if(CMAKE_COMPILER_IS_GNUCC)
 
-    option(${PROJECT_NAME_UPPER}_BUILD_COVERAGE "Build with Coverage" ON)
+    if( ${PROJECT_NAME}_BUILD_TESTS )
 
-    if( ${PROJECT_NAME_UPPER}_BUILD_COVERAGE )
+        option(${PROJECT_NAME_UPPER}_BUILD_COVERAGE "Build with Coverage" ON)
 
-        target_compile_options( ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
-        target_link_libraries(  ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
+        if( ${PROJECT_NAME_UPPER}_BUILD_COVERAGE )
 
-        add_custom_target( ${PROJECT_NAME}_coverage
-            COMMAND rm -rf coverage
-            COMMAND mkdir -p coverage
-            COMMAND ${CMAKE_MAKE_PROGRAM} test
-            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --html-details --html -o coverage/index.html -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --xml                 -o coverage/report.xml -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR}                       -o coverage/report.txt -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-            COMMAND cat coverage/report.txt
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}  # Need separate command for this line
-        )
+            target_compile_options( ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
+            target_link_libraries(  ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
 
-        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
-        message("COVERAGE TARGET BUILT                                                               " )
-        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
-        message("    Coverage Interface Library: ${PROJECT_NAME}::coverage" )
-        message("    Coverage Build Target     : ${PROJECT_NAME}_coverage"  )
-        message("    "  )
-        message("    Any libraries/executables linked to ${PROJECT_NAME}::coverage will be built with"  )
-        message("    coverage flags"  )
-        message("    ")
-        message("    eg: "  )
-        message("     "  )
-        message("    mkdir build && cd build && cmake .. "  )
-        message("    make"  )
-        message("    make ${PROJECT_NAME}_coverage"  )
-        message("    xdg-open coverage/index.html"  )
-        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+            add_custom_target( ${PROJECT_NAME}_coverage
+                COMMAND rm -rf coverage
+                COMMAND mkdir -p coverage
+                COMMAND ${CMAKE_MAKE_PROGRAM} test
+                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --html-details --html -o coverage/index.html -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --xml                 -o coverage/report.xml -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR}                       -o coverage/report.txt -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+                COMMAND cat coverage/report.txt
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}  # Need separate command for this line
+            )
 
+            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+            message("COVERAGE TARGET BUILT                                                               " )
+            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+            message("    Coverage Interface Library: ${PROJECT_NAME}::coverage" )
+            message("    Coverage Build Target     : ${PROJECT_NAME}_coverage"  )
+            message("    "  )
+            message("    Any libraries/executables linked to ${PROJECT_NAME}::coverage will be built with"  )
+            message("    coverage flags"  )
+            message("    ")
+            message("    eg: "  )
+            message("     "  )
+            message("    mkdir build && cd build && cmake .. "  )
+            message("    make"  )
+            message("    make ${PROJECT_NAME}_coverage"  )
+            message("    xdg-open coverage/index.html"  )
+            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+
+
+            #################################################################################################
+            # Download the single header file for nlohmann/json. This is only for the unit tests
+            # and examples. It is not included with uGLTF
+            #################################################################################################
+            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
+            endif()
+
+            # Also download stb_image
+            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
+            endif()
+
+            #################################################################################################
+
+        endif()
     endif()
-
 endif()
 #################################################################################################
 
@@ -145,19 +165,7 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS
 
 
 
-#################################################################################################
-# Download the single header file for nlohmann/json. This is only for the unit tests
-# and examples. It is not included with uGLTF
-#################################################################################################
-if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
-    file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
-endif()
 
-# Also download stb_image
-if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
-    file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
-endif()
-#################################################################################################
 
 
 

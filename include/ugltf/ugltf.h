@@ -1,16 +1,18 @@
-#ifndef GLTFPP_H
-#define GLTFPP_H
+#ifndef UGLTF_H
+#define UGLTF_H
 
-#ifndef JSON_INCLUDE
-#define JSON_INCLUDE <nlohmann/json.hpp>
+#ifndef UGLTF_JSON_INCLUDE
+    #define UGLTF_JSON_INCLUDE <nlohmann/json.hpp>
 #endif
 
-#include JSON_INCLUDE
+#include UGLTF_JSON_INCLUDE
+
 #include <iostream>
 #include <type_traits>
 
 #ifndef UGLTF_NAMESPACE
     #define UGLTF_NAMESPACE uGLTF
+    #define UGLTF_JSON_CLASS nlohmann::json
 #endif
 
 #if 1
@@ -66,7 +68,7 @@
 namespace UGLTF_NAMESPACE
 {
 
-using json = nlohmann::json;
+using json = UGLTF_JSON_CLASS;
 
 class GLTFModel;
 
