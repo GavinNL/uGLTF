@@ -12,6 +12,8 @@
 #define INDENT "  "
 
 #include <spdlog/spdlog.h>
+#include <lyra/lyra.hpp>
+#include <spdlog/fmt/fmt.h>
 
 void printAttributes(uGLTF::Primitive const & P)
 {
@@ -43,18 +45,35 @@ void printAttributes(uGLTF::Primitive const & P)
     std::cout << INDENT INDENT "Attributes: " << out << std::endl;
 }
 
-int main(int argc, char **argv)
+std::string to_string( std::array<float,3> const & F)
 {
-    if( argc >= 2)
+    return fmt::format("{},{},{}", F[0], F[1], F[2]);
+}
+std::string to_string( std::array<float,4> const & F)
+{
+    return fmt::format("{},{},{},{}", F[0], F[1], F[2], F[3]);
+}
+
+std::string to_string( uGLTF::Node const & N)
+{
+    return fmt::format("T:{:<30} R:{:<30} S:{:<30}", to_string(N.translation), to_string(N.rotation), to_string(N.scale));
+}
+
+int printInfo(std::string const & filename,
+              bool printBuffers,
+              bool printAnimationDetail)
+{
+
+  //  if( argc >= 2)
     {
         uGLTF::GLTFModel M_in;
 
-        std::ifstream in( argv[1] );
+        std::ifstream in( filename );
 
         M_in.load(in);
         auto & M = M_in;
 
-        std::cout << "Asset: " << argv[1] << std::endl;
+        std::cout << "Asset: " << filename << std::endl;
 
         std::cout << "Nodes: " << M.nodes.size() << std::endl;
 
@@ -71,24 +90,27 @@ int main(int argc, char **argv)
         size_t i=0;
         for(auto & m : M.nodes)
         {
-            std::cout << INDENT << "Name: " << m.name << '\n';
-            std::cout << INDENT << i++ <<": [";
+            std::cout << INDENT << fmt::format("NODE NAME [{:2}] : {:<30}", i++, m.name) << ": ";
+            std::cout << "  CHILDREN : " << " [";
             for(auto n : m.children)
             {
                 std::cout << n << ", ";
             }
-            std::cout << "]\n";
+            std::cout << "] ";
 
-            std::cout << INDENT INDENT << "T " << m.translation[0] << ", "
-                              << m.translation[1] << ", "
-                              << m.translation[2] << "\n";
-            std::cout << INDENT INDENT << "R " << m.rotation[0] << ", "
-                              << m.rotation[1] << ", "
-                              << m.rotation[2] << ", "
-                              << m.rotation[3] << "\n";
-            std::cout << INDENT INDENT << "S " << m.scale[0] << ", "
-                              << m.scale[1] << ", "
-                              << m.scale[2] << "\n";
+            if( m.hasMesh() )
+                std::cout << "MESH: " << m.mesh << "  ";
+
+            if( m.hasSkin() )
+                std::cout << "SKIN: " << m.skin << "  ";
+
+            std::cout << "\n";
+            std::cout << INDENT << "NODE TRANSLATION: " << to_string(m.translation) << '\n';
+            std::cout << INDENT << "NODE ROTATION   : " << to_string(m.rotation) << '\n';
+            std::cout << INDENT << "NODE SCALE      : " << to_string(m.scale) << '\n';
+
+
+
         }
 
         std::cout << "Meshs: " << M.meshes.size() << std::endl;
@@ -215,11 +237,8 @@ int main(int argc, char **argv)
             for(auto & c : m.channels)
             {
                 nodes.insert(c.target.node);
-                std::cout << INDENT << "   Channel: " <<  i++
-                          << "  Node: " <<  c.target.node
-                          << "  Sampler: " <<  c.sampler
-                          << "  Path: " <<  to_string(c.target.path) << std::endl;
             }
+
 
             std::cout << INDENT << "Animated Nodes    : ";// << m.channels.size() << std::endl;
             for(auto & n : nodes)
@@ -227,14 +246,26 @@ int main(int argc, char **argv)
                 std::cout << n << ", ";
             }
             std::cout << std::endl;
-            std::cout << INDENT << "Samplers          : " << m.samplers.size() << std::endl;
-            for(auto & s : m.samplers)
+
+            if( printAnimationDetail )
             {
+                for(auto & c : m.channels)
+                {
+                    std::cout << INDENT << "   Channel: " <<  i++
+                              << "  Node: " <<  c.target.node
+                              << "  Sampler: " <<  c.sampler
+                              << "  Path: " <<  to_string(c.target.path) << std::endl;
+                }
 
-                std::cout << INDENT INDENT << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
-                          << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back()
-                          << INDENT INDENT << "Interpolation : " << to_string(s.interpolation)<< ", " << s.getInputSpan().back() << std::endl;
+                std::cout << INDENT << "Samplers          : " << m.samplers.size() << std::endl;
+                for(auto & s : m.samplers)
+                {
 
+                    std::cout << INDENT INDENT << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
+                              << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back()
+                              << INDENT INDENT << "Interpolation : " << to_string(s.interpolation)<< ", " << s.getInputSpan().back() << std::endl;
+
+                }
             }
             std::cout << "\n\n";
         }
@@ -287,41 +318,103 @@ int main(int argc, char **argv)
         }
 
         //=====================================================================================================
-        std::cout << "Buffers: " << M.buffers.size() << std::endl;
-        i=0;
-
-        for(auto & I : M.buffers)
+        if( printBuffers )
         {
-            std::cout << INDENT << "Bytes             : " << I.byteLength << std::endl;
-        }
-        //=====================================================================================================
-        std::cout << "BufferViews: " << M.textures.size() << std::endl;
-        i=0;
+            std::cout << "Buffers: " << M.buffers.size() << std::endl;
+            i=0;
 
-        for(auto & I : M.bufferViews)
-        {
-            std::cout << INDENT << i++
-                      << INDENT << "Buffer : " << I.buffer
-                      << INDENT << "Bytes  : " << I.byteLength
-                      << INDENT << "Offset : " << I.byteOffset
-                      << INDENT << "Stride : " << I.byteStride << std::endl;
+            for(auto & I : M.buffers)
+            {
+                std::cout << INDENT << "Bytes             : " << I.byteLength << std::endl;
+            }
+            //=====================================================================================================
+            std::cout << "BufferViews: " << M.textures.size() << std::endl;
+            i=0;
 
-        }
-        //=====================================================================================================
-        std::cout << "Accessors: " << M.accessors.size() << std::endl;
-        i=0;
+            for(auto & I : M.bufferViews)
+            {
+                std::cout << INDENT << i++
+                          << INDENT << "Buffer : " << I.buffer
+                          << INDENT << "Bytes  : " << I.byteLength
+                          << INDENT << "Offset : " << I.byteOffset
+                          << INDENT << "Stride : " << I.byteStride << std::endl;
 
-        for(auto & I : M.accessors)
-        {
-            std::cout << INDENT << i++
-                      << INDENT << "bufferView : " << I.bufferView
-                      << INDENT << "type  : " << to_string(I.type)
-                      << INDENT << "byteOffset : " << I.byteOffset
-                      << INDENT << "count : " << I.count << std::endl;
+            }
+            //=====================================================================================================
+            std::cout << "Accessors: " << M.accessors.size() << std::endl;
+            i=0;
 
+            for(auto & I : M.accessors)
+            {
+                std::cout << INDENT << i++
+                          << INDENT << "bufferView : " << I.bufferView
+                          << INDENT << "type  : " << to_string(I.type)
+                          << INDENT << "byteOffset : " << I.byteOffset
+                          << INDENT << "count : " << I.count << std::endl;
+
+            }
         }
     }
 
     return 42;
 }
 
+int main(int argc, char ** argv)
+{
+ //   int width = 0;
+    std::string name;
+    bool printNodes = false;
+    std::string fileName;
+    bool show_help = false;
+
+    bool printAnimationDetail = false;
+    bool printBuffers = false;
+
+    auto cli
+        = lyra::help(show_help).description(
+                    "This is a combined sample CLI parser. It takes varied options"
+                    "and arguments.")
+//        | lyra::opt( width, "width" )
+//            ["-w"]["--width"]
+//            ("How wide should it be?")
+//        | lyra::opt( name, "name" )
+//            ["-n"]["--name"]
+//            ("By what name should I be known")
+        | lyra::opt( printNodes )
+            ["--printNodes"]
+            ("Print only the Nodes" )
+        | lyra::opt( printBuffers )
+            ["--printBuffers"]
+            ("Print information about the Buffers and BufferViews" )
+        | lyra::opt( printAnimationDetail )
+            ["--printAnimationDetail"]
+            ("Prints the Animations samplers and channel information" )
+        | lyra::arg( fileName, "input GLTF/GLB file" )
+            ("Which GLTF asset to read");
+
+
+    auto result = cli.parse( { argc, argv } );
+    if ( !result )
+    {
+        std::cerr << "Error in command line: " << result.errorMessage() << std::endl;
+
+        exit(1);
+    }
+    if (show_help or !result)
+    {
+        std::cout << cli << "\n";
+        return 0;
+    }
+
+    if( printNodes )
+    {
+
+    }
+    else
+    {
+        printInfo( fileName, printBuffers, printAnimationDetail );
+    }
+    std::cout << fileName << std::endl;
+
+    return 0;
+}
