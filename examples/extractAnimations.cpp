@@ -1,6 +1,107 @@
 #include <ugltf/ugltf.h>
-
+#include <spdlog/spdlog.h>
 #include <fstream>
+#include <set>
+
+std::optional<uint32_t> findNode( const std::string & name, uGLTF::GLTFModel const & M1)
+{
+    uint32_t i=0;
+    for(auto & n : M1.nodes)
+    {
+        if( n.name == name)
+        {
+            return i;
+        }
+        i++;
+    }
+
+    return {};
+}
+
+std::vector<uint32_t> getAnimatedNodes(uGLTF::Animation const & A)
+{
+    std::set<uint32_t> s;
+    for(auto & c : A.channels)
+    {
+        s.insert( c.target.node );
+    }
+    std::vector<uint32_t> x(s.size());
+    for(auto c : s)
+    {
+        x.push_back(c);
+    }
+    return x;
+
+}
+bool checkAnimations(uGLTF::GLTFModel const & M1, uGLTF::GLTFModel & M2 )
+{
+    bool out=true;
+
+
+
+    for(auto & a : M1.animations)
+    {
+        auto animatedNodes = getAnimatedNodes(a);
+
+        uint32_t j=0;
+        for(auto  n : animatedNodes)
+        {
+            auto & N = M1.nodes[n];
+
+            auto i = findNode( N.name, M2 );
+            if(!i)
+            {
+                spdlog::error("Node {} does not exist in model 2", N.name);
+                out = false;
+            }
+            else {
+                spdlog::info(" M1[{}] == M2[{}] ", j, *i);
+            }
+            j++;
+        }
+    }
+    return out;
+}
+
+bool copyAnimation(uGLTF::GLTFModel & M1, uGLTF::Animation const & A )
+{
+    bool out=true;
+
+    //auto animatedNodes = getAnimatedNodes(A);
+
+    auto & newAnimation = M1.newAnimation();
+    newAnimation.copy(A);
+
+    uint32_t channelIndex=0;
+    for(auto & c : A.channels)
+    {
+        auto & N =  c.getNode();
+
+        auto i = findNode( N.name, M1);
+
+        if( i )
+        {
+            newAnimation.channels[channelIndex].target.node = *i;
+        }
+        else {
+            spdlog::error("Cannot find Node {} ", N.name);
+        }
+        channelIndex++;
+    }
+
+    for(uint32_t i=0;i<M1.animations.size()-1;i++)
+    {
+        if( M1.animations[i].name == M1.animations.back().name)
+        {
+            M1.animations.back().name = "Animation_" + std::to_string( M1.animations.size() );
+            return true;
+        }
+    }
+
+
+
+    return out;
+}
 
 /**
  * @brief copyAnimations2
@@ -211,10 +312,17 @@ int main(int argc, char **argv)
             M_in2.load(in2);
         }
 
-        copyAnimations2(M_in1, M_in2);
+        if( checkAnimations(M_in1, M_in2) )
+        {
+            for(auto & A : M_in2.animations)
+            {
+                std::cout << "Copying Animation: " << A.name << std::endl;
+                copyAnimation(M_in1, A);
+            }
+        }
 
         std::ofstream fout(argv[3]);
-        M_in2.writeGLB( fout);
+        M_in1.writeGLB( fout);
 
         return 0;
     }
