@@ -2043,6 +2043,20 @@ public:
 
     Accessor const & getInputAccessor() const ;
     Accessor const & getOutputAccessor() const;
+
+
+    /**
+     * @brief copy
+     * @param other
+     * @param B
+     *
+     * Copies the animation sampler data into this
+     * Sampler, You must pass a reference to a buffer
+     * which will be used to store all the accessors
+     * for the channels.
+     */
+    void copy(AnimationSampler const & other, Buffer & B );
+
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2093,6 +2107,9 @@ public:
         AnimationPath path;
     } target;
 
+
+    Node & getNode();
+    Node const & getNode() const ;
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2130,12 +2147,30 @@ public:
     std::vector<AnimationSampler> samplers;
     std::string                   name;          //The user-defined name of this object.	No
 
+
+    Animation()
+    {}
+
+    /**
+     * @brief copy
+     * @param other
+     *
+     * Copies the Animation data from one animation into this one
+     * Note that this will copy all the Sampler data and Channel
+     * information.
+     *
+     * The node referenced in each channel is left unchanged. It
+     * is your responsibility to fix the nodes if they do not exist.
+     */
+    void copy(const Animation & other);
+
     AnimationSampler & newSampler()
     {
         auto & S = samplers.emplace_back();
         S._parent = _parent;
         return S;
     }
+
     AnimationChannel & newChannel()
     {
         auto & S = channels.emplace_back();
@@ -3845,6 +3880,8 @@ inline void Accessor::copyDataFrom(Accessor const & A)
 
     }
 
+    calculateMinMax();
+
 }
 
 inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment,AccessorType type, ComponentType comp)
@@ -3936,6 +3973,82 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
     return _parent->accessors.size()-1;
 }
 
+
+
+
+
+inline Node & AnimationChannel::getNode()
+{
+    return _parent->nodes[ target.node ];
+}
+
+inline Node const & AnimationChannel::getNode() const
+{
+    return _parent->nodes[ target.node ];
+}
+
+
+
+inline void AnimationSampler::copy(AnimationSampler const & other, Buffer & B )
+{
+    auto & Ai = other.getInputAccessor();
+    auto & Ao = other.getOutputAccessor();
+
+    auto  Bvi =    B.createNewBufferView( Ai.getBufferView().byteLength,
+                                           Ai.getBufferView().target,
+                                           Ai.getBufferView().byteStride,
+                                           Ai.accessorSize());
+
+    auto  Bvo =    B.createNewBufferView( Ao.getBufferView().byteLength,
+                                           Ao.getBufferView().target,
+                                           Ao.getBufferView().byteStride,
+                                           Ao.accessorSize());
+
+    auto & Bv_i = _parent->bufferViews[Bvi];
+    auto & Bv_o = _parent->bufferViews[Bvo];
+
+    auto nAi_index = Bv_i.createNewAccessor(0, Ai.count, Ai.type, Ai.componentType);
+    auto nAo_index = Bv_o.createNewAccessor(0, Ao.count, Ao.type, Ao.componentType);
+
+    auto & nAi = _parent->accessors[ nAi_index ];//Bv_i.createNewAccessor(0, Ai.count, Ai.type, Ai.componentType)];
+    auto & nAo = _parent->accessors[ nAo_index ];//Bv_o.createNewAccessor(0, Ao.count, Ao.type, Ao.componentType)];
+
+    assert( nAi.bufferView == Bvi );
+    assert( nAo.bufferView == Bvo );
+
+    nAi.copyDataFrom(Ai);
+    nAo.copyDataFrom(Ao);
+
+    this->input  = nAi_index;
+    this->output = nAo_index;
+    this->interpolation = other.interpolation;
+
+}
+
+inline void Animation::copy(const Animation & other)
+{
+    auto & B = _parent->newBuffer();
+
+    name = other.name;
+
+    for(auto & s : other.samplers)
+    {
+        auto & newSamp = newSampler();
+
+        newSamp.copy( s, B);
+
+    }
+
+    for(auto & x : other.channels)
+    {
+        auto & C = newChannel();
+        C.target  = x.target;
+        C.sampler = x.sampler;
+    }
+
+}
+
 }
 
 #endif
+
