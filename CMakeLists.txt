@@ -64,13 +64,18 @@ if(CMAKE_COMPILER_IS_GNUCC)
             # Download the single header file for nlohmann/json. This is only for the unit tests
             # and examples. It is not included with uGLTF
             #################################################################################################
-            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp" )
+            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
             endif()
 
             # Also download stb_image
-            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_CURRENT_BINARY_DIR}/include/stb_image.h" )
+            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/stb_image.h" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_BINARY_DIR}/include/stb_image.h" )
+            endif()
+
+            # Also download Lyra
+            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/lyra/lyra.h" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_BINARY_DIR}/include/lyra/lyra.hpp" )
             endif()
 
             #################################################################################################
@@ -92,8 +97,8 @@ add_library( ${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME} )
 
 target_include_directories( ${PROJECT_NAME}
                             INTERFACE
-                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+                               "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>"
+                               "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
 )
 
 
@@ -132,10 +137,9 @@ add_library( stbgltf STATIC src/libstb.cpp)
 
 add_library( stbgltf::stbgltf ALIAS stbgltf )
 
-target_include_directories( ${PROJECT_NAME}
-                            INTERFACE
-                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+target_include_directories( stbgltf
+                               PRIVATE
+                               "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
 )
 
 
@@ -205,7 +209,7 @@ add_executable(
     extractAnimations
     examples/extractAnimations.cpp
 )
-target_link_libraries(extractAnimations ${PROJECT_NAME}::${PROJECT_NAME})
+target_link_libraries(extractAnimations ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
 #################################################################################################
