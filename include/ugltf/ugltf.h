@@ -1075,7 +1075,7 @@ class Accessor
             auto * src = _getData(index);
             auto as = accessorSize();
             assert( as == sizeof(T) );
-            std::memcpy(&dst, src,sizeof(T) );
+            std::memcpy(&dst, src, sizeof(T) );
         }
 
 
@@ -2027,11 +2027,6 @@ public:
         return getOutputAccessor().getSpan<T>();
     }
 
-    //template<typename T>
-    //aspan<T> getOutputSpan() const
-    //{
-    //    return getOutputAccessor().getSpan<T>();
-    //}
     template<typename T>
     aspan< typename std::add_const<T>::type > getOutputSpan() const
     {
@@ -2044,18 +2039,6 @@ public:
     Accessor const & getInputAccessor() const ;
     Accessor const & getOutputAccessor() const;
 
-
-    /**
-     * @brief copy
-     * @param other
-     * @param B
-     *
-     * Copies the animation sampler data into this
-     * Sampler, You must pass a reference to a buffer
-     * which will be used to store all the accessors
-     * for the channels.
-     */
-    void copy(AnimationSampler const & other, Buffer & B );
 
 private:
     GLTFModel * _parent = nullptr;
@@ -2150,19 +2133,6 @@ public:
 
     Animation()
     {}
-
-    /**
-     * @brief copy
-     * @param other
-     *
-     * Copies the Animation data from one animation into this one
-     * Note that this will copy all the Sampler data and Channel
-     * information.
-     *
-     * The node referenced in each channel is left unchanged. It
-     * is your responsibility to fix the nodes if they do not exist.
-     */
-    void copy(const Animation & other);
 
     AnimationSampler & newSampler()
     {
@@ -3857,16 +3827,15 @@ inline void Accessor::copyDataFrom(Accessor const & A)
         }
     }
 
-    //auto totalBytesForData = A.accessorSize() * A.count;
-    //if( getBufferView().byteLength < totalBytesForData   )
-    //{
-    //    throw std::runtime_error("This destination Accessor does not have enough space for the data");
-    //}
-
     auto count = A.count;
-
     auto elmentSize = A.accessorSize();
 
+    for(uint32_t i=0;i<count;i++)
+    {
+        std::memcpy( _getData(i), A._getData(i), elmentSize);;
+    }
+    calculateMinMax();
+return;
     // get the byte offset;
     uint8_t * dst       = static_cast<uint8_t*>( getBufferView().data() ) + byteOffset;
     uint8_t const * src = static_cast<uint8_t const*>( A.getBufferView().data() ) + A.byteOffset;
@@ -3991,63 +3960,121 @@ inline Node const & AnimationChannel::getNode() const
 
 
 
-inline void AnimationSampler::copy(AnimationSampler const & other, Buffer & B )
+inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animationIndex)
 {
-    auto & Ai = other.getInputAccessor();
-    auto & Ao = other.getOutputAccessor();
+    std::map<uint32_t, uint32_t> inputAccessors;
 
-    auto  Bvi =    B.createNewBufferView( Ai.getBufferView().byteLength,
-                                           Ai.getBufferView().target,
-                                           Ai.getBufferView().byteStride,
-                                           Ai.accessorSize());
+    auto & B = M1.buffers.size() == 0 ? M1.newBuffer() : M1.buffers.back();
 
-    auto  Bvo =    B.createNewBufferView( Ao.getBufferView().byteLength,
-                                           Ao.getBufferView().target,
-                                           Ao.getBufferView().byteStride,
-                                           Ao.accessorSize());
+    auto & A = M2.animations.at(animationIndex);
 
-    auto & Bv_i = _parent->bufferViews[Bvi];
-    auto & Bv_o = _parent->bufferViews[Bvo];
+    auto & newAnimation = M1.newAnimation();
 
-    auto nAi_index = Bv_i.createNewAccessor(0, Ai.count, Ai.type, Ai.componentType);
-    auto nAo_index = Bv_o.createNewAccessor(0, Ao.count, Ao.type, Ao.componentType);
+    newAnimation.name = A.name;
 
-    auto & nAi = _parent->accessors[ nAi_index ];//Bv_i.createNewAccessor(0, Ai.count, Ai.type, Ai.componentType)];
-    auto & nAo = _parent->accessors[ nAo_index ];//Bv_o.createNewAccessor(0, Ao.count, Ao.type, Ao.componentType)];
-
-    assert( nAi.bufferView == Bvi );
-    assert( nAo.bufferView == Bvo );
-
-    nAi.copyDataFrom(Ai);
-    nAo.copyDataFrom(Ao);
-
-    this->input  = nAi_index;
-    this->output = nAo_index;
-    this->interpolation = other.interpolation;
-
-}
-
-inline void Animation::copy(const Animation & other)
-{
-    auto & B = _parent->newBuffer();
-
-    name = other.name;
-
-    for(auto & s : other.samplers)
+    for(auto & S : A.samplers )
     {
-        auto & newSamp = newSampler();
 
-        newSamp.copy( s, B);
+        // only copy the input accessor if it hasn't been copied before
+        if( inputAccessors.count(S.input ) == 0)
+        {
+            auto const & acc = M2.accessors.at(S.input);
+            auto const & bc  = M2.bufferViews.at(acc.bufferView);
 
+            auto i = B.createNewBufferView( acc.count * acc.accessorSize(), bc.target, 0, 1);
+
+            auto newAcc_index = M1.bufferViews[i].createNewAccessor(0, acc.count, acc.type, acc.componentType);
+            auto & newAcc = M1.accessors.at(newAcc_index);
+
+            newAcc.copyDataFrom(acc);
+
+            inputAccessors[S.input] = newAcc_index;
+            M1.accessors.back().calculateMinMax();
+        }
+
+        if( inputAccessors.count(S.output) == 0)
+        {
+            auto const & acc = M2.accessors.at(S.output);
+            auto const & bc  = M2.bufferViews.at(acc.bufferView);
+
+            auto i = B.createNewBufferView( acc.count * acc.accessorSize(), bc.target, 0, 1);
+
+            auto newAcc_index = M1.bufferViews[i].createNewAccessor(0, acc.count, acc.type, acc.componentType);
+            auto & newAcc = M1.accessors.at(newAcc_index);
+
+            newAcc.copyDataFrom(acc);
+
+            inputAccessors[S.output] = newAcc_index;
+            M1.accessors.back().calculateMinMax();
+        }
     }
 
-    for(auto & x : other.channels)
+    for(auto & S : A.samplers )
     {
-        auto & C = newChannel();
-        C.target  = x.target;
-        C.sampler = x.sampler;
+        auto & newS = newAnimation.newSampler();
+        newS.input  = inputAccessors.at(S.input);
+        newS.output = inputAccessors.at(S.output);
+        newS.interpolation = S.interpolation;
+    }
+    for(auto & C : A.channels)
+    {
+        auto & newC  = newAnimation.newChannel();
+        newC.target  = C.target;
+        newC.sampler = C.sampler;
     }
 
+    std::vector<uint8_t> orig;
+    std::vector<uint8_t> new_v;
+
+    for(auto & S : A.samplers)
+    {
+        {
+            std::cout << "Checking Input Accessor: " << inputAccessors.at(S.input) << std::endl;
+            auto & acc     = S.getInputAccessor();
+            auto & acc_new = M1.accessors.at( inputAccessors.at(S.input) );
+            std::cout << "   Byte Stride: " << acc.getBufferView().byteStride
+                      << " ==  "            << acc_new.getBufferView().byteStride << std::endl;
+
+            std::cout << "   Byte Length: " << acc.getBufferView().byteLength
+                      << " ==  "            << acc_new.getBufferView().byteLength << std::endl;
+
+            std::cout << "   Byte Offset: " << acc.getBufferView().byteOffset
+                      << " ==  "            << acc_new.getBufferView().byteOffset << std::endl;
+
+            std::cout << "     count: " << acc.count
+                      << " ==  "            << acc_new.count << std::endl;
+
+            std::cout << "     accessor Size: " << acc.accessorSize()
+                      << " ==  "            << acc_new.accessorSize() << std::endl;
+
+            assert( acc.count == acc_new.count );
+            assert( acc.accessorSize() == acc_new.accessorSize() );
+
+            orig.resize(     acc.count * acc.accessorSize() );
+            new_v.resize( acc_new.count * acc_new.accessorSize() );
+
+            for(uint32_t i=0;i<orig.size();i++)
+            {
+                assert( orig[i] == new_v[i]);
+            }
+        }
+        {
+            std::cout << "Checking Output Accessor: " << inputAccessors.at(S.output) << std::endl;
+            auto & acc     = S.getOutputAccessor();
+            auto & acc_new = M1.accessors.at( inputAccessors.at(S.output) );
+
+            assert( acc.count == acc_new.count );
+            assert( acc.accessorSize() == acc_new.accessorSize() );
+
+            orig.resize(     acc.count * acc.accessorSize() );
+            new_v.resize( acc_new.count * acc_new.accessorSize() );
+
+            for(uint32_t i=0;i<orig.size();i++)
+            {
+                assert( orig[i] == new_v[i]);
+            }
+        }
+    }
 }
 
 }

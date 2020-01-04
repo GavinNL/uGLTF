@@ -157,3 +157,77 @@ SCENARIO("Testing Accessors get/set values")
 }
 
 
+
+SCENARIO("Copying Accessors")
+{
+    GIVEN("A model with a single bufferView and two accessors (vec3 and vec2) interleaved within the view")
+    {
+        uGLTF::GLTFModel M;
+        uGLTF::GLTFModel M2;
+
+
+
+        using vec3 = std::array<uint32_t,3>;
+
+        {
+            auto & B = M.newBuffer();
+
+            auto bv_i = B.createNewBufferView( 10*sizeof(vec3), uGLTF::BufferViewTarget::ARRAY_BUFFER, sizeof(vec3), 1 );
+
+            auto & Bv = M.bufferViews[ bv_i ];
+
+            auto a1 = Bv.createNewAccessor(0            , 10, uGLTF::AccessorType::VEC3, uGLTF::ComponentType::UNSIGNED_INT);
+            REQUIRE( a1 == 0);
+            auto & acc1 = M.accessors.at(a1);
+
+            REQUIRE( acc1.byteOffset == 0);
+
+
+            for(uint32_t i=0;i<10;i++)
+            {
+                vec3 A = {i, i, i };
+                acc1.setValue(i, A);
+            }
+
+            for(uint32_t i=0;i<10;i++)
+            {
+                auto v = acc1.getValue<vec3>(i);
+
+                vec3 A = {i, i, i };
+                REQUIRE( v[0] == A[0] );
+                REQUIRE( v[1] == A[1] );
+                REQUIRE( v[2] == A[2] );
+            }
+
+        }
+
+        {
+            auto & B = M2.newBuffer();
+            auto bv_i = B.createNewBufferView( 10*sizeof(vec3), uGLTF::BufferViewTarget::ARRAY_BUFFER, sizeof(vec3), 1 );
+
+            auto & Bv = M2.bufferViews[ bv_i ];
+
+            auto a1 = Bv.createNewAccessor(0            , 10, uGLTF::AccessorType::VEC3, uGLTF::ComponentType::UNSIGNED_INT);
+
+            auto & acc1 = M2.accessors.at(a1);
+
+            REQUIRE( a1 == 0);
+            REQUIRE( acc1.byteOffset == 0);
+            acc1.copyDataFrom( M.accessors[0] );
+
+
+            for(uint32_t i=0;i<10;i++)
+            {
+                auto v = acc1.getValue<vec3>(i);
+
+                vec3 A = {i, i, i };
+                REQUIRE( v[0] == A[0] );
+                REQUIRE( v[1] == A[1] );
+                REQUIRE( v[2] == A[2] );
+            }
+
+        }
+
+    }
+
+}

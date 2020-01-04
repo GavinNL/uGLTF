@@ -78,6 +78,11 @@ if(CMAKE_COMPILER_IS_GNUCC)
                 file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_BINARY_DIR}/include/lyra/lyra.hpp" )
             endif()
 
+
+            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
+                file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
+            endif()
+
             #################################################################################################
 
         endif()
@@ -107,10 +112,10 @@ target_compile_features( ${PROJECT_NAME}
                               cxx_std_17
                               )
 
-set_target_properties( ${PROJECT_NAME}
-                      PROPERTIES
-                          PUBLIC_HEADER
-                            ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
+#set_target_properties( ${PROJECT_NAME}
+#                      PROPERTIES
+#                          PUBLIC_HEADER
+#                            ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
 
 target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Werror -Wno-type-limits)
 

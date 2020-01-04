@@ -59,6 +59,17 @@ std::string to_string( uGLTF::Node const & N)
     return fmt::format("T:{:<30} R:{:<30} S:{:<30}", to_string(N.translation), to_string(N.rotation), to_string(N.scale));
 }
 
+void printNodeHierarchy( uGLTF::GLTFModel const & M, uGLTF::Node const & N, std::string indent="")
+{
+    auto dist = std::distance(&M.nodes[0], &N);
+    std::cout << indent << fmt::format("[{:2}] {}", dist, N.name) << '\n';
+    indent += "   ";
+    for(auto & c : N.children)
+    {
+        printNodeHierarchy(M, M.nodes[c], indent);
+    }
+}
+
 int printInfo(std::string const & filename,
               bool printBuffers,
               bool printAnimationDetail)
@@ -78,14 +89,22 @@ int printInfo(std::string const & filename,
         std::cout << "Nodes: " << M.nodes.size() << std::endl;
 
 
-        if( M.scenes.size())
+       // if( M.scenes.size())
+       // {
+       //     std::cout << "Root Nodes: " ;
+       //     for(auto & r : M.scenes[0].nodes)
+       //     {
+       //         std::cout << " " << r;
+       //     }
+       //     std::cout << std::endl;
+       // }
+
+        for(auto & s : M.scenes)
         {
-            std::cout << "Root Nodes: " ;
-            for(auto & r : M.scenes[0].nodes)
+            for(auto r : s.nodes)
             {
-                std::cout << " " << r;
+                printNodeHierarchy( M, M.nodes[r]);
             }
-            std::cout << std::endl;
         }
         size_t i=0;
         for(auto & m : M.nodes)
@@ -260,11 +279,13 @@ int printInfo(std::string const & filename,
                 std::cout << INDENT << "Samplers          : " << m.samplers.size() << std::endl;
                 for(auto & s : m.samplers)
                 {
+                    auto & iA = s.getInputAccessor();
 
-                    std::cout << INDENT INDENT << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
-                              << INDENT INDENT << "Time Interval     : " << s.getInputSpan().front() << ", " << s.getInputSpan().back()
-                              << INDENT INDENT << "Interpolation : " << to_string(s.interpolation)<< ", " << s.getInputSpan().back() << std::endl;
-
+                   // auto & oA = s.getOutputAccessor();
+                    std::cout << INDENT INDENT << s.input << "  " << to_string(s.getOutputAccessor().type) << INDENT << "Total Frames      : " << s.getOutputAccessor().count
+                              << INDENT INDENT << "Time Interval     : " << iA.getValue<float>(0) << ", " << iA.getValue<float>(iA.count-1)
+                              << INDENT INDENT << "Interpolation : " << to_string(s.interpolation) << std::endl;
+                              //<< INDENT INDENT << "input Accessor Size : " << iA.accessorSize() << std::endl;
                 }
             }
             std::cout << "\n\n";
