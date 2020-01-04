@@ -3817,14 +3817,16 @@ inline Accessor const & Skin::getInverseBindMatricesAccessor() const
 inline uint8_t* Accessor::_getData(size_t index)
 {
     auto & v = getBufferView();
-    uint8_t * dst = static_cast<uint8_t*>( v.data() ) + byteOffset + index * v.byteStride;
+    auto st = v.byteStride==0 ? accessorSize() : v.byteStride;
+    uint8_t * dst = static_cast<uint8_t*>( v.data() ) + byteOffset + index * st;
     return dst;
 }
 
 inline uint8_t const * Accessor::_getData(size_t index) const
 {
     auto & v = getBufferView();
-    uint8_t const * dst = static_cast<uint8_t const*>( getBufferView().data() ) + byteOffset + index * v.byteStride;
+    auto st = v.byteStride==0 ? accessorSize() : v.byteStride;
+    uint8_t const * dst = static_cast<uint8_t const*>( getBufferView().data() ) + byteOffset + index * st;
     return dst;
 }
 
@@ -3946,7 +3948,7 @@ inline size_t BufferView::createNewAccessor(size_t byteOffset, size_t count, Acc
     _temp.byteOffset = byteOffset; // byteOffset from start of view.
 
     // calculate the total number of bytes required
-    auto bytes = _temp.componentSize() * count;
+    auto bytes = _temp.accessorSize() * count;
 
     if( byteOffset+bytes > byteLength)
     {
