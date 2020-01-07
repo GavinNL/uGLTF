@@ -325,6 +325,27 @@ enum class ComponentType : int32_t
     DOUBLE          = 5130
 };
 
+template<typename T>
+inline ComponentType getComponentType()
+{
+    static_assert( std::is_fundamental<T>::value, "Template must be a fundamental type" );
+    static_assert( !std::is_pointer<T>::value, "Cannot be a pointer");
+
+    if constexpr ( std::is_floating_point<T>() )
+    {
+        return sizeof(T) == 4 ?  ComponentType::FLOAT : ComponentType::DOUBLE;
+    }
+    else if( std::is_integral<T>() )
+    {
+        const ComponentType vv[] = { ComponentType::BYTE, ComponentType::SHORT, ComponentType::INT, ComponentType::INT};
+
+        return static_cast<ComponentType>( static_cast<int32_t>(vv[ sizeof(T)-1 ]) + static_cast<int>( std::is_unsigned<T>::value ) );
+    }
+    else
+    {
+        throw std::runtime_error("Invalid fundamental Type");
+    }
+}
 
 struct Asset
 {
@@ -841,6 +862,8 @@ class Accessor
         BufferView & getBufferView();
 
 
+
+
         /**
          * @brief memcpy_all
          * @param dst
@@ -852,7 +875,6 @@ class Accessor
         {
             auto & bv = getBufferView();
 
-            auto * src_c = static_cast<const unsigned char*>(bv.data()) + byteOffset;
             auto * dst_c = static_cast< unsigned char*>( dst );
 
             auto aSize = accessorSize();
@@ -865,7 +887,7 @@ class Accessor
             for(size_t i=0;i<count;i++)
             {
                 std::memcpy(dst_c + i * aSize,
-                            src_c + i * stride, aSize );
+                            _getData(i), aSize );
 
             }
         }
@@ -2435,11 +2457,11 @@ public:
     uint32_t texCoord = 0;
 
     float   scale    = std::nanf("");        // used for other textures
-    float   strength = std::nanf("");;     // used for occlusion Textures
+    float   strength = std::nanf("");     // used for occlusion Textures
 
     operator bool() const
     {
-        return index != std::numeric_limits<uint32_t>::max();;
+        return index != std::numeric_limits<uint32_t>::max();
     }
 };
 

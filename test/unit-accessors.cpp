@@ -189,14 +189,26 @@ SCENARIO("Copying Accessors")
                 acc1.setValue(i, A);
             }
 
+            std::vector<vec3> tmp;
+
+            tmp.resize( acc1.count );
+            acc1.memcpy_all(tmp.data());
+
             for(uint32_t i=0;i<10;i++)
             {
                 auto v = acc1.getValue<vec3>(i);
 
                 vec3 A = {i, i, i };
+
                 REQUIRE( v[0] == A[0] );
                 REQUIRE( v[1] == A[1] );
                 REQUIRE( v[2] == A[2] );
+
+                REQUIRE( tmp[i][0] == A[0] );
+                REQUIRE( tmp[i][1] == A[1] );
+                REQUIRE( tmp[i][2] == A[2] );
+
+
             }
 
         }
