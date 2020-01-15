@@ -908,15 +908,24 @@ class Accessor
     auto l_min = getValue<array_type>(0);\
     auto l_max = getValue<array_type>(0);\
     auto size = count;\
-    for(size_t i=0;i<size;i++)\
+    if( size == 1)\
     {\
-        l_min = _min<T,N>( getValue<array_type>(i), l_min);\
-        l_max = _max<T,N>( getValue<array_type>(i), l_max);\
+        l_max = l_min = getValue<array_type>(0);\
     }\
-    for(size_t i=0;i< N;i++)\
+    else\
     {\
-        min.push_back( static_cast<T>(l_min[i]) );\
-        max.push_back( static_cast<T>(l_max[i]) );\
+        l_min = getValue<array_type>(0);\
+        l_max = getValue<array_type>(0);\
+        for(size_t i=0;i<size;i++)\
+        {\
+            l_min = _min<T,N>( getValue<array_type>(i), l_min);\
+            l_max = _max<T,N>( getValue<array_type>(i), l_max);\
+        }\
+        for(size_t i=0;i< N;i++)\
+        {\
+            min.push_back( static_cast<T>(l_min[i]) );\
+            max.push_back( static_cast<T>(l_max[i]) );\
+        }\
     }\
     break;\
 }\
@@ -1271,7 +1280,7 @@ class Accessor
         std::array<T, N> _min( std::array<T, N> a, std::array<T, N> b)
         {
             std::array<T, N> m;
-            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::max();
+            //for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::max();
             for(size_t i=0;i<N;i++)
             {
                 m[i] = std::min( a[i], b[i]);
@@ -1283,7 +1292,7 @@ class Accessor
         std::array<T, N> _max( std::array<T, N> a, std::array<T, N> b)
         {
             std::array<T, N> m;
-            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::lowest();
+           // for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::lowest();
             for(size_t i=0;i<N;i++)
             {
                 m[i] = std::max( a[i], b[i]);
