@@ -78,8 +78,10 @@ namespace UGLTF_NAMESPACE
 
 using json = UGLTF_JSON_CLASS;
 
-class GLTFModel;
+//#define UGLTF_USE_SPAN
 
+class GLTFModel;
+#if defined UGLTF_USE_SPAN
 /**
  * @brief The aspan class
  *
@@ -167,6 +169,7 @@ public:
     size_t         _size;
     size_t         _stride;
 };
+#endif
 
 template<typename T>
 inline T _getValue(json const & obj, const std::string & key, T const &default_val)
@@ -352,6 +355,8 @@ struct Asset
     std::string version = "2.0";
     std::string generator;
     std::string copyright;
+
+    json        extensions;
 };
 
 inline void to_json(json& j, const Asset & p)
@@ -359,7 +364,8 @@ inline void to_json(json& j, const Asset & p)
    j = json{
             {"version"   , p.version},
             {"generator" , p.generator},
-            {"copyright" , p.copyright}
+            {"copyright" , p.copyright},
+            {"extensions", p.extensions},
            };
 }
 
@@ -367,9 +373,10 @@ inline void to_json(json& j, const Asset & p)
 
 inline void from_json(const json & j, Asset & B)
 {
-    B.version   = _getValue(j,   "version",   std::string("") );
-    B.generator = _getValue(j, "generator", std::string("") );
-    B.copyright = _getValue(j, "copyright", std::string("") );
+    B.version    = _getValue(j,    "version" , std::string("") );
+    B.generator  = _getValue(j,  "generator" , std::string("") );
+    B.copyright  = _getValue(j,  "copyright" , std::string("") );
+    B.extensions = _getValue(j, "extensions" , json() );
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
@@ -841,7 +848,7 @@ class Accessor
 
         std::string  name;
 
-
+#if defined UGLTF_USE_SPAN
         /**
          * @brief getSpan
          * @return
@@ -857,7 +864,7 @@ class Accessor
 
         template<typename T>
         aspan< typename std::add_const<T>::type > getSpan() const;
-
+#endif
         BufferView const & getBufferView() const;
         BufferView & getBufferView();
 
@@ -901,19 +908,28 @@ class Accessor
         {
 #define DOMINMAX(T, N) \
 {\
-    auto S = getSpan< std::array<T, N> >();\
-    auto l_min = S.front();\
-    auto l_max = S.front();\
-    auto size = S.size();\
-    for(size_t i=0;i<size;i++)\
+    using array_type = std::array<T,N>;\
+    auto l_min = getValue<array_type>(0);\
+    auto l_max = getValue<array_type>(0);\
+    auto size = count;\
+    if( size == 1)\
     {\
-        l_min = _min<T,N>( S.get(i), l_min);\
-        l_max = _max<T,N>( S.get(i), l_max);\
+        l_max = l_min = getValue<array_type>(0);\
     }\
-    for(size_t i=0;i< N;i++)\
+    else\
     {\
-        min.push_back( static_cast<T>(l_min[i]) );\
-        max.push_back( static_cast<T>(l_max[i]) );\
+        l_min = getValue<array_type>(0);\
+        l_max = getValue<array_type>(0);\
+        for(size_t i=0;i<size;i++)\
+        {\
+            l_min = _min<T,N>( getValue<array_type>(i), l_min);\
+            l_max = _max<T,N>( getValue<array_type>(i), l_max);\
+        }\
+        for(size_t i=0;i< N;i++)\
+        {\
+            min.push_back( static_cast<T>(l_min[i]) );\
+            max.push_back( static_cast<T>(l_max[i]) );\
+        }\
     }\
     break;\
 }\
@@ -1268,7 +1284,7 @@ class Accessor
         std::array<T, N> _min( std::array<T, N> a, std::array<T, N> b)
         {
             std::array<T, N> m;
-            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::max();
+            //for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::max();
             for(size_t i=0;i<N;i++)
             {
                 m[i] = std::min( a[i], b[i]);
@@ -1280,7 +1296,7 @@ class Accessor
         std::array<T, N> _max( std::array<T, N> a, std::array<T, N> b)
         {
             std::array<T, N> m;
-            for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::lowest();
+           // for(size_t i=0;i<N;i++) m[i] = std::numeric_limits<T>::lowest();
             for(size_t i=0;i<N;i++)
             {
                 m[i] = std::max( a[i], b[i]);
@@ -1364,11 +1380,10 @@ public:
 
     std::vector<uint32_t> children;
 
-
-
     std::vector<float> weights;
     std::string        name;
 
+    json extra;
     /**
      * @brief hasMatrix
      * @return
@@ -1478,6 +1493,11 @@ inline void to_json(json& j, const Node & p)
 
     if( p.name.length() )
         j["name"] = p.name;
+
+    if( p.extra.is_object() )
+    {
+        j["extra"] = p.extra;
+    }
 }
 
 inline void from_json(const json & j, Node & B)
@@ -1505,6 +1525,10 @@ inline void from_json(const json & j, Node & B)
     B.weights        = _getValue(j, "weights", std::vector<float>());
     B.children       = _getValue(j, "children", std::vector<uint32_t>());
 
+    if( j.count("extra"))
+    {
+        B.extra =  j.at("extra");
+    }
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
     std::cout << "original: " << std::endl;
@@ -1684,6 +1708,7 @@ public:
     Accessor& getIndexAccessor();
     Accessor const & getIndexAccessor() const;
 
+#if defined UGLTF_USE_SPAN
     /**
      * @brief getSpan
      * @param attr
@@ -1733,6 +1758,8 @@ public:
 
         return A.getSpan<T>();
     }
+#endif
+
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -1908,6 +1935,7 @@ public:
     Accessor& getInverseBindMatricesAccessor();
     Accessor const & getInverseBindMatricesAccessor() const;
 
+#if defined UGLTF_USE_SPAN
     template<typename T>
     aspan<T> getInverseBindMatricesSpan()
     {
@@ -1925,7 +1953,7 @@ public:
         assert( sizeof(T) == A.accessorSize() );
         return A.getSpan< typename std::add_const<T>::type >();
     }
-
+#endif
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2026,6 +2054,7 @@ public:
     uint32_t                output = std::numeric_limits<uint32_t>::max();
     AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
 
+#if defined UGLTF_USE_SPAN
     /**
      * @brief getInputData
      * @return
@@ -2054,6 +2083,7 @@ public:
     {
         return getOutputAccessor().getSpan< typename std::add_const<T>::type >();
     }
+#endif
 
     Accessor& getInputAccessor();
     Accessor& getOutputAccessor();
@@ -2221,6 +2251,7 @@ public:
     BufferView       &  getBufferView();
     BufferView const &  getBufferView() const;
 
+    #if defined UGLTF_USE_SPAN
     /**
      * @brief getSpan
      * @return
@@ -2241,7 +2272,7 @@ public:
      */
     aspan<uint8_t> getSpan();
     aspan<const uint8_t> getSpan() const;
-
+#endif
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -3347,6 +3378,21 @@ public:
     }
 
 
+    //=========================================================================================
+    // Manipulation Methods
+    //
+    // Methods which can create new objects
+    //=========================================================================================
+    /**
+     * @brief changeNodeIndex
+     * @param prevNodeIndex
+     * @param newNodeIndex
+     *
+     * Reorders the Node from prevNodeIndex to newNodeIndex. All other nodes
+     * will be reordered
+     */
+
+
 public:
     Asset                   asset;
     std::vector<Accessor>   accessors;
@@ -3649,6 +3695,7 @@ inline BufferView &       Accessor::getBufferView()
     return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
 }
 
+#if defined UGLTF_USE_SPAN
 template<typename T>
 inline aspan<T> Accessor::getSpan()
 {
@@ -3675,6 +3722,7 @@ inline aspan<T> Accessor::getSpan()
               count,
               stride);
 }
+
 
 template<typename T>
 inline aspan< typename std::add_const<T>::type > Accessor::getSpan() const
@@ -3739,6 +3787,8 @@ inline aspan<const uint8_t> Image::getSpan() const
 
     throw std::runtime_error("Image Data has not been loaded yet.");
 }
+
+#endif
 
 inline BufferView       & Image::getBufferView()
 {

@@ -1,3 +1,4 @@
+#define UGLTF_USE_SPAN
 #include "catch.hpp"
 #define UGLTF_PRIVATE   public
 #define UGLTF_PROTECTED public

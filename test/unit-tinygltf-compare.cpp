@@ -1,3 +1,5 @@
+#define UGLTF_USE_SPAN
+
 #include "catch.hpp"
 #include <ugltf/ugltf.h>
 #include <iostream>
