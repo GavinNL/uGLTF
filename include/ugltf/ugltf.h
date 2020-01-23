@@ -355,6 +355,8 @@ struct Asset
     std::string version = "2.0";
     std::string generator;
     std::string copyright;
+
+    json        extensions;
 };
 
 inline void to_json(json& j, const Asset & p)
@@ -362,7 +364,8 @@ inline void to_json(json& j, const Asset & p)
    j = json{
             {"version"   , p.version},
             {"generator" , p.generator},
-            {"copyright" , p.copyright}
+            {"copyright" , p.copyright},
+            {"extensions", p.extensions},
            };
 }
 
@@ -370,9 +373,10 @@ inline void to_json(json& j, const Asset & p)
 
 inline void from_json(const json & j, Asset & B)
 {
-    B.version   = _getValue(j,   "version",   std::string("") );
-    B.generator = _getValue(j, "generator", std::string("") );
-    B.copyright = _getValue(j, "copyright", std::string("") );
+    B.version    = _getValue(j,    "version" , std::string("") );
+    B.generator  = _getValue(j,  "generator" , std::string("") );
+    B.copyright  = _getValue(j,  "copyright" , std::string("") );
+    B.extensions = _getValue(j, "extensions" , json() );
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
