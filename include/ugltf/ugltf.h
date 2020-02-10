@@ -356,6 +356,9 @@ struct Asset
     std::string generator;
     std::string copyright;
 
+    std::vector<std::string> extensionsRequired;
+    std::vector<std::string> extensionsUsed;
+
     json        extensions;
 };
 
@@ -366,6 +369,8 @@ inline void to_json(json& j, const Asset & p)
             {"generator" , p.generator},
             {"copyright" , p.copyright},
             {"extensions", p.extensions},
+            {"extensionsRequired", p.extensionsRequired},
+            {"extensionsUsed", p.extensionsUsed}
            };
 }
 
@@ -377,6 +382,9 @@ inline void from_json(const json & j, Asset & B)
     B.generator  = _getValue(j,  "generator" , std::string("") );
     B.copyright  = _getValue(j,  "copyright" , std::string("") );
     B.extensions = _getValue(j, "extensions" , json() );
+
+    B.extensionsRequired = _getValue(j, "extensionsRequired" , std::vector<std::string>() );
+    B.extensionsUsed      = _getValue(j, "extensionsUsed"    , std::vector<std::string>() );
 
 #if defined PRINT_CONV
     std::cout << "=======================" << std::endl;
@@ -3013,6 +3021,31 @@ public:
         }
 
         return true;
+    }
+
+
+    static json loadJSONChunk(std::istream & i )
+    {
+        i.seekg(0);
+        auto firstChar = i.peek();
+        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
+        {
+            // it's a GLB file.
+            auto header    = _readHeader(i);
+            if(header.magic != 0x46546C67) return false;
+            if(header.version < 2)         return false;
+
+            auto jsonChunk = _readChunk(i);
+            jsonChunk.chunkData.push_back(0);
+
+            return _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+        }
+        else  // is pure json file
+        {
+            json j;
+            i >> j;
+            return j;
+        }
     }
 
     bool load( std::istream & i)
