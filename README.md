@@ -23,8 +23,6 @@ ctest
 
 # Features
 
-* enum classes for all constants
-*
 
 ```C++
 
@@ -62,34 +60,6 @@ property is specified.
 Classes also have a `hasPROPERTY()` method specified.
 
 Properties with integer index values are set to -1 if they are not specified.
-
-## aspan<T>
-
-The `aspan<T>` is a template class which creates a typed view around raw data.
-Since `buffers`, `bufferViews` don't have a C++ type, aspan can be used to access the
-typed information from each of these:
-
-Accessors, Buffers, BufferViews and Images all have a method called `getSpan<T>()`.
-This allows you to get a typed vector-like view into the actual data.
-
-```C++
-gltfpp::Model M;
-// load model
-
-auto positions =  M.Accessors[0].getSpan<glm::vec3>();
-
-// access positions as if it was a vector
-for(auto & p : positions)
-{
-    // access p.x, p.y, p.z
-}
-
-```
-
-An exception will be thrown if you attempt to use a template type that does not
-match the Accessor's type/component constants. The requirement for the template
-parameter is that its size must be less than the stride defined by the GLTF asset.
-
 
 ## Mesh data
 

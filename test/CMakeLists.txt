@@ -49,16 +49,20 @@ endforeach()
 #################################################################################################
 # Download an example glb file from KhronosGroup
 #################################################################################################
+
+set(SAMPLE_MODEL_URI "https://github.com/KhronosGroup/glTF-Sample-Models/raw/0c1ffd876136b824a50e584b9158a3199fead935")
+
+
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoomBox.glb" )
-    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BoomBox/glTF-Binary/BoomBox.glb" "${CMAKE_CURRENT_BINARY_DIR}/BoomBox.glb" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BoomBox/glTF-Binary/BoomBox.glb" "${CMAKE_CURRENT_BINARY_DIR}/BoomBox.glb" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
-    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb" "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/CesiumMan/glTF-Binary/CesiumMan.glb" "${CMAKE_CURRENT_BINARY_DIR}/CesiumMan.glb" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
-    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/BrainStem/glTF-Binary/BrainStem.glb" "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BrainStem/glTF-Binary/BrainStem.glb" "${CMAKE_CURRENT_BINARY_DIR}/BrainStem.glb" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
@@ -66,20 +70,20 @@ if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/tiny_gltf.h" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.glb" )
-    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/blob/master/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.glb" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.glb" )
 endif()
 
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
-    file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxAnimated/glTF-Embedded/BoxAnimated.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BoxAnimated/glTF-Embedded/BoxAnimated.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxAnimated.gltf" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.gltf" )
-    file(DOWNLOAD "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxTextured/glTF-Embedded/BoxTextured.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.gltf" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BoxTextured/glTF-Embedded/BoxTextured.gltf" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.gltf" )
 endif()
 
 if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.glb" )
-    file(DOWNLOAD "https://github.com/KhronosGroup/glTF-Sample-Models/blob/master/2.0/BoxTextured/glTF-Binary/BoxTextured.glb?raw=true" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.glb" )
+    file(DOWNLOAD "${SAMPLE_MODEL_URI}/2.0/BoxTextured/glTF-Binary/BoxTextured.glb?raw=true" "${CMAKE_CURRENT_BINARY_DIR}/BoxTextured.glb" )
 endif()
 
 

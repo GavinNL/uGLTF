@@ -54,8 +54,8 @@ SCENARIO("Testing Accessors in a BufferView")
                 vec3 a;
                 vec2 b;
 
-                memcpy(&a, raw_bytes                , sizeof(vec3));
-                memcpy(&b, raw_bytes+sizeof(vec3)   , sizeof(vec3));
+                memcpy(&a, raw_bytes                , sizeof(a));
+                memcpy(&b, raw_bytes+sizeof(vec3)   , sizeof(b));
 
                 REQUIRE( A == a );
                 REQUIRE( B == b );

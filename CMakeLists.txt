@@ -14,78 +14,80 @@ project(ugltf VERSION 0.1)
 # Always build the coverage target
 #----------------------------------------------------------------
 string( TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPER)
-add_library(${PROJECT_NAME}_coverage_lib INTERFACE)
-add_library(${PROJECT_NAME}::coverage    ALIAS    ${PROJECT_NAME}_coverage_lib)
+add_library(UGLTF_coverage_lib INTERFACE)
+add_library(${PROJECT_NAME}::coverage    ALIAS    UGLTF_coverage_lib)
 #----------------------------------------------------------------
 
-option(${PROJECT_NAME}_BUILD_TESTS "Build Unit Tests" TRUE)
+option(UGLTF_BUILD_TESTS    "Build Unit Tests" OFF)
+option(UGLTF_BUILD_EXAMPLES "Build Examples"   OFF)
+
+if( UGLTF_BUILD_TESTS OR UGLTF_BUILD_EXAMPLES)
+
+    #################################################################################################
+    # Download the single header file for nlohmann/json. This is only for the unit tests
+    # and examples. It is not included with uGLTF
+    #################################################################################################
+    if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
+        file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
+    endif()
+
+    # Also download stb_image
+    if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/stb_image.h" )
+        file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_BINARY_DIR}/include/stb_image.h" )
+    endif()
+
+    # Also download Lyra
+    if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/lyra/lyra.h" )
+        file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_BINARY_DIR}/include/lyra/lyra.hpp" )
+    endif()
+
+
+    if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
+        file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
+    endif()
+
+    #################################################################################################
+endif()
+
 
 if(CMAKE_COMPILER_IS_GNUCC)
 
-    if( ${PROJECT_NAME}_BUILD_TESTS )
+    option(UGLTF_BUILD_COVERAGE "Build with Coverage" OFF)
 
-        option(${PROJECT_NAME_UPPER}_BUILD_COVERAGE "Build with Coverage" ON)
+    if( UGLTF_BUILD_COVERAGE )
 
-        if( ${PROJECT_NAME_UPPER}_BUILD_COVERAGE )
+        target_compile_options( UGLTF_coverage_lib   INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
+        target_link_libraries(  UGLTF_coverage_lib   INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
 
-            target_compile_options( ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
-            target_link_libraries(  ${PROJECT_NAME}_coverage_lib  INTERFACE --coverage -g -O0 -fprofile-arcs -ftest-coverage)
+        add_custom_target( UGLTF_coverage
+            COMMAND rm -rf coverage
+            COMMAND mkdir -p coverage
+            COMMAND ${CMAKE_MAKE_PROGRAM} test
+            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --html-details --html -o coverage/index.html -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --xml                 -o coverage/report.xml -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+            COMMAND gcovr . -r ${CMAKE_SOURCE_DIR}                       -o coverage/report.txt -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
+            COMMAND cat coverage/report.txt
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}  # Need separate command for this line
+        )
 
-            add_custom_target( ${PROJECT_NAME}_coverage
-                COMMAND rm -rf coverage
-                COMMAND mkdir -p coverage
-                COMMAND ${CMAKE_MAKE_PROGRAM} test
-                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --html-details --html -o coverage/index.html -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR} --xml                 -o coverage/report.xml -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-                COMMAND gcovr . -r ${CMAKE_SOURCE_DIR}                       -o coverage/report.txt -e ${CMAKE_SOURCE_DIR}/test -e ${CMAKE_BINARY_DIR};
-                COMMAND cat coverage/report.txt
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}  # Need separate command for this line
-            )
-
-            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
-            message("COVERAGE TARGET BUILT                                                               " )
-            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
-            message("    Coverage Interface Library: ${PROJECT_NAME}::coverage" )
-            message("    Coverage Build Target     : ${PROJECT_NAME}_coverage"  )
-            message("    "  )
-            message("    Any libraries/executables linked to ${PROJECT_NAME}::coverage will be built with"  )
-            message("    coverage flags"  )
-            message("    ")
-            message("    eg: "  )
-            message("     "  )
-            message("    mkdir build && cd build && cmake .. "  )
-            message("    make"  )
-            message("    make ${PROJECT_NAME}_coverage"  )
-            message("    xdg-open coverage/index.html"  )
-            message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+        message("COVERAGE TARGET BUILT                                                               " )
+        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
+        message("    Coverage Interface Library: ${PROJECT_NAME}::coverage" )
+        message("    Coverage Build Target     : ${PROJECT_NAME}_coverage"  )
+        message("    "  )
+        message("    Any libraries/executables linked to ${PROJECT_NAME}::coverage will be built with"  )
+        message("    coverage flags"  )
+        message("    ")
+        message("    eg: "  )
+        message("     "  )
+        message("    mkdir build && cd build && cmake .. "  )
+        message("    make"  )
+        message("    make ${PROJECT_NAME}_coverage"  )
+        message("    xdg-open coverage/index.html"  )
+        message("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" )
 
 
-            #################################################################################################
-            # Download the single header file for nlohmann/json. This is only for the unit tests
-            # and examples. It is not included with uGLTF
-            #################################################################################################
-            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp" "${CMAKE_BINARY_DIR}/include/nlohmann/json.hpp" )
-            endif()
-
-            # Also download stb_image
-            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/stb_image.h" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "${CMAKE_BINARY_DIR}/include/stb_image.h" )
-            endif()
-
-            # Also download Lyra
-            if( NOT EXISTS "${CMAKE_BINARY_DIR}/include/lyra/lyra.h" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_BINARY_DIR}/include/lyra/lyra.hpp" )
-            endif()
-
-
-            if( NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
-                file(DOWNLOAD "https://raw.githubusercontent.com/bfgroup/Lyra/1.2/data/single_include/lyra/lyra.hpp" "${CMAKE_CURRENT_BINARY_DIR}/include/lyra/lyra.hpp" )
-            endif()
-
-            #################################################################################################
-
-        endif()
     endif()
 endif()
 #################################################################################################
@@ -101,9 +103,10 @@ add_library( ${PROJECT_NAME} INTERFACE )
 add_library( ${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME} )
 
 target_include_directories( ${PROJECT_NAME}
+                            SYSTEM
                             INTERFACE
-                               "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>"
-                               "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
+                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+                               "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
 
 
@@ -112,12 +115,7 @@ target_compile_features( ${PROJECT_NAME}
                               cxx_std_17
                               )
 
-#set_target_properties( ${PROJECT_NAME}
-#                      PROPERTIES
-#                          PUBLIC_HEADER
-#                            ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
-
-target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Werror -Wno-type-limits)
+target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Wno-type-limits)
 
 target_compile_definitions( ${PROJECT_NAME}
                                 INTERFACE
@@ -136,33 +134,33 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS
 
 
 #################################################################################################
-# Build the actual interface library
+# Build STB library for unit tests and examples
 #################################################################################################
-add_library( stbgltf STATIC src/libstb.cpp)
 
-add_library( stbgltf::stbgltf ALIAS stbgltf )
+if( UGLTF_BUILD_TESTS OR UGLTF_BUILD_EXAMPLES)
 
-target_include_directories( stbgltf
-                               PRIVATE
-                               "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
-)
+    add_library( stbgltf STATIC src/libstb.cpp)
+
+    add_library( stbgltf::stbgltf ALIAS stbgltf )
+
+    target_include_directories( stbgltf
+                                   PRIVATE
+                                   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>"
+    )
 
 
-target_compile_features( stbgltf
-                          INTERFACE
-                              cxx_std_17
-                              )
+    target_compile_features( stbgltf
+                              INTERFACE
+                                  cxx_std_17
+                                  )
 
-set_target_properties( stbgltf
-                      PROPERTIES
-                          PUBLIC_HEADER
-                            ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
+    set_target_properties( stbgltf
+                          PROPERTIES
+                              PUBLIC_HEADER
+                                ${CMAKE_CURRENT_SOURCE_DIR}/include/ugltf/ugltf.h )
+endif()
 
-#target_compile_options( ${PROJECT_NAME} INTERFACE -Wextra -Wall -Werror)
 
-#target_compile_definitions( ${PROJECT_NAME}
-#                                INTERFACE
-#                                TEST_DEFINE)
 
 # If you create any targets, add them to the following
 # variable so that the unit tests link to them.
@@ -174,63 +172,65 @@ LIST(APPEND UNIT_TEST_LINK_TARGETS
 
 
 
+if( UGLTF_BUILD_TESTS )
 
 
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test" AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test")
+        enable_testing()
+        add_subdirectory(test)
+    endif()
 
-
-
-
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test" AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test")
-    enable_testing()
-    add_subdirectory(test)
 endif()
 
-add_executable(
-    scene
-    examples/scene.cpp
-)
-
-target_link_libraries(scene ${PROJECT_NAME}::${PROJECT_NAME} )
-
-add_executable(
-    gltfInfo
-    examples/gltfInfo.cpp
-)
-target_link_libraries(gltfInfo ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
+################################################################################
+# Examples
+################################################################################
+if( UGLTF_BUILD_EXAMPLES )
 
-add_executable(
-    readWrite
-    examples/readWrite.cpp
-)
-target_link_libraries(readWrite ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
+    add_executable(
+        gltfInfo
+        examples/gltfInfo.cpp
+    )
+    target_link_libraries(gltfInfo ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
 
 
+    add_executable(
+        readWrite
+        examples/readWrite.cpp
+    )
+    target_link_libraries(readWrite ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
 
-add_executable(
-    extractAnimations
-    examples/extractAnimations.cpp
-)
-target_link_libraries(extractAnimations ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
+
+    add_executable(
+        extractAnimations
+        examples/extractAnimations.cpp
+    )
+    target_link_libraries(extractAnimations ${PROJECT_NAME}::${PROJECT_NAME} stbgltf::stbgltf)
+
+endif()
 
 
-#################################################################################################
-#
-#################################################################################################
+
+################################################################################
+# Installation
+################################################################################
 include(GNUInstallDirs)
 
-INSTALL(TARGETS
-              ${PROJECT_NAME}
-        LIBRARY
-              DESTINATION some/libpath
-        PUBLIC_HEADER
-              DESTINATION ugltf
+install(DIRECTORY
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+        DESTINATION
+            ${CMAKE_INSTALL_PREFIX}
 )
 
-#################################################################################################
+install(
+     TARGETS             ${PROJECT_NAME}
+     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
 
 
-#https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
