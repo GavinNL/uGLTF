@@ -1,24 +1,13 @@
+#define UGLTF_USE_SPAN
 #include "catch.hpp"
+#define UGLTF_PRIVATE   public
+#define UGLTF_PROTECTED public
 #include <ugltf/ugltf.h>
 #include <iostream>
 #include <fstream>
 #include <set>
 
-
-SCENARIO("Test Base64 decode")
-{
-    std::string orig = "Hello! This is a test.";
-    std::string enc = "SGVsbG8hIFRoaXMgaXMgYSB0ZXN0Lg==";
-
-    auto ret = uGLTF::_parseURI(enc);
-
-    REQUIRE( ret.size() == orig.size() );
-    auto x = orig.begin();
-    for(auto & r : ret)
-    {
-        REQUIRE( r == *x++);
-    }
-}
+#include <regex>
 
 
 SCENARIO("Aspan")
@@ -36,6 +25,7 @@ SCENARIO("Aspan")
 
     uGLTF::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
 
+#if 0
     REQUIRE( span.size() == 2);
     REQUIRE( static_cast<void*>(&span[0]) == static_cast<void*>(&data[0]) );
 
@@ -94,9 +84,12 @@ SCENARIO("Aspan")
             }
         }
     }
+#endif
 
 }
 
+#define MODEL_SIZE 490956
+#define JSON_SIZE 28356
 
 SCENARIO( "Read Header" )
 {
@@ -111,20 +104,20 @@ SCENARIO( "Read Header" )
 
             REQUIRE( h.version == 2);
             REQUIRE( h.magic   == 0x46546C67);
-            REQUIRE( h.length  == 491144);
+            REQUIRE( h.length  == 490956);
 
             THEN("We can read the JSON chunk")
             {
                 auto cJ = M._readChunk(in);
 
                 REQUIRE( cJ.chunkType == 0x4E4F534A);
-                REQUIRE( cJ.chunkLength == 27708);
+                REQUIRE( cJ.chunkLength == JSON_SIZE);
                 REQUIRE( cJ.chunkData.size() == cJ.chunkLength);
 
                 THEN("We can parse the JSON")
                 {
                     cJ.chunkData.push_back(0);
-                    auto J = M._parseJson( reinterpret_cast<char*>(cJ.chunkData.data()) );
+                    auto J = uGLTF::json::parse( reinterpret_cast<char*>(cJ.chunkData.data()) );
 
                     REQUIRE(J.count("asset") == 1 );
                  //   std::cout << J["asset"].dump(4) << std::endl;
@@ -137,7 +130,7 @@ SCENARIO( "Read Header" )
                     auto cB = M._readChunk(in);
 
                     REQUIRE( cB.chunkType == 0x004E4942);
-                    REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
+                    REQUIRE( cB.chunkLength == MODEL_SIZE-JSON_SIZE-3*sizeof(uint32_t)-4*sizeof(uint32_t));
                     REQUIRE( cB.chunkData.size() == cB.chunkLength);
                 }
             }
@@ -151,50 +144,32 @@ SCENARIO( "Extracting Buffers" )
 {
     uGLTF::GLTFModel M;
     std::ifstream in("CesiumMan.glb");
+
     GIVEN("A GLTFModel and an input stream")
     {
-
         THEN("We can read the header")
         {
             auto h = M._readHeader(in);
 
             REQUIRE( h.version == 2);
             REQUIRE( h.magic   == 0x46546C67);
-            REQUIRE( h.length  == 491144);
+            REQUIRE( h.length  == MODEL_SIZE);
 
             THEN("We can read and parse the JSON chunk")
             {
                 auto cJ = M._readChunk(in);
 
                 REQUIRE( cJ.chunkType == 0x4E4F534A);
-                REQUIRE( cJ.chunkLength == 27708);
+                REQUIRE( cJ.chunkLength == JSON_SIZE);
                 REQUIRE( cJ.chunkData.size() == cJ.chunkLength);
 
 
                 cJ.chunkData.push_back(0);
-                auto J = M._parseJson( reinterpret_cast<char*>(cJ.chunkData.data()) );
+                auto J = uGLTF::json::parse( reinterpret_cast<char*>(cJ.chunkData.data()) );
 
 
                 REQUIRE( J.count("asset") == 1 );
 
-
-                THEN("We can read the Buffer chunk")
-                {
-                    auto cB = M._readChunk(in);
-
-                    REQUIRE( cB.chunkType == 0x004E4942);
-                    REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
-                    REQUIRE( cB.chunkData.size() == cB.chunkLength);
-
-
-                    THEN("We can extract the buffers")
-                    {
-                        auto buffers = M._extractBuffers(cB, J["buffers"]);
-
-                        REQUIRE(buffers.size() == 1);
-
-                    }
-                }
             }
         }
 
@@ -203,7 +178,7 @@ SCENARIO( "Extracting Buffers" )
 }
 
 
-SCENARIO( "Loading " )
+SCENARIO( "Loading GLB files" )
 {
     std::vector< std::string > models = {"BoomBox.glb", "BrainStem.glb", "CesiumMan.glb"};
 
@@ -267,41 +242,9 @@ SCENARIO( "Loading " )
         {
             for(auto & I : M.images)
             {
-                REQUIRE( I.bufferView != std::numeric_limits<uint32_t>::max() );
-
-                //("We can get the bufferView")
-                {
-                    auto & Bv = I.getBufferView();
-
-                    REQUIRE( Bv.buffer != -1 );
-
-                    //("We can get the buffer")
-                    {
-                        auto & B = Bv.getBuffer();
-
-                        REQUIRE(B.byteLength != 0);
-
-                        //("We can get the span of the image")
-
-                            auto img = I.getSpan();
-
-                            REQUIRE( img.size() > 0 );
-                            REQUIRE( img.stride() == 1);
-
-                            auto const & cI = I;
-
-                            auto img_c = cI.getSpan();
-
-                            REQUIRE( img_c.size() > 0 );
-                            REQUIRE( img_c.stride() == 1);
-
-                    }
-
-
-                }
-
-
-
+                auto img_c = I.getSpan();
+                REQUIRE( img_c.size() > 0 );
+                REQUIRE( img_c.stride() == 1);
             }
 
           //  REQUIRE(img.size()==40);
@@ -367,14 +310,8 @@ SCENARIO( "Loading " )
                                 }
                                 vertexCounts.insert( span.size() );
 
-                                size_t count=0;
-                                for(auto & v : span)
-                                {
-                                    assert(&v);
-                                    count++;
-                                }
-                                REQUIRE( count == span.size() );
-                                REQUIRE( count == p.count );
+                                // REQUIRE( count == span.size() );
+                                // REQUIRE( count == p.count );
                             }
                         }
                         //("All attriubutes must have the same count")
@@ -409,6 +346,21 @@ SCENARIO( "Loading " )
                     REQUIRE( timeAcc.componentType == uGLTF::ComponentType::FLOAT);
                     REQUIRE( timeAcc.count == time.size() );
 
+
+                    {
+                        auto const & Smc = Sm;
+
+                        auto & timeAccc = Smc.getInputAccessor();
+//                        auto timec      = Smc.getInputSpan();
+
+
+
+
+                        REQUIRE( timeAccc.type == uGLTF::AccessorType::SCALAR );
+                        REQUIRE( timeAccc.componentType == uGLTF::ComponentType::FLOAT);
+                        REQUIRE( timeAccc.count == time.size() );
+                    }
+
                 }
             }
         }
@@ -425,13 +377,232 @@ SCENARIO( "Loading " )
                     auto span = A.getInverseBindMatricesSpan< std::array<float,16> >();
 
                     REQUIRE( span.size() == A.joints.size() );
+
+                    REQUIRE( acc.componentType   == uGLTF::ComponentType::FLOAT);
+                    REQUIRE( acc.componentSize() == sizeof(float));
+                    REQUIRE( acc.accessorSize()  == 16*sizeof(float));
+
+                    { //
+                        auto const &Ac = A;
+                        auto acc_c  = Ac.getInverseBindMatricesAccessor() ;
+                        auto span_c = Ac.getInverseBindMatricesSpan< const std::array<float,16> >();
+
+                        REQUIRE(span_c.size() == A.joints.size() );
+
+                        REQUIRE( acc_c.componentType   == uGLTF::ComponentType::FLOAT);
+                        REQUIRE( acc_c.componentSize() == sizeof(float));
+                        REQUIRE( acc_c.accessorSize()  == 16*sizeof(float));
+                    }
                 }
-
-
             }
         }
 
        }
 
+    }
+}
+
+SCENARIO("Creating new BufferViews")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1020, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1020);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+                WHEN("We create another buffer view with alignment")
+                {
+                    auto viewIndex2 = buff.createNewBufferView(1024, uGLTF::BufferViewTarget::UNKNOWN, 0, 8);
+
+                    auto & view2 = M.bufferViews[viewIndex2];
+
+                    REQUIRE( view2.buffer == 0);
+                    REQUIRE( view2.target == uGLTF::BufferViewTarget::UNKNOWN);
+                    REQUIRE( view2.byteLength == 1024);
+                    REQUIRE( view2.byteOffset == 1024); // because we set the alignment
+                    REQUIRE( view2.byteStride == 0);
+                }
+
+            }
+        }
+    }
+}
+
+SCENARIO("Creating new Accessors from bufferViews")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1000);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+
+                THEN("We can create new accessors")
+                {
+                    auto aIndex = view.createNewAccessor(0, 10, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::FLOAT);
+
+                    auto & a = M.accessors[aIndex];
+
+                    REQUIRE( a.count          == 10);
+                    REQUIRE( a.type           == uGLTF::AccessorType::VEC2);
+                    REQUIRE( a.componentType  == uGLTF::ComponentType::FLOAT);
+                    REQUIRE( a.bufferView     == 0);
+
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Copying data from one accessor to another")
+{
+    GIVEN("Given a Model and a single buffer")
+    {
+        uGLTF::GLTFModel M;
+
+        THEN("We can create a new buffer")
+        {
+            auto & buff = M.newBuffer();
+            REQUIRE( M.buffers.size() == 1);
+
+
+            THEN("We can create a new BufferView")
+            {
+                auto viewIndex1 = buff.createNewBufferView(1000, uGLTF::BufferViewTarget::UNKNOWN, 0,1);
+
+                auto & view = M.bufferViews[viewIndex1];
+
+                REQUIRE( view.buffer == 0);
+                REQUIRE( view.target == uGLTF::BufferViewTarget::UNKNOWN);
+                REQUIRE( view.byteLength == 1000);
+                REQUIRE( view.byteOffset == 0);
+                REQUIRE( view.byteStride == 0);
+
+
+                THEN("We can create new accessors")
+                {
+                    auto aIndex = view.createNewAccessor(0, 2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
+
+                    auto & a = M.accessors[aIndex];
+
+                    REQUIRE( a.count          == 2);
+                    REQUIRE( a.type           == uGLTF::AccessorType::VEC2);
+                    REQUIRE( a.componentType  == uGLTF::ComponentType::UNSIGNED_INT);
+                    REQUIRE( a.bufferView     == 0);
+
+                    auto S = a.getSpan< std::array<uint32_t,2> >();
+
+                    S.set(0, {1,2});//s[0][0] = 1;
+                    S.set(1, {3,4});//s[1][1] = 4;
+
+
+                    THEN("We create a new accessor with different strides")
+                    {
+                        auto bIndex = view.createNewAccessor(16, 2, uGLTF::AccessorType::VEC2, uGLTF::ComponentType::UNSIGNED_INT);
+                        auto & b = M.accessors[bIndex];
+
+                        b.copyDataFrom( M.accessors[aIndex] );
+
+                        THEN("The values are the same")
+                        {
+                            auto T = b.getSpan< std::array<uint32_t,2> >();
+
+                            auto s1 = T.get(0);
+                            auto s2 = T.get(1);
+
+                            REQUIRE( s1[0] == 1 );
+                            REQUIRE( s1[1] == 2 );
+                            REQUIRE( s2[0] == 3 );
+                            REQUIRE( s2[1] == 4 );
+
+                            THEN("We can calculatte the min and max")
+                            {
+                                b.calculateMinMax();
+
+                                REQUIRE( b.min.size() == 2);
+                                REQUIRE( b.max.size() == 2);
+
+                                REQUIRE( b.min[0] == Approx(1) );
+                                REQUIRE( b.min[1] == Approx(2) );
+                                REQUIRE( b.max[0] == Approx(3) );
+                                REQUIRE( b.max[1] == Approx(4) );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Loading BoxAnimated.gltf")
+{
+    uGLTF::GLTFModel M;
+    std::ifstream in("BoxAnimated.gltf");
+    M.load(in);
+}
+
+
+SCENARIO("Loading BoxTextured.gltf")
+{
+    GIVEN("A GLTF model")
+    {
+        uGLTF::GLTFModel M;
+
+        WHEN("We load a GLTF embedded file")
+        {
+            std::ifstream in("BoxTextured.gltf");
+            REQUIRE( M.load(in) );
+
+            THEN("The embedded buffers are loaded into the m_data variable")
+            {
+                REQUIRE( M.buffers.size() == 1);
+                REQUIRE( M.buffers[0].byteLength == 840);
+                REQUIRE( M.buffers[0].m_data.size() == 840);
+                REQUIRE( M.buffers[0].uri == "");
+            }
+
+
+            THEN("The images are loaded into the m_imageData variable")
+            {
+                REQUIRE( M.images.size() == 1);
+                REQUIRE( M.images[0].bufferView == std::numeric_limits<uint32_t>::max() );
+                REQUIRE( M.images[0].m_imageData.size() == 23516);
+            }
+        }
     }
 }

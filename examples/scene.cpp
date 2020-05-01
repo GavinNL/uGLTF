@@ -57,6 +57,9 @@ void drawScene( uGLTF::GLTFModel & M, int sceneIndex, float t=0.0f)
 
 int main(int argc, char **argv)
 {
+    assert(argc>0);
+    assert(argv!=nullptr);
+
     #define TEST_MODEL "/home/gavin/Projects/gltfpp/share/gltfpp/CesiumMan.glb"
 
     uGLTF::GLTFModel M;
