@@ -1625,6 +1625,28 @@ public:
     uint32_t       material = std::numeric_limits<uint32_t>::max();
     PrimitiveMode  mode     = PrimitiveMode::TRIANGLES;
 
+    /**
+     * @brief refersToSame
+     * @param P
+     * @return
+     *
+     * Returns true if the two primitives share the same values, except for the
+     * material property
+     */
+    bool refersToSame(Primitive const & P) const
+    {
+        return
+        indices                  == P.indices
+        && mode                  == P.mode
+        && attributes.POSITION   == P.attributes.POSITION
+        && attributes.NORMAL     == P.attributes.NORMAL
+        && attributes.TANGENT    == P.attributes.TANGENT
+        && attributes.TEXCOORD_0 == P.attributes.TEXCOORD_0
+        && attributes.TEXCOORD_1 == P.attributes.TEXCOORD_1
+        && attributes.COLOR_0    == P.attributes.COLOR_0
+        && attributes.JOINTS_0   == P.attributes.JOINTS_0
+        && attributes.WEIGHTS_0  == P.attributes.WEIGHTS_0;
+    }
 
     template <class T>
     static inline void hash_combine(std::size_t& seed, const T& v)
@@ -2698,10 +2720,17 @@ inline void from_json(const json & j, Material & B)
 
 }
 
+template<typename T>
+struct ImageAdaptor;
+
+
 
 class GLTFModel
 {
 public:
+    using ImgType = int;
+    using image_adaptor_type = ImageAdaptor<ImgType>;
+
     struct header_t
     {
         uint32_t magic   = 0x46546C67;
