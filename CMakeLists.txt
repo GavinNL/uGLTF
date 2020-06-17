@@ -18,7 +18,7 @@ cmake_minimum_required(VERSION 3.10)
 #   myProject::warnings
 #   myProject:
 ################################################################################
-project( myProject
+project( ugltf
         VERSION 1.0.0.0
         LANGUAGES CXX)
 
@@ -55,7 +55,7 @@ option( ${PROJECT_NAME}_ENABLE_WARNINGS "Enable Strict Warnings" TRUE)
 # change the values below.
 ################################################################################
 set(outName              ${PROJECT_NAME})   # name of the library
-set(srcFiles             "src/*")          # all the source files for this library
+set(srcFiles             "src/* include/ugltf/*")          # all the source files for this library
 set(PublicLinkedTargets  CONAN_PKG::nlohmann_json )
 set(PrivateLinkedTargets "" )
 #-------------------------------------------------------------------------------
@@ -95,6 +95,13 @@ install(
    RUNTIME  DESTINATION "${CMAKE_INSTALL_BINDIR}"
    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
+
+install(
+    DIRECTORY   "include/ugltf"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*"
+)
+
 
   message("*****************************************************")
   message("LIBRARIES:")
@@ -161,15 +168,13 @@ ENDFOREACH()
 message("*****************************************************")
 
 
-
-
 #####################################################
 ## PACKAGE
 #####################################################
 SET(CPACK_PACKAGE_NAME          ${PROJECT_NAME})
 SET(CPACK_PACKAGE_VENDOR        ${PROJECT_NAME})
 SET(CPACK_PACKAGE_EXECUTABLES   ${PROJECT_NAME};${PROJECT_NAME})
-
+set(CPACK_PACKAGING_INSTALL_PREFIX     ${CMAKE_INSTALL_PREFIX})
 SET(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${PROJECT_NAME}")
 SET(CPACK_PACKAGE_VERSION       "${PROJECT_VERSION}")
 SET(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
