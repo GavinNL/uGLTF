@@ -4,7 +4,7 @@
 // THis is not included with ugltf, but was
 // downloaded by the CMakeLists.txt file specifically for building
 // this app
-//#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include <fstream>
