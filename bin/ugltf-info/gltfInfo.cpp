@@ -390,6 +390,7 @@ int main(int argc, char ** argv)
 
     bool printAnimationDetail = false;
     bool printBuffers = false;
+    bool json=false;
 
     auto cli
         = lyra::help(show_help).description(
@@ -404,6 +405,9 @@ int main(int argc, char ** argv)
         | lyra::opt( printNodes )
             ["--printNodes"]
             ("Print only the Nodes" )
+        | lyra::opt( json )
+            ["--json"]
+            ("Print the JSON component of the GLB file." )
         | lyra::opt( printBuffers )
             ["--printBuffers"]
             ("Print information about the Buffers and BufferViews" )
@@ -427,6 +431,26 @@ int main(int argc, char ** argv)
         return 0;
     }
 
+    if( json )
+    {
+
+        std::ifstream in( fileName );
+
+        if( in )
+        {
+            uGLTF::GLTFModel M_in;
+            M_in.load(in);
+            auto & M = M_in;
+            std::cout << M._json.dump(4) << std::endl;
+            return 0;
+        }
+        else
+        {
+            std::cerr << "File does not exist:  " << fileName << std::endl;
+            return 1;
+        }
+
+    }
     if( printNodes )
     {
 
