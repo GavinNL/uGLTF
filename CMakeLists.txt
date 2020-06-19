@@ -150,8 +150,11 @@ FOREACH(subdir ${BIN_FOLDERS})
     file(GLOB_RECURSE srcFiles ${CMAKE_CURRENT_SOURCE_DIR}/bin/${subdir}/* )
 
     add_executable( ${bin_name} ${srcFiles} )
-    target_link_libraries(${bin_name} PRIVATE ${PROJECT_NAME}::${PROJECT_NAME}
-CONAN_PKG::lyra CONAN_PKG::stb )
+    target_link_libraries(${bin_name}
+                            PRIVATE
+                                    ${PROJECT_NAME}::${PROJECT_NAME}
+                                    CONAN_PKG::lyra
+                                    CONAN_PKG::stb )
 
     install(
        TARGETS
