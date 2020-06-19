@@ -81,6 +81,11 @@ int printInfo(std::string const & filename,
 
         std::ifstream in( filename );
 
+        if( !in )
+        {
+            std::cerr << "File does not exist: " << filename << std::endl;
+            return 1;
+        }
         M_in.load(in);
         auto & M = M_in;
 
@@ -394,17 +399,7 @@ int main(int argc, char ** argv)
 
     auto cli
         = lyra::help(show_help).description(
-                    "This is a combined sample CLI parser. It takes varied options"
-                    "and arguments.")
-//        | lyra::opt( width, "width" )
-//            ["-w"]["--width"]
-//            ("How wide should it be?")
-//        | lyra::opt( name, "name" )
-//            ["-n"]["--name"]
-//            ("By what name should I be known")
-        | lyra::opt( printNodes )
-            ["--printNodes"]
-            ("Print only the Nodes" )
+                    "Print information about the GLTF file.")
         | lyra::opt( json )
             ["--json"]
             ("Print the JSON component of the GLB file." )
@@ -433,7 +428,6 @@ int main(int argc, char ** argv)
 
     if( json )
     {
-
         std::ifstream in( fileName );
 
         if( in )
@@ -451,15 +445,11 @@ int main(int argc, char ** argv)
         }
 
     }
-    if( printNodes )
-    {
-
-    }
     else
     {
-        printInfo( fileName, printBuffers, printAnimationDetail );
+        return printInfo( fileName, printBuffers, printAnimationDetail );
     }
-    std::cout << fileName << std::endl;
+    //std::cout << fileName << std::endl;
 
     return 0;
 }

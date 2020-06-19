@@ -2495,7 +2495,6 @@ public:
         {
             for(auto & b : J["accessors"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Accessor>();
 
                 accessors.emplace_back( std::move(B) );
@@ -2507,7 +2506,6 @@ public:
         {
             for(auto & b : J["nodes"] )
             {
-                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Node>();
 
                 nodes.emplace_back( std::move(B) );
@@ -2519,7 +2517,6 @@ public:
         {
             for(auto & b : J["meshes"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Mesh>();
 
                 meshes.emplace_back( std::move(B) );
@@ -2536,7 +2533,6 @@ public:
         {
             for(auto & b : J["scenes"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Scene>();
 
                 scenes.emplace_back( std::move(B) );
@@ -2548,7 +2544,6 @@ public:
         {
             for(auto & b : J["skins"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Skin>();
                //
                 skins.emplace_back( std::move(B) );
@@ -2560,7 +2555,6 @@ public:
         {
             for(auto & b : J["animations"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Animation>();
                //
                 animations.emplace_back( std::move(B) );
@@ -2576,7 +2570,6 @@ public:
         {
             for(auto & b : J["images"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Image>();
                //
                 images.emplace_back( std::move(B) );
@@ -2587,9 +2580,8 @@ public:
         {
             for(auto & b : J["textures"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Texture>();
-               //
+
                 textures.emplace_back( std::move(B) );
                 textures.back()._parent = this;
             }
@@ -2598,20 +2590,17 @@ public:
         {
             for(auto & b : J["samplers"] )
             {
-               // std::cout << b.dump(4) << std::endl;
+
                 auto B = b.get<Sampler>();
-               //
                 samplers.emplace_back( std::move(B) );
-                //samplers.back()._parent = this;
+
             }
         }
         if(J.count("cameras") == 1)
         {
             for(auto & b : J["cameras"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Camera>();
-               //
                 cameras.emplace_back( std::move(B) );
             }
         }
@@ -2619,9 +2608,7 @@ public:
         {
             for(auto & b : J["materials"] )
             {
-                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Material>();
-               ////
                 materials.emplace_back( std::move(B) );
             }
         }
@@ -3656,23 +3643,23 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
     for(auto & S : A.samplers)
     {
         {
-            std::cout << "Checking Input Accessor: " << inputAccessors.at(S.input) << std::endl;
+            //std::cout << "Checking Input Accessor: " << inputAccessors.at(S.input) << std::endl;
             auto & acc     = S.getInputAccessor();
             auto & acc_new = M1.accessors.at( inputAccessors.at(S.input) );
-            std::cout << "   Byte Stride: " << acc.getBufferView().byteStride
-                      << " ==  "            << acc_new.getBufferView().byteStride << std::endl;
-
-            std::cout << "   Byte Length: " << acc.getBufferView().byteLength
-                      << " ==  "            << acc_new.getBufferView().byteLength << std::endl;
-
-            std::cout << "   Byte Offset: " << acc.getBufferView().byteOffset
-                      << " ==  "            << acc_new.getBufferView().byteOffset << std::endl;
-
-            std::cout << "     count: " << acc.count
-                      << " ==  "            << acc_new.count << std::endl;
-
-            std::cout << "     accessor Size: " << acc.accessorSize()
-                      << " ==  "            << acc_new.accessorSize() << std::endl;
+            //std::cout << "   Byte Stride: " << acc.getBufferView().byteStride
+            //          << " ==  "            << acc_new.getBufferView().byteStride << std::endl;
+            //
+            //std::cout << "   Byte Length: " << acc.getBufferView().byteLength
+            //          << " ==  "            << acc_new.getBufferView().byteLength << std::endl;
+            //
+            //std::cout << "   Byte Offset: " << acc.getBufferView().byteOffset
+            //          << " ==  "            << acc_new.getBufferView().byteOffset << std::endl;
+            //
+            //std::cout << "     count: " << acc.count
+            //          << " ==  "            << acc_new.count << std::endl;
+            //
+            //std::cout << "     accessor Size: " << acc.accessorSize()
+            //          << " ==  "            << acc_new.accessorSize() << std::endl;
 
             assert( acc.count == acc_new.count );
             assert( acc.accessorSize() == acc_new.accessorSize() );
@@ -3686,7 +3673,7 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
             }
         }
         {
-            std::cout << "Checking Output Accessor: " << inputAccessors.at(S.output) << std::endl;
+            //std::cout << "Checking Output Accessor: " << inputAccessors.at(S.output) << std::endl;
             auto & acc     = S.getOutputAccessor();
             auto & acc_new = M1.accessors.at( inputAccessors.at(S.output) );
 
