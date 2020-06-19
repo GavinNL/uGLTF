@@ -1,0 +1,10 @@
+[requires]
+nlohmann_json/3.7.3
+lyra/1.4.0
+stb/20200203
+
+[generators]
+cmake
+cmake_paths
+cmake_find_package
+

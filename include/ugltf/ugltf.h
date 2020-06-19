@@ -7,6 +7,7 @@
 
 #include UGLTF_JSON_INCLUDE
 
+#include <algorithm>
 #include <iostream>
 #include <type_traits>
 
@@ -80,97 +81,6 @@ using json = UGLTF_JSON_CLASS;
 
 //#define UGLTF_USE_SPAN
 
-class GLTFModel;
-#if defined UGLTF_USE_SPAN
-/**
- * @brief The aspan class
- *
- * An aspan (Aliased Span) is similar to a string_view or span (from C++20), but the underlying
- * contigious array data can be alised to a different type as well as custom strides.
- */
-template<typename T>
-class aspan
-{
-public:
-    using base_value_type = typename std::remove_cv<T>::type;
-
-    using value_type = T;
-
-    using const_value_type = const typename std::remove_cv<value_type>::type;
-
-
-    using void_type      = typename std::conditional< std::is_const<value_type>::value, const void, void>::type;
-    using char_type      = typename std::conditional< std::is_const<value_type>::value, const unsigned char, unsigned char>::type;
-
-    aspan(void_type * data, size_t size, size_t stride) :
-        _begin( static_cast<char_type*>(data) ),
-        _size(size),
-        _stride(stride)
-    {
-
-    }
-
-
-    value_type  back() const
-    {
-        return get( size() - 1);
-    }
-
-    value_type front() const
-    {
-        return get( 0);
-    }
-
-
-    size_t size() const
-    {
-        return _size;
-    }
-
-    size_t stride() const
-    {
-        return _stride;
-    }
-
-    /**
-     * @brief get
-     * @param index
-     * @return
-     *
-     * Returns the value of the data stored in index n.
-     *
-     * You should use this method rather than indexing using the []
-     * operator as this does not invoke undefined behaviour
-     */
-    value_type get(size_t i) const
-    {
-        typename std::remove_cv<value_type>::type c;
-        std::memcpy(&c, _begin+_stride*i, sizeof(value_type));
-        return c;
-    }
-
-    /**
-     * @brief set
-     * @param i
-     * @param v
-     *
-     * Sets the value at index, i, to v.
-     *
-     * You should use this method rather than indexing using the []
-     * operator as this does not invoke undefined behaviour
-     */
-    void set(size_t i, value_type const & v)
-    {
-        std::memcpy(_begin+_stride*i, &v, sizeof(value_type));
-    }
-
-public:
-    char_type*     _begin;
-    size_t         _size;
-    size_t         _stride;
-};
-#endif
-
 template<typename T>
 inline T _getValue(json const & obj, const std::string & key, T const &default_val)
 {
@@ -187,9 +97,45 @@ inline T _getValue(json const & obj, const std::string & key, T const &default_v
 }
 
 
+class GLTFModel;
+
+class BaseObject
+{
+public:
+     std::string name;
+     json        extensions;
+     json        extra;
+};
+
+inline void base_to_json(json& j, const BaseObject & p)
+{
+    if( p.name.length() )
+    {
+        j["name"] = p.name;
+    }
+    if( p.extensions.is_object() && p.extensions.size() )
+    {
+        j["extensions"] = p.extensions;
+    }
+    if( !p.extra.is_null() )
+    {
+        j["extra"] = p.extra;
+    }
+}
+
+inline void base_from_json(const json & j, BaseObject & B)
+{
+    B.name           = _getValue(j, "name", std::string(""));
+    B.extensions     = _getValue(j, "extensions" , json::object() );
+    B.extra          = _getValue(j, "extra" ,      json() );
+}
+
+
+
 // https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
 
-inline bool is_base64(unsigned char c) {
+inline bool is_base64(unsigned char c)
+{
   return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
@@ -350,13 +296,12 @@ inline ComponentType getComponentType()
     }
 }
 
-struct Asset
+struct Asset : public BaseObject
 {
     std::string version = "2.0";
     std::string generator;
     std::string copyright;
 
-    json        extensions;
 };
 
 inline void to_json(json& j, const Asset & p)
@@ -365,8 +310,8 @@ inline void to_json(json& j, const Asset & p)
             {"version"   , p.version},
             {"generator" , p.generator},
             {"copyright" , p.copyright},
-            {"extensions", p.extensions},
            };
+   base_to_json(j, p);
 }
 
 
@@ -376,19 +321,8 @@ inline void from_json(const json & j, Asset & B)
     B.version    = _getValue(j,    "version" , std::string("") );
     B.generator  = _getValue(j,  "generator" , std::string("") );
     B.copyright  = _getValue(j,  "copyright" , std::string("") );
-    B.extensions = _getValue(j, "extensions" , json() );
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2)    << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 class Accessor;
@@ -401,7 +335,7 @@ class BufferView;
  * The Buffer class is used to store raw data. It does not
  * hold any type information.
  */
-class Buffer
+class Buffer : public BaseObject
 {
     public:
         std::string          uri;
@@ -455,6 +389,8 @@ inline void to_json(json& j, const Buffer & p)
    j = json{
             {"byteLength", p.m_data.size()}
            };
+   base_to_json(j, p);
+
 }
 
 inline void from_json(const json & j, Buffer & B)
@@ -494,17 +430,8 @@ inline void from_json(const json & j, Buffer & B)
         }
     }
     B.m_data.resize(B.byteLength);
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+
+    base_from_json(j,B);
 }
 
 /**
@@ -518,7 +445,7 @@ inline void from_json(const json & j, Buffer & B)
  * whether this view can be used for Vertex data or Element data.
  *
  */
-class BufferView
+class BufferView : public BaseObject
 {
 public:
     uint32_t          buffer    ;
@@ -536,21 +463,6 @@ public:
      */
     Buffer & getBuffer();
     Buffer const & getBuffer() const;
-
-    /**
-     * @brief getSpan
-     * @return
-     *
-     * Returns an typed view into this buffer view
-     * The returned aspan behaves like a fixed length array
-     *
-     * Note: You probably shouldn't use this
-     */
-    //template<typename T>
-    //aspan<T> getSpan();
-    //
-    //template<typename T>
-    //aspan<typename std::add_const<T>::type > getSpan() const;
 
     /**
      * @brief data
@@ -600,8 +512,9 @@ inline void to_json(json& j, const BufferView & p)
    if( p.target != BufferViewTarget::UNKNOWN)
    {
        j["target"] = static_cast<uint32_t>(p.target);
-
    }
+   base_to_json(j, p);
+
 }
 
 inline void from_json(const json & j, BufferView & B)
@@ -612,17 +525,7 @@ inline void from_json(const json & j, BufferView & B)
     B.byteOffset = _getValue(j, "byteOffset", 0u);
     B.byteStride = _getValue(j, "byteStride", 0u);
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 
@@ -669,10 +572,9 @@ enum class CameraType
     ORTHOGRAPHIC
 };
 
-class Camera
+class Camera : public BaseObject
 {
 public:
-    std::string name;//	string	The user-defined name of this object.	No
     CameraType type;//	string	Specifies if the camera uses a perspective or orthographic projection.	white_check_mark Yes
 
     union
@@ -780,15 +682,13 @@ inline void to_json( json & j, Camera const & B)
             j["perspective"]["znear"] = B.perspective.znear;
             break;
     }
+    base_to_json(j, B);
 
-    if( B.name.size() )
-        j["name"] = B.name;
 }
 
 inline void from_json(const json & j, Camera & B)
 {
     auto type     = _getValue(j, "type", std::string(""));
-    B.name        = _getValue(j, "name", std::string(""));
 
     if( type == "perspective")
     {
@@ -811,18 +711,7 @@ inline void from_json(const json & j, Camera & B)
         throw std::runtime_error("Camera type is not defined in the gltf asset");
     }
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
-
+    base_from_json(j,B);
 }
 
 /**
@@ -833,7 +722,7 @@ inline void from_json(const json & j, Camera & B)
  * Accessors are the main way to access typed data for various purposes such as vertex attributes,
  * element indices, animation samplers, etc.
  */
-class Accessor
+class Accessor : public BaseObject
 {
     public:
         uint32_t       bufferView=std::numeric_limits<uint32_t>::max();
@@ -846,25 +735,6 @@ class Accessor
         std::vector<double> min;
         std::vector<double> max;
 
-        std::string  name;
-
-#if defined UGLTF_USE_SPAN
-        /**
-         * @brief getSpan
-         * @return
-         *
-         * Returns a typed container span to the raw data.
-         * This method will throw an error if sizeof(T) < componentSize().
-         *
-         * The span can be accessed as if it was a vector. Note that
-         * a span's data may not be contigious.
-         */
-        template<typename T>
-        aspan<T> getSpan();
-
-        template<typename T>
-        aspan< typename std::add_const<T>::type > getSpan() const;
-#endif
         BufferView const & getBufferView() const;
         BufferView & getBufferView();
 
@@ -1080,7 +950,11 @@ class Accessor
         }
 
 
-        template<typename T>
+        uint8_t const* getData(size_t index) const
+        {
+            return _getData(index);
+        }
+
         /**
          * @brief getValue
          * @param index
@@ -1090,6 +964,7 @@ class Accessor
          *
          * A.getValue<glm::vec3>(3);
          */
+        template<typename T>
         inline T getValue(size_t index) const
         {
             T dst;
@@ -1315,7 +1190,6 @@ inline void to_json(json& j, const Accessor & p)
             {"byteOffset", p.byteOffset},
             {"normalized", p.normalized},
             {"count"     , p.count},
-            {"name"      , p.name},
             {"type"      , to_string(p.type)},
             {"componentType"      , static_cast<uint32_t>(p.componentType)}
            };
@@ -1324,6 +1198,8 @@ inline void to_json(json& j, const Accessor & p)
        j["min"] = p.min;
    if(p.max.size())
        j["max"] = p.max;
+   base_to_json(j, p);
+   
 }
 
 inline void from_json(const json & j, Accessor & B)
@@ -1334,7 +1210,6 @@ inline void from_json(const json & j, Accessor & B)
     B.normalized     = _getValue(j, "normalized"   , false);
     B.count          = _getValue(j, "count"   , 0u);
 
-    B.name           = _getValue(j, "name", std::string(""));
     B.min            = _getValue(j, "min", std::vector<double>());
     B.max            = _getValue(j, "max", std::vector<double>());
     auto type        = _getValue(j, "type", std::string("UNKNOWN"));
@@ -1346,19 +1221,8 @@ inline void from_json(const json & j, Accessor & B)
     if( type == "MAT2")   B.type = AccessorType::MAT2;
     if( type == "MAT3")   B.type = AccessorType::MAT3;
     if( type == "MAT4")   B.type = AccessorType::MAT4;
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
-
+    
+    base_from_json(j,B);
 }
 
 
@@ -1366,7 +1230,7 @@ class Mesh;
 class Skin;
 class Camera;
 
-class Node
+class Node : public BaseObject
 {
 public:
     uint32_t mesh    = std::numeric_limits<uint32_t>::max();
@@ -1381,9 +1245,7 @@ public:
     std::vector<uint32_t> children;
 
     std::vector<float> weights;
-    std::string        name;
 
-    json extra;
     /**
      * @brief hasMatrix
      * @return
@@ -1491,13 +1353,8 @@ inline void to_json(json& j, const Node & p)
     if( p.weights.size() )
         j["weights"] = p.weights;
 
-    if( p.name.length() )
-        j["name"] = p.name;
-
-    if( p.extra.is_object() )
-    {
-        j["extra"] = p.extra;
-    }
+    base_to_json(j, p);
+    
 }
 
 inline void from_json(const json & j, Node & B)
@@ -1521,25 +1378,10 @@ inline void from_json(const json & j, Node & B)
     if( j.count("translation") == 1)
         B._hasTransforms = true;
 
-    B.name           = _getValue(j, "name", std::string(""));
     B.weights        = _getValue(j, "weights", std::vector<float>());
     B.children       = _getValue(j, "children", std::vector<uint32_t>());
-
-    if( j.count("extra"))
-    {
-        B.extra =  j.at("extra");
-    }
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    
+    base_from_json(j,B);
 }
 
 enum class PrimitiveAttribute
@@ -1605,7 +1447,7 @@ inline std::string to_string(const PrimitiveMode & p)
  * It contains a set of attributes which must be looked up in the .accessors array
  *
  */
-class Primitive
+class Primitive : public BaseObject
 {
 public:
     struct
@@ -1730,58 +1572,6 @@ public:
     Accessor& getIndexAccessor();
     Accessor const & getIndexAccessor() const;
 
-#if defined UGLTF_USE_SPAN
-    /**
-     * @brief getSpan
-     * @param attr
-     * @return
-     *
-     * Returns a span to the attribute so that you can
-     * access the data like it was an array
-     */
-    template<typename T>
-    aspan<T> getSpan(PrimitiveAttribute attr)
-    {
-        auto & A = getAccessor(attr);
-
-        return A.getSpan<T>();
-    }
-
-    template<typename T>
-    aspan<T> getSpan(PrimitiveAttribute attr) const
-    {
-        auto & A = getAccessor(attr);
-
-        return A.getSpan<T>();
-    }
-
-    /**
-     * @brief getSpan
-     * @param attr
-     * @return
-     *
-     * Returns a span to the index accessor so that you can
-     * access the data like it was an array. sizeof(T) must be equal to 2 or 4
-     */
-    template<typename T>
-    aspan<T> getIndexSpan()
-    {
-        static_assert( sizeof(T)==2 || sizeof(T)==4, "Size of template parameter is not in accordance with GLTF2.0");
-        auto & A = getIndexAccessor();
-
-        return A.getSpan<T>();
-    }
-
-    template<typename T>
-    aspan<T> getIndexSpan() const
-    {
-        static_assert( sizeof(T)==2 || sizeof(T)==4, "Size of template parameter is not in accordance with GLTF2.0");
-        auto & A = getIndexAccessor();
-
-        return A.getSpan<T>();
-    }
-#endif
-
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -1806,6 +1596,8 @@ inline void to_json(json& j, const Primitive & p)
         j["material"] = p.material;
 
     j["mode"] = static_cast<uint32_t>(p.mode);
+    base_to_json(j, p);
+    
 }
 
 inline void from_json(const json & j, Primitive & B)
@@ -1823,20 +1615,16 @@ inline void from_json(const json & j, Primitive & B)
     B.material = _getValue(j, "material", std::numeric_limits<uint32_t>::max() );
 
     B.mode = static_cast<PrimitiveMode>( _getValue(j, "mode", 4) );
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
-
+    
+    base_from_json(j,B);
 }
+
+struct MorphTarget
+{
+    uint32_t POSITION   = std::numeric_limits<uint32_t>::max();//-1;
+    uint32_t NORMAL	    = std::numeric_limits<uint32_t>::max();//-1;
+    uint32_t TANGENT	= std::numeric_limits<uint32_t>::max();//-1;
+};
 
 /**
  * @brief The Mesh class
@@ -1845,19 +1633,12 @@ inline void from_json(const json & j, Primitive & B)
  *
  * Each primitive can have a different material.
  */
-class Mesh
+class Mesh : public BaseObject
 {
 public:
     std::vector<Primitive> primitives;
     std::vector<float>     weights;
-    std::string name;
 
-
-   // primitives	primitive [1-*]	An array of primitives, each defining geometry to be rendered with a material.	white_check_mark Yes
-    //weights	number [1-*]	Array of weights to be applied to the Morph Targets.	No
-
-//    extensions	object	Dictionary object with extension-specific objects.	No
-//    extras	any	Application-specific data.	No
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -1865,46 +1646,29 @@ private:
 
 inline void to_json(json& j, const Mesh & p)
 {
-
     if( p.primitives.size() )
         j["primitives"] = p.primitives;
 
-    if( p.name.length() )
-        j["name"] = p.name;
-
     if( p.weights.size() )
         j["weights"] = p.weights;
+    
+    base_to_json(j, p);
+    
 }
 
 inline void from_json(const json & j, Mesh & B)
 {
-    B.name           = _getValue(j, "name", std::string(""));
     B.primitives     = _getValue(j, "primitives"   , std::vector<Primitive>() );
-
     B.weights        = _getValue(j, "weights", std::vector<float>());
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    
+    base_from_json(j,B);
 }
 
 
-class Scene
+class Scene : public BaseObject
 {
 public:
     std::vector<uint32_t> nodes;	//integer [1-*]	The indices of each root node.	No
-    std::string name;           //The user-defined name of this object.	No
-
-    //extensions	object	Dictionary object with extension-specific objects.	No
-    //extras	any	Application-specific data.	No
 
     /**
      * @brief getRootNode
@@ -1924,28 +1688,24 @@ private:
 
 inline void to_json(json& j, const Scene & p)
 {
-    if( p.name.size() )
-        j["name"] = p.name;
-
     if( p.nodes.size() )
         j["nodes"] = p.nodes;
+    
+    base_to_json(j, p);
 }
 
 inline void from_json(const json & j, Scene & B)
 {
-    B.name   = _getValue(j, "name", std::string(""));
-    B.nodes  = _getValue(j, "nodes", std::vector<uint32_t>());
+    B.nodes       = _getValue(j, "nodes", std::vector<uint32_t>());
+    base_from_json(j,B);
 }
 
-class Skin
+class Skin : public BaseObject
 {
 public:
     uint32_t              inverseBindMatrices = std::numeric_limits<uint32_t>::max();
     std::vector<uint32_t> joints;	//integer [1-*]	The indices of each root node.	No
-    std::string           name;          //The user-defined name of this object.	No
     int32_t               skeleton=-1;
-    //extensions	object	Dictionary object with extension-specific objects.	No
-    //extras	any	Application-specific data.	No
 
     Node* getRootNode();
 
@@ -1957,25 +1717,6 @@ public:
     Accessor& getInverseBindMatricesAccessor();
     Accessor const & getInverseBindMatricesAccessor() const;
 
-#if defined UGLTF_USE_SPAN
-    template<typename T>
-    aspan<T> getInverseBindMatricesSpan()
-    {
-        auto & A = getInverseBindMatricesAccessor();
-
-        assert( sizeof(T) == A.accessorSize() );
-        return A.getSpan<T>();
-    }
-
-    template<typename T>
-    aspan< typename std::add_const<T>::type > getInverseBindMatricesSpan() const
-    {
-        auto & A = getInverseBindMatricesAccessor();
-
-        assert( sizeof(T) == A.accessorSize() );
-        return A.getSpan< typename std::add_const<T>::type >();
-    }
-#endif
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -1986,36 +1727,21 @@ inline void to_json(json& j, const Skin & p)
     if(p.hasInverseBindMatrices())
         j["inverseBindMatrices"] = p.inverseBindMatrices;
 
-    if( p.name.size())
-        j["name"] = p.name;
-
     if( p.joints.size())
         j["joints"] = p.joints;
 
     if( p.skeleton != -1)
         j["skeleton"] = p.skeleton;
+    
+    base_to_json(j, p);
 }
 
 inline void from_json(const json & j, Skin & B)
 {
     B.inverseBindMatrices = _getValue(j, "inverseBindMatrices", std::numeric_limits<uint32_t>::max());
-    B.name                = _getValue(j, "name", std::string(""));
     B.joints              = _getValue(j, "joints", std::vector<uint32_t>());
     B.skeleton            = _getValue(j, "skeleton", -1);
-    //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
-
+    base_from_json(j,B);
 }
 
 
@@ -2069,43 +1795,12 @@ inline std::string to_string(const AnimationPath & p)
  * t = [                         ]
  * v = [                         ]
  */
-class AnimationSampler
+class AnimationSampler : public BaseObject
 {
 public:
     uint32_t                input  = std::numeric_limits<uint32_t>::max();
     uint32_t                output = std::numeric_limits<uint32_t>::max();
     AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
-
-#if defined UGLTF_USE_SPAN
-    /**
-     * @brief getInputData
-     * @return
-     *
-     * Returns the span of data for the input (eg time)
-     * This value is always a floating point balue
-     */
-    aspan<float> getInputSpan()
-    {
-        return getInputAccessor().getSpan<float>();
-    }
-
-    aspan<const float> getInputSpan() const
-    {
-        return getInputAccessor().getSpan<const float>();
-    }
-
-    template<typename T>
-    aspan<T> getOutputSpan()
-    {
-        return getOutputAccessor().getSpan<T>();
-    }
-
-    template<typename T>
-    aspan< typename std::add_const<T>::type > getOutputSpan() const
-    {
-        return getOutputAccessor().getSpan< typename std::add_const<T>::type >();
-    }
-#endif
 
     Accessor& getInputAccessor();
     Accessor& getOutputAccessor();
@@ -2125,6 +1820,8 @@ inline void to_json(json& j, const AnimationSampler & p)
     j["input"]  = p.input;
     j["output"] = p.output;
     j["interpolation"] = to_string(p.interpolation);
+    base_to_json(j, p);
+
 }
 
 inline void from_json(const json & j, AnimationSampler & B)
@@ -2138,22 +1835,12 @@ inline void from_json(const json & j, AnimationSampler & B)
     if( interpolation == "LINEAR")       B.interpolation = AnimationInterpolation::LINEAR;
     if( interpolation == "CUBICSPLINE")  B.interpolation = AnimationInterpolation::CUBICSPLINE;
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 
 
-class AnimationChannel
+class AnimationChannel : public BaseObject
 {
 public:
     uint32_t              sampler = std::numeric_limits<uint32_t>::max();
@@ -2179,6 +1866,8 @@ inline void to_json(json& j, const AnimationChannel & p)
     j["sampler"] = p.sampler;
     j["target"]["path"] = to_string(p.target.path);
     j["target"]["node"] = p.target.node;
+    base_to_json(j, p);
+
 }
 
 inline void from_json(const json & j, AnimationChannel & B)
@@ -2193,17 +1882,16 @@ inline void from_json(const json & j, AnimationChannel & B)
     if( path == "weights")     B.target.path = AnimationPath::WEIGHTS;
 
     B.target.node = _getValue(j["target"], "node", std::numeric_limits<uint32_t>::max());
-    //B.primitives      = _getValue(j, "primitives"   , std::vector<Primitive>() );
+
+    base_from_json(j,B);
 
 }
 
-class Animation
+class Animation : public BaseObject
 {
 public:
     std::vector<AnimationChannel> channels;
     std::vector<AnimationSampler> samplers;
-    std::string                   name;          //The user-defined name of this object.	No
-
 
     Animation()
     {}
@@ -2233,30 +1921,20 @@ inline void to_json(json& j, const Animation & p)
 {
     j["channels"] = p.channels;
     j["samplers"] = p.samplers;
-    if(p.name.size()) j["name"]     = p.name;
+    base_to_json(j, p);
+
 }
 
 inline void from_json(const json & j, Animation & B)
 {
     B.channels            = _getValue(j, "channels", std::vector<AnimationChannel>());
     B.samplers            = _getValue(j, "samplers", std::vector<AnimationSampler>());
-    B.name                = _getValue(j, "name", std::string(""));
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 
-class Image
+class Image : public BaseObject
 {
 public:
     // MimeType	string	The image's MIME type.	No
@@ -2265,7 +1943,6 @@ public:
     uint32_t    bufferView = std::numeric_limits<uint32_t>::max();
     std::string uri;
     std::string mimeType;
-    std::string name;
 
     std::vector<uint8_t> m_imageData; // if bufferView is not given
 
@@ -2273,28 +1950,6 @@ public:
     BufferView       &  getBufferView();
     BufferView const &  getBufferView() const;
 
-    #if defined UGLTF_USE_SPAN
-    /**
-     * @brief getSpan
-     * @return
-     *
-     * Returns the span of the data. Image data will always be
-     * contigious.
-     *
-     * Note: The data returned in the span is ENCODED data based on the
-     * mimeType. It is YOUR responsibility to decode the data.
-     *
-     * For example using stb:
-     *
-     * auto span = Img.getSpan();
-     *
-     * int width,height,channels;
-     *
-     * auto decodedData = stbi_load_from_memory( &span[0], span.size(), &width, &height, &channels,4 );
-     */
-    aspan<uint8_t> getSpan();
-    aspan<const uint8_t> getSpan() const;
-#endif
 private:
     GLTFModel * _parent = nullptr;
     friend class GLTFModel;
@@ -2327,9 +1982,9 @@ inline void to_json(json& j, const Image & p)
 
     if(p.bufferView != std::numeric_limits<uint32_t>::max())
         j["bufferView"] = p.bufferView;
+    base_to_json(j, p);
 
-    if( p.name.size() )
-        j["name"] = p.name;
+
 }
 
 inline void from_json(const json & j, Image & B)
@@ -2337,7 +1992,6 @@ inline void from_json(const json & j, Image & B)
     std::string uri  = _getValue(j, "uri", std::string(""));
     B.mimeType    = _getValue(j, "mimeType", std::string(""));
     B.bufferView  = _getValue(j, "bufferView", std::numeric_limits<uint32_t>::max());
-    B.name        = _getValue(j, "name", std::string(""));
 
     if( uri != "" )
     {
@@ -2373,29 +2027,18 @@ inline void from_json(const json & j, Image & B)
         }
     }
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 class Image;
 
 class Sampler;
 
-class Texture
+class Texture : public BaseObject
 {
 public:
     uint32_t     sampler=std::numeric_limits<uint32_t>::max();
     uint32_t     source =std::numeric_limits<uint32_t>::max();
-    std::string name;
 
     Sampler & getSampler();
     Sampler const & getSampler() const;
@@ -2416,8 +2059,8 @@ inline void to_json(json& j, const Texture & p)
     if(p.sampler != std::numeric_limits<uint32_t>::max())
         j["sampler"] = p.sampler;
 
-    if( p.name.size() )
-        j["name"] = p.name;
+    base_to_json(j, p);
+
 }
 
 
@@ -2425,20 +2068,8 @@ inline void from_json(const json & j, Texture & B)
 {
     B.source  = _getValue(j, "source",  std::numeric_limits<uint32_t>::max() );
     B.sampler = _getValue(j, "sampler", std::numeric_limits<uint32_t>::max() );
-    B.name    = _getValue(j, "name", std::string(""));
 
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 enum class Filter : uint32_t
@@ -2460,7 +2091,7 @@ enum class WrapMode : uint32_t
 };
 
 
-class Sampler
+class Sampler : public BaseObject
 {
 public:
     Filter   magFilter;
@@ -2468,7 +2099,6 @@ public:
     WrapMode wrapS;
     WrapMode wrapT;
 
-    std::string name;
 };
 
 inline void to_json(json& j, const Sampler & p)
@@ -2477,9 +2107,6 @@ inline void to_json(json& j, const Sampler & p)
     j["minFilter"] = static_cast<uint32_t>(p.minFilter);
     j["wrapS"]     = static_cast<uint32_t>(p.wrapS);
     j["wrapT"]     = static_cast<uint32_t>(p.wrapT);
-
-    if( p.name.size() )
-        j["name"] = p.name;
 }
 
 inline void from_json(const json & j, Sampler & B)
@@ -2488,22 +2115,9 @@ inline void from_json(const json & j, Sampler & B)
     B.minFilter    = static_cast<Filter>( _getValue(j, "minFilter", 9729u) ); // magic values defined by spec
     B.wrapS        = static_cast<WrapMode>( _getValue(j, "wrapS",  10497u) ); // magic values defined by spec
     B.wrapT        = static_cast<WrapMode>( _getValue(j, "wrapT",  10497u) ); // magic values defined by spec
-    B.name    = _getValue(j, "name", std::string(""));
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
 }
 
-class TextureInfo
+class TextureInfo : public BaseObject
 {
 public:
     uint32_t index    = std::numeric_limits<uint32_t>::max();
@@ -2529,6 +2143,8 @@ inline void to_json( json & j, TextureInfo const & B)
 
     if( !std::isnan(B.strength) )
         j["strength"] = B.strength;
+    base_to_json(j, B);
+
 }
 
 inline void from_json(const json & j, TextureInfo & B)
@@ -2545,18 +2161,7 @@ inline void from_json(const json & j, TextureInfo & B)
         B.strength = j["strength"].get<float>();
     }
 
-
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
+    base_from_json(j,B);
 }
 
 
@@ -2578,7 +2183,7 @@ inline std::string to_string(MaterialAlphaMode d)
     }
 
 }
-class Material
+class Material : public BaseObject
 {
 public:
 
@@ -2671,6 +2276,7 @@ inline void to_json(json & j, Material const & B)
         j["alphaCutoff"] = B.alphaCutoff;
 
     j["doubleSided"] = B.doubleSided;
+    base_to_json(j, B);
 
 }
 
@@ -2706,18 +2312,7 @@ inline void from_json(const json & j, Material & B)
     if( alphaMode == "BLEND")
         B.alphaMode = MaterialAlphaMode::BLEND;
 
-#if defined PRINT_CONV
-    std::cout << "=======================" << std::endl;
-    std::cout << "original: " << std::endl;
-    std::cout << j.dump(2) << std::endl;
-    std::cout << "=======================" << std::endl;
-    std::cout << "mine: " << std::endl;
-    json J;
-    to_json(J,B);
-    std::cout << J.dump(2);
-    std::cout << "=======================" << std::endl;
-#endif
-
+    base_from_json(j,B);
 }
 
 template<typename T>
@@ -2850,9 +2445,6 @@ public:
 
         for(auto & v :  images     ) { v._parent=parent;}
         for(auto & v :  textures   ) { v._parent=parent;}
-        //for(auto & v :  samplers   ) { v._parent=this;};
-        //for(auto & v :  cameras    ) { v._parent=this;};
-        //for(auto & v :  materials  ) { v._parent=this;};
 
         for(auto & v :  meshes     )
         {
@@ -2903,7 +2495,6 @@ public:
         {
             for(auto & b : J["accessors"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Accessor>();
 
                 accessors.emplace_back( std::move(B) );
@@ -2915,7 +2506,6 @@ public:
         {
             for(auto & b : J["nodes"] )
             {
-                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Node>();
 
                 nodes.emplace_back( std::move(B) );
@@ -2927,7 +2517,6 @@ public:
         {
             for(auto & b : J["meshes"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Mesh>();
 
                 meshes.emplace_back( std::move(B) );
@@ -2944,7 +2533,6 @@ public:
         {
             for(auto & b : J["scenes"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Scene>();
 
                 scenes.emplace_back( std::move(B) );
@@ -2956,7 +2544,6 @@ public:
         {
             for(auto & b : J["skins"] )
             {
-              //  std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Skin>();
                //
                 skins.emplace_back( std::move(B) );
@@ -2968,7 +2555,6 @@ public:
         {
             for(auto & b : J["animations"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Animation>();
                //
                 animations.emplace_back( std::move(B) );
@@ -2984,7 +2570,6 @@ public:
         {
             for(auto & b : J["images"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Image>();
                //
                 images.emplace_back( std::move(B) );
@@ -2995,9 +2580,8 @@ public:
         {
             for(auto & b : J["textures"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Texture>();
-               //
+
                 textures.emplace_back( std::move(B) );
                 textures.back()._parent = this;
             }
@@ -3006,20 +2590,17 @@ public:
         {
             for(auto & b : J["samplers"] )
             {
-               // std::cout << b.dump(4) << std::endl;
+
                 auto B = b.get<Sampler>();
-               //
                 samplers.emplace_back( std::move(B) );
-                //samplers.back()._parent = this;
+
             }
         }
         if(J.count("cameras") == 1)
         {
             for(auto & b : J["cameras"] )
             {
-               // std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Camera>();
-               //
                 cameras.emplace_back( std::move(B) );
             }
         }
@@ -3027,9 +2608,7 @@ public:
         {
             for(auto & b : J["materials"] )
             {
-                //std::cout << b.dump(4) << std::endl;
                 auto B = b.get<Material>();
-               ////
                 materials.emplace_back( std::move(B) );
             }
         }
@@ -3124,6 +2703,63 @@ public:
         buffers.resize(1);
         buffers[0].byteLength = newBuffer.size();
         buffers[0].m_data = std::move(newBuffer);
+    }
+
+    /**
+     * @brief splitBuffers
+     *
+     * Split all the buffers so that each bufferView points to a
+     * unique buffer. Data may be duplicated if two bufferViews
+     * are pointing to the same area in the buffer.
+     */
+    void splitBuffers()
+    {
+        std::vector<Buffer> newBufs;
+
+        uint32_t i=0;
+        for(auto & bv : bufferViews)
+        {
+            newBufs.emplace_back();
+            auto & B = newBufs.back();
+
+            B.m_data.resize( bv.byteLength );
+            std::memcpy( B.m_data.data(), bv.data(), bv.byteLength);
+
+            bv.buffer     = i++;
+            bv.byteOffset = 0;
+        }
+        buffers = std::move(newBufs);
+    }
+
+    /**
+     * @brief removeBufferRange
+     * @param bufferIndex
+     * @param byteOffset
+     * @param size
+     *
+     * Deletes bytes from the buffer thereby shortening the buffer. Updates
+     * all buffer views that point to that buffer index.
+     *
+     * Does not modify any bufferViews that fall within the range. It is your
+     * responsibility to make sure you delete bufferViews before you delete
+     * buffers
+     */
+    void removeBufferRange(uint32_t bufferIndex, uint32_t byteOffset, uint32_t size)
+    {
+        auto & B = buffers[bufferIndex];
+
+        // 1 element passed the last erased byte
+        auto endErased = byteOffset+size;
+
+        B.m_data.erase(B.m_data.begin()+byteOffset, B.m_data.begin()+byteOffset+size);
+        B.byteLength = static_cast<uint32_t>(B.m_data.size());
+        for(auto & bv : bufferViews)
+        {
+            if(bv.byteOffset >= endErased)
+            {
+                bv.byteOffset -= size;
+            }
+        }
     }
 
     /**
@@ -3278,7 +2914,8 @@ public:
         if( materials.size() )
             J["materials"]   =  materials;
 
-        J["extensions"] = extensions;
+        if( extensions.size())
+            J["extensions"] = extensions;
 
         if( _writeEmbeddedBuffers)
         {
@@ -3724,101 +3361,6 @@ inline BufferView &       Accessor::getBufferView()
     return _parent->bufferViews.at( static_cast<size_t>(bufferView) );
 }
 
-#if defined UGLTF_USE_SPAN
-template<typename T>
-inline aspan<T> Accessor::getSpan()
-{
-    auto & bv = getBufferView();
-
-    auto stride = bv.byteStride;
-
-    // if the bufferView's stride is zero, that means the accessor's data
-    // is tightly packed
-    if( stride == 0 )
-    {
-        auto accSize = accessorSize();
-
-        if( accSize < sizeof(T) )
-        {
-            throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
-        }
-
-        stride = accSize;
-    }
-
-    return
-    aspan<T>( static_cast<unsigned char*>(bv.data())+byteOffset,
-              count,
-              stride);
-}
-
-
-template<typename T>
-inline aspan< typename std::add_const<T>::type > Accessor::getSpan() const
-{
-    auto & bv = getBufferView();
-
-    auto stride = bv.byteStride;
-
-    // if the bufferView's stride is zero, that means the accessor's data
-    // is tightly packed
-    if( stride == 0 )
-    {
-        auto accSize = accessorSize();
-
-        if( accSize < sizeof(T) )
-        {
-            throw std::runtime_error( std::string("The stride listed in the accessor, ") + std::to_string(stride) + ", is less size of the template parameter, " + std::to_string( sizeof(T)) + ". Your data will overlap");
-        }
-
-        stride = accSize;
-    }
-    else  // the buffer view is not packed
-    {
-
-    }
-
-    return
-    aspan<typename std::add_const<T>::type>( static_cast<const unsigned char*>(bv.data())+byteOffset,
-              count,
-              stride);
-}
-
-
-inline aspan<uint8_t> Image::getSpan()
-{
-    if( bufferView != std::numeric_limits<uint32_t>::max() )
-    {
-        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-
-        return aspan<uint8_t>( Bv.data(), Bv.byteLength, 1);// aspan(uint8_t)
-        //return Bv.getSpan<uint8_t>();
-    }
-
-    if( m_imageData.size() > 0)
-        return aspan<uint8_t>( m_imageData.data(), m_imageData.size(), 1);
-
-    throw std::runtime_error("Image Data has not been loaded yet.");
-}
-
-inline aspan<const uint8_t> Image::getSpan() const
-{
-    if( bufferView != std::numeric_limits<uint32_t>::max() )
-    {
-        auto & Bv = _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
-
-        return aspan<uint8_t const>( Bv.data(), Bv.byteLength, 1);// aspan(uint8_t)
-        //return Bv.getSpan<uint8_t const>();
-    }
-
-    if( m_imageData.size() > 0)
-        return aspan<uint8_t const>( m_imageData.data(), m_imageData.size(), 1);
-
-    throw std::runtime_error("Image Data has not been loaded yet.");
-}
-
-#endif
-
 inline BufferView       & Image::getBufferView()
 {
     return _parent->bufferViews.at( static_cast<size_t>(bufferView ) );
@@ -4101,23 +3643,23 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
     for(auto & S : A.samplers)
     {
         {
-            std::cout << "Checking Input Accessor: " << inputAccessors.at(S.input) << std::endl;
+            //std::cout << "Checking Input Accessor: " << inputAccessors.at(S.input) << std::endl;
             auto & acc     = S.getInputAccessor();
             auto & acc_new = M1.accessors.at( inputAccessors.at(S.input) );
-            std::cout << "   Byte Stride: " << acc.getBufferView().byteStride
-                      << " ==  "            << acc_new.getBufferView().byteStride << std::endl;
-
-            std::cout << "   Byte Length: " << acc.getBufferView().byteLength
-                      << " ==  "            << acc_new.getBufferView().byteLength << std::endl;
-
-            std::cout << "   Byte Offset: " << acc.getBufferView().byteOffset
-                      << " ==  "            << acc_new.getBufferView().byteOffset << std::endl;
-
-            std::cout << "     count: " << acc.count
-                      << " ==  "            << acc_new.count << std::endl;
-
-            std::cout << "     accessor Size: " << acc.accessorSize()
-                      << " ==  "            << acc_new.accessorSize() << std::endl;
+            //std::cout << "   Byte Stride: " << acc.getBufferView().byteStride
+            //          << " ==  "            << acc_new.getBufferView().byteStride << std::endl;
+            //
+            //std::cout << "   Byte Length: " << acc.getBufferView().byteLength
+            //          << " ==  "            << acc_new.getBufferView().byteLength << std::endl;
+            //
+            //std::cout << "   Byte Offset: " << acc.getBufferView().byteOffset
+            //          << " ==  "            << acc_new.getBufferView().byteOffset << std::endl;
+            //
+            //std::cout << "     count: " << acc.count
+            //          << " ==  "            << acc_new.count << std::endl;
+            //
+            //std::cout << "     accessor Size: " << acc.accessorSize()
+            //          << " ==  "            << acc_new.accessorSize() << std::endl;
 
             assert( acc.count == acc_new.count );
             assert( acc.accessorSize() == acc_new.accessorSize() );
@@ -4131,7 +3673,7 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
             }
         }
         {
-            std::cout << "Checking Output Accessor: " << inputAccessors.at(S.output) << std::endl;
+            //std::cout << "Checking Output Accessor: " << inputAccessors.at(S.output) << std::endl;
             auto & acc     = S.getOutputAccessor();
             auto & acc_new = M1.accessors.at( inputAccessors.at(S.output) );
 

@@ -85,6 +85,119 @@ SCENARIO("Merging Buffers")
     }
 }
 
+SCENARIO("Splitting Buffers")
+{
+    GIVEN("A GLTF Model with a single buffer and multiple buffer views")
+    {
+        uGLTF::GLTFModel M;
+
+        M.newBuffer();
+
+        REQUIRE( M.buffers.size() == 1);
+
+        auto & B1 = M.buffers[0];
+
+        B1.createNewBufferView(4, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B1.createNewBufferView(8, uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+
+        B1.m_data = {0xaa,0xbb,0xcc,0xdd,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88};
+
+        REQUIRE( M.bufferViews.size() == 2);
+
+        REQUIRE( M.bufferViews[0].buffer     == 0);
+        REQUIRE( M.bufferViews[0].byteOffset == 0);
+        REQUIRE( M.bufferViews[0].byteLength == 4);
+
+        REQUIRE( M.bufferViews[1].buffer     == 0);
+        REQUIRE( M.bufferViews[1].byteOffset == 4);
+        REQUIRE( M.bufferViews[1].byteLength == 8);
+
+        WHEN("We split the buffers")
+        {
+            M.splitBuffers();
+
+            THEN("There will be two buffers")
+            {
+                REQUIRE( M.buffers.size() == 2);
+                REQUIRE( M.bufferViews[0].buffer == 0);
+                REQUIRE( M.bufferViews[1].buffer == 1);
+
+                REQUIRE( M.bufferViews[0].byteOffset == 0);
+                REQUIRE( M.bufferViews[1].byteOffset == 0);
+
+                REQUIRE( M.bufferViews[0].byteOffset == 0);
+                REQUIRE( M.bufferViews[1].byteOffset == 0);
+
+                uint8_t const * b = static_cast<uint8_t const*>(M.bufferViews[0].data());
+                REQUIRE( b[0] == 0xaa);
+                REQUIRE( b[1] == 0xbb);
+                REQUIRE( b[2] == 0xcc);
+                REQUIRE( b[3] == 0xdd);
+
+                uint8_t const * c = static_cast<uint8_t const*>(M.bufferViews[1].data());
+                REQUIRE( c[0] == 0x11);
+                REQUIRE( c[1] == 0x22);
+                REQUIRE( c[2] == 0x33);
+                REQUIRE( c[3] == 0x44);
+                REQUIRE( c[4] == 0x55);
+                REQUIRE( c[5] == 0x66);
+                REQUIRE( c[6] == 0x77);
+                REQUIRE( c[7] == 0x88);
+            }
+        }
+    }
+}
+
+SCENARIO("Erase Buffer Ranage")
+{
+    GIVEN("A GLTF Model with multiple buffers and multiple buffer views")
+    {
+        uGLTF::GLTFModel M;
+
+        M.newBuffer();
+
+        REQUIRE( M.buffers.size() == 1);
+
+        auto & B1 = M.buffers[0];
+
+        B1.createNewBufferView(4,  uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B1.createNewBufferView(4,  uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+        B1.createNewBufferView(4,  uGLTF::BufferViewTarget::UNKNOWN, 0, 1);
+
+        B1.m_data = {0xaa,0xbb,0xcc,0xdd,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88};
+
+        REQUIRE( M.bufferViews[0].buffer     == 0);
+        REQUIRE( M.bufferViews[0].byteOffset == 0);
+        REQUIRE( M.bufferViews[0].byteLength == 4);
+
+        REQUIRE( M.bufferViews[1].buffer     == 0);
+        REQUIRE( M.bufferViews[1].byteOffset == 4);
+        REQUIRE( M.bufferViews[1].byteLength == 4);
+
+        REQUIRE( M.bufferViews[2].buffer     == 0);
+        REQUIRE( M.bufferViews[2].byteOffset == 8);
+        REQUIRE( M.bufferViews[2].byteLength == 4);
+
+        WHEN("We Erase the range of the ")
+        {
+            M.removeBufferRange(0, 4, 4);
+
+            REQUIRE( M.buffers[0].m_data.size() == 8);
+
+            THEN("All buffer views will have thhe same byteLength as before")
+            {
+                REQUIRE( M.bufferViews[0].byteLength == 4);
+                REQUIRE( M.bufferViews[2].byteLength == 4);
+            }
+
+            THEN("Only BufferView 2 will have its byteOffset changed")
+            {
+                REQUIRE( M.bufferViews[0].byteOffset == 0);
+                REQUIRE( M.bufferViews[2].byteOffset == 4);
+            }
+        }
+    }
+}
 
 SCENARIO("ImageData to Buffer Views")
 {
@@ -144,32 +257,18 @@ SCENARIO("ImageData to Buffer Views")
             {
                 REQUIRE(M.buffers.size() == 3);
                 REQUIRE(M.bufferViews.size() == 5);
-            }
-
-            THEN("The local image data is cleared")
-            {
                 REQUIRE(M.images[0].m_imageData.size() == 0);
-            }
-
-            THEN("The image points to a bufferView")
-            {
                 REQUIRE(M.images[0].bufferView == 4);
+                auto d = static_cast<uint8_t const*>(M.images[0].getBufferView().data());//.getSpan();
+                REQUIRE( d[0] == 0xAA);
+                REQUIRE( d[1] == 0xBB);
+                REQUIRE( d[2] == 0xCC);
+                REQUIRE( d[3] == 0xDD);
+                REQUIRE( d[4] == 0x11);
+                REQUIRE( d[5] == 0x22);
+                REQUIRE( d[6] == 0x33);
+                REQUIRE( d[7] == 0x44);
             }
-
-            THEN("The image data is the same")
-            {
-                auto d = M.images[0].getSpan();
-                REQUIRE( d.get(0) == 0xAA);
-                REQUIRE( d.get(1) == 0xBB);
-                REQUIRE( d.get(2) == 0xCC);
-                REQUIRE( d.get(3) == 0xDD);
-                REQUIRE( d.get(4) == 0x11);
-                REQUIRE( d.get(5) == 0x22);
-                REQUIRE( d.get(6) == 0x33);
-                REQUIRE( d.get(7) == 0x44);
-            }
-
-
         }
 #if 0
         WHEN("We merge buffers")

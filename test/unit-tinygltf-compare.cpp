@@ -91,17 +91,33 @@ SCENARIO( "Loading " )
             REQUIRE( true == _bufferViewCompare( U.getBufferView(), TModel.bufferViews[T.bufferView] ) );
 
 
+            REQUIRE( T.count == static_cast<size_t>(U.count) );
+
 
             { // CHECK THE SPAN
-                auto byteSpan = U.getSpan<uint8_t>();
+                auto aSize = U.accessorSize();
 
                 auto & TBv = TModel.bufferViews[ T.bufferView];
                 auto & TB  = TModel.buffers[ TBv.buffer ];
 
                 auto TByteStride = T.ByteStride( TBv);
 
-                REQUIRE( byteSpan.size() == T.count );
-                REQUIRE( byteSpan._stride == TByteStride );
+                auto UByteStride = std::max<uint32_t>( U.getBufferView().byteStride, static_cast<uint32_t>(aSize) );
+                REQUIRE( U.count == T.count );
+                REQUIRE( UByteStride == static_cast<uint32_t>(TByteStride) );
+
+
+                for(uint32_t i=0;i<U.count;i++)
+                {
+                    auto it1s = U.getData(i);
+                    auto it1e = it1s+aSize;
+
+                    auto it2s = &TB.data[ TBv.byteOffset + U.byteOffset + i*TByteStride];
+                    auto it2e = it2s + aSize;
+                    std::equal(it1s,it1e, it2s,it2e);
+
+                }
+#if 0
                 REQUIRE( byteSpan.get(0) == TB.data[ TBv.byteOffset + U.byteOffset]);
 
                 REQUIRE( byteSpan.get(1) == TB.data[ TBv.byteOffset + U.byteOffset + TByteStride]);
@@ -203,6 +219,7 @@ SCENARIO( "Loading " )
 
                     }
                 }
+#endif
             }
 
 

@@ -27,48 +27,22 @@ cppcheck:
     before_script:
       - env
       - sudo apt update
-      #- sudo apt install -y python3-pip
-      - sudo apt install -y patch uuid-runtime
-      #- sudo pip3 install gcovr
-      - sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-      #- sudo chmod +x ./.ci-files/install_conan.sh
-      #- sudo chmod +x ./.ci-files/install_cmake.sh
-      #- sudo chmod +x ./.ci-files/run_conan_server.sh
-      #- ./.ci-files/install_conan.sh
-      #- ./.ci-files/install_cmake.sh
-      #
-      #- ./.ci-files/run_conan_server.sh
-      #- conan remote add local http://localhost:9300
-      #- conan remote list
-
+      - sudo apt install -y python3-pip
+      - sudo pip3 install gcovr
+      - wget https://github.com/Kitware/CMake/releases/download/v3.16.2/cmake-3.16.2-Linux-x86_64.sh
+      - chmod +x cmake-3.16.2-Linux-x86_64.sh
+      - sudo ./cmake-3.16.2-Linux-x86_64.sh --skip-license --prefix=/usr/local
     script:
       - echo $USER    ---   $HOME
+      - cmake --version
       - echo Working directory $PWD
-      - export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
-      - brew install cmake
-      - brew install gcovr
-#      - which gcovr
-#      - exit 0
       ### Test that we can build the library properly
-      - mkdir -p build
-      - cd build
-      - cmake .. -DCMAKE_INSTALL_PREFIX=$HOME/local -DUGLTF_BUILD_COVERAGE:BOOL=TRUE
+      - mkdir -p build && cd build
+      - cmake ..
       - cmake --build .
-      - ctest
+      - cmake --build . --target coverage
 
-      - cmake --build . --target ugltf_coverage
-      ##  Test that we can build the test application
-      ##  and the find_package method works correctly.
-      #- rm -rf *
-      #- cmake ../test_cmake_install/cmake -D CMAKE_PREFIX_PATH=$HOME/local
-      #- cmake --build .
-      #- ctest
-      ## Build the Conan package and upload it to the local repo.
-      #- cd ..
-      #- conan user -p demo demo -r=local
-      #- conan create . local/testing
-      #- conan upload foo* -r=local -c --all
-      #- conan search "*" -r=local
+      - cpack -G DEB
     artifacts:
       paths:
         - artifacts/*
@@ -90,6 +64,10 @@ build-gcc8:
     <<: *job_definition           # Merge the contents of the 'job_definition' alias
     image: conanio/gcc8
 
+build-gcc9:
+    <<: *job_definition           # Merge the contents of the 'job_definition' alias
+    image: conanio/gcc9
+
 build-clang60:
     <<: *job_definition
     image: conanio/clang60
@@ -109,58 +87,3 @@ build-clang7:
 build-clang39:
     <<: *job_definition
     image: conanio/clang39
-
-
-###############################################################################
-# The test package stage tests whether the different Conan generators work
-# correctly with the
-###############################################################################
-.test_package: &test_package_definition
-    image: conanio/gcc7
-    stage: test
-    dependencies:
-      - build-gcc5
-      - build-gcc6
-      - build-gcc7
-      - build-gcc8
-    before_script:
-      - env
-      - sudo apt update
-      - sudo chmod +x ./.ci-files/install_conan.sh
-      - sudo chmod +x ./.ci-files/install_cmake.sh
-      - sudo chmod +x ./.ci-files/run_conan_server.sh
-      - ./.ci-files/install_conan.sh
-      - ./.ci-files/install_cmake.sh
-      #
-      - ./.ci-files/run_conan_server.sh
-      - conan remote add local http://localhost:9300
-      - conan remote list
-    script:
-      # Create and uplaod the recipe to the repository
-      - conan user -p demo demo -r=local
-      - conan create . local/testing
-      - conan upload foo* -r=local -c --all
-      # Test the Conan cmake generator
-      - mkdir build && cd build
-      - conan install ../test_cmake_install/conan_cmake_generator --build missing
-      - cmake ../test_cmake_install/conan_cmake_generator
-      - cmake --build .
-      - rm -rf *
-      # Test the Conan cmake_paths generator
-      - conan install ../test_cmake_install/conan_cmake_paths_generator --build missing
-      - cmake ../test_cmake_install/conan_cmake_paths_generator
-      - cmake --build .
-      - rm -rf *
-      # Test the Conan find_package generator
-      - conan install ../test_cmake_install/conan_cmake_find_package_generator --build missing
-      - cmake ../test_cmake_install/conan_cmake_find_package_generator
-      - cmake --build .
-      - rm -rf *
-
-# test-package-gcc8:
-#     <<: *test_package_definition           # Merge the contents of the 'job_definition' alias
-#     image: conanio/gcc8
-#
-# test-package-clang60:
-#     <<: *test_package_definition           # Merge the contents of the 'job_definition' alias
-#     image: conanio/clang60

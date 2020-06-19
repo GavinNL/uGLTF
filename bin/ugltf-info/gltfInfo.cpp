@@ -4,7 +4,7 @@
 // THis is not included with ugltf, but was
 // downloaded by the CMakeLists.txt file specifically for building
 // this app
-//#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include <fstream>
@@ -81,6 +81,11 @@ int printInfo(std::string const & filename,
 
         std::ifstream in( filename );
 
+        if( !in )
+        {
+            std::cerr << "File does not exist: " << filename << std::endl;
+            return 1;
+        }
         M_in.load(in);
         auto & M = M_in;
 
@@ -390,20 +395,14 @@ int main(int argc, char ** argv)
 
     bool printAnimationDetail = false;
     bool printBuffers = false;
+    bool json=false;
 
     auto cli
         = lyra::help(show_help).description(
-                    "This is a combined sample CLI parser. It takes varied options"
-                    "and arguments.")
-//        | lyra::opt( width, "width" )
-//            ["-w"]["--width"]
-//            ("How wide should it be?")
-//        | lyra::opt( name, "name" )
-//            ["-n"]["--name"]
-//            ("By what name should I be known")
-        | lyra::opt( printNodes )
-            ["--printNodes"]
-            ("Print only the Nodes" )
+                    "Print information about the GLTF file.")
+        | lyra::opt( json )
+            ["--json"]
+            ("Print the JSON component of the GLB file." )
         | lyra::opt( printBuffers )
             ["--printBuffers"]
             ("Print information about the Buffers and BufferViews" )
@@ -427,15 +426,30 @@ int main(int argc, char ** argv)
         return 0;
     }
 
-    if( printNodes )
+    if( json )
     {
+        std::ifstream in( fileName );
+
+        if( in )
+        {
+            uGLTF::GLTFModel M_in;
+            M_in.load(in);
+            auto & M = M_in;
+            std::cout << M._json.dump(4) << std::endl;
+            return 0;
+        }
+        else
+        {
+            std::cerr << "File does not exist:  " << fileName << std::endl;
+            return 1;
+        }
 
     }
     else
     {
-        printInfo( fileName, printBuffers, printAnimationDetail );
+        return printInfo( fileName, printBuffers, printAnimationDetail );
     }
-    std::cout << fileName << std::endl;
+    //std::cout << fileName << std::endl;
 
     return 0;
 }

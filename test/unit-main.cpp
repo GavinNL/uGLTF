@@ -23,9 +23,9 @@ SCENARIO("Aspan")
     };
 
 
-    uGLTF::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
 
 #if 0
+    uGLTF::aspan<Vec3>  span( data.data(),2,sizeof(Vec3));
     REQUIRE( span.size() == 2);
     REQUIRE( static_cast<void*>(&span[0]) == static_cast<void*>(&data[0]) );
 
@@ -238,19 +238,6 @@ SCENARIO( "Loading GLB files" )
             }
         }
 
-        //("We can extract image data")
-        {
-            for(auto & I : M.images)
-            {
-                auto img_c = I.getSpan();
-                REQUIRE( img_c.size() > 0 );
-                REQUIRE( img_c.stride() == 1);
-            }
-
-          //  REQUIRE(img.size()==40);
-
-        }
-
         //("We can access the meshes")
         {
             //("We can access the accesssors of the mesh primitives")
@@ -279,20 +266,7 @@ SCENARIO( "Loading GLB files" )
                         if( primitive.hasIndices() )
                         {
                             auto & acc = primitive.getIndexAccessor();
-
-                            auto span = acc.getSpan<uint8_t>();
-
-                            if( acc.accessorSize() == 2 )
-                            {
-                                REQUIRE( span.stride() >= 2 );
-                            }
-                            else if( acc.accessorSize() == 4 )
-                            {
-                                REQUIRE( span.stride() >= 4);
-                            }
-                            else {
-                                REQUIRE(false);
-                            }
+                            REQUIRE( acc.bufferView != std::numeric_limits<uint32_t>::max());
                         }
 
 
@@ -301,22 +275,8 @@ SCENARIO( "Loading GLB files" )
                             if( primitive.has(a) )
                             {
                                 auto & p  =  primitive.getAccessor(a);
-
-                                auto span = primitive.getSpan<uint8_t>(a);
-
-                                //("The stride must be larger than the accessorSize...otherwise data will be aliased")
-                                {
-                                    REQUIRE( span.stride() >= p.accessorSize() );
-                                }
-                                vertexCounts.insert( span.size() );
-
-                                // REQUIRE( count == span.size() );
-                                // REQUIRE( count == p.count );
+                                REQUIRE( p.accessorSize() > 0 );
                             }
-                        }
-                        //("All attriubutes must have the same count")
-                        {
-                            REQUIRE( vertexCounts.size() == 1 );
                         }
                     }
 
@@ -331,7 +291,7 @@ SCENARIO( "Loading GLB files" )
             {
                 for(auto & Ch : A.channels )
                 {
-                    REQUIRE( Ch.target.node >= 0 );
+                    REQUIRE( Ch.target.node != std::numeric_limits<uint32_t>::max() );
                     REQUIRE( Ch.sampler <= A.samplers.size() );
                 }
                 for(auto & Sm : A.samplers )
@@ -340,12 +300,9 @@ SCENARIO( "Loading GLB files" )
                     REQUIRE( Sm.output < M.accessors.size() );
 
                     auto & timeAcc = Sm.getInputAccessor();
-                    auto time      = Sm.getInputSpan();
 
                     REQUIRE( timeAcc.type == uGLTF::AccessorType::SCALAR );
                     REQUIRE( timeAcc.componentType == uGLTF::ComponentType::FLOAT);
-                    REQUIRE( timeAcc.count == time.size() );
-
 
                     {
                         auto const & Smc = Sm;
@@ -358,7 +315,6 @@ SCENARIO( "Loading GLB files" )
 
                         REQUIRE( timeAccc.type == uGLTF::AccessorType::SCALAR );
                         REQUIRE( timeAccc.componentType == uGLTF::ComponentType::FLOAT);
-                        REQUIRE( timeAccc.count == time.size() );
                     }
 
                 }
@@ -374,25 +330,10 @@ SCENARIO( "Loading GLB files" )
                 {
                     auto acc = A.getInverseBindMatricesAccessor();
 
-                    auto span = A.getInverseBindMatricesSpan< std::array<float,16> >();
-
-                    REQUIRE( span.size() == A.joints.size() );
-
+                    REQUIRE( acc.count == A.joints.size());
                     REQUIRE( acc.componentType   == uGLTF::ComponentType::FLOAT);
                     REQUIRE( acc.componentSize() == sizeof(float));
                     REQUIRE( acc.accessorSize()  == 16*sizeof(float));
-
-                    { //
-                        auto const &Ac = A;
-                        auto acc_c  = Ac.getInverseBindMatricesAccessor() ;
-                        auto span_c = Ac.getInverseBindMatricesSpan< const std::array<float,16> >();
-
-                        REQUIRE(span_c.size() == A.joints.size() );
-
-                        REQUIRE( acc_c.componentType   == uGLTF::ComponentType::FLOAT);
-                        REQUIRE( acc_c.componentSize() == sizeof(float));
-                        REQUIRE( acc_c.accessorSize()  == 16*sizeof(float));
-                    }
                 }
             }
         }
@@ -523,10 +464,8 @@ SCENARIO("Copying data from one accessor to another")
                     REQUIRE( a.componentType  == uGLTF::ComponentType::UNSIGNED_INT);
                     REQUIRE( a.bufferView     == 0);
 
-                    auto S = a.getSpan< std::array<uint32_t,2> >();
-
-                    S.set(0, {1,2});//s[0][0] = 1;
-                    S.set(1, {3,4});//s[1][1] = 4;
+                    a.setValue< std::array<uint32_t,2> >(0, {1,2});//s[0][0] = 1;
+                    a.setValue< std::array<uint32_t,2> >(1, {3,4});//s[1][1] = 4;
 
 
                     THEN("We create a new accessor with different strides")
@@ -538,10 +477,8 @@ SCENARIO("Copying data from one accessor to another")
 
                         THEN("The values are the same")
                         {
-                            auto T = b.getSpan< std::array<uint32_t,2> >();
-
-                            auto s1 = T.get(0);
-                            auto s2 = T.get(1);
+                            auto s1 = b.getValue< std::array<uint32_t,2> >(0);
+                            auto s2 = b.getValue< std::array<uint32_t,2> >(1);
 
                             REQUIRE( s1[0] == 1 );
                             REQUIRE( s1[1] == 2 );
