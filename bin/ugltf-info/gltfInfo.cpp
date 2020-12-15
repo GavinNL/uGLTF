@@ -330,7 +330,8 @@ int printInfo(std::string const & filename,
                 std::cout << INDENT INDENT << "img data size     : " << bufferView.byteLength << std::endl;
 
                 int x,y,comp;
-                auto * img = stbi_load_from_memory( static_cast<const stbi_uc*>(bufferView.data()) , bufferView.byteLength , &x, &y, &comp, 3);
+                int byteLength = static_cast<int32_t>(bufferView.byteLength);
+                auto * img = stbi_load_from_memory( static_cast<const stbi_uc*>(bufferView.data()) , byteLength , &x, &y, &comp, 3);
 
                 std::cout << INDENT INDENT << "Dimensions  e     : " << x << " x " << y << std::endl;
 
@@ -389,7 +390,6 @@ int main(int argc, char ** argv)
 {
  //   int width = 0;
     std::string name;
-    bool printNodes = false;
     std::string fileName;
     bool show_help = false;
 
@@ -449,7 +449,4 @@ int main(int argc, char ** argv)
     {
         return printInfo( fileName, printBuffers, printAnimationDetail );
     }
-    //std::cout << fileName << std::endl;
-
-    return 0;
 }
