@@ -2623,6 +2623,31 @@ public:
         return true;
     }
 
+
+    static json loadJSONChunk(std::istream & i )
+    {
+        i.seekg(0);
+        auto firstChar = i.peek();
+        if( firstChar == 0x67 && firstChar !=  ' ' && firstChar != '{' )
+        {
+            // it's a GLB file.
+            auto header    = _readHeader(i);
+            if(header.magic != 0x46546C67) return false;
+            if(header.version < 2)         return false;
+
+            auto jsonChunk = _readChunk(i);
+            jsonChunk.chunkData.push_back(0);
+
+            return _parseJson(  reinterpret_cast<char*>(jsonChunk.chunkData.data()) );
+        }
+        else  // is pure json file
+        {
+            json j;
+            i >> j;
+            return j;
+        }
+    }
+
     bool load( std::istream & i)
     {
         bool isGLB = false;
