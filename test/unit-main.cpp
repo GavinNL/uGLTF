@@ -88,6 +88,8 @@ SCENARIO("Aspan")
 
 }
 
+#define MODEL_SIZE 490956
+#define JSON_SIZE 28356
 
 SCENARIO( "Read Header" )
 {
@@ -102,14 +104,14 @@ SCENARIO( "Read Header" )
 
             REQUIRE( h.version == 2);
             REQUIRE( h.magic   == 0x46546C67);
-            REQUIRE( h.length  == 491144);
+            REQUIRE( h.length  == 490956);
 
             THEN("We can read the JSON chunk")
             {
                 auto cJ = M._readChunk(in);
 
                 REQUIRE( cJ.chunkType == 0x4E4F534A);
-                REQUIRE( cJ.chunkLength == 27708);
+                REQUIRE( cJ.chunkLength == JSON_SIZE);
                 REQUIRE( cJ.chunkData.size() == cJ.chunkLength);
 
                 THEN("We can parse the JSON")
@@ -128,7 +130,7 @@ SCENARIO( "Read Header" )
                     auto cB = M._readChunk(in);
 
                     REQUIRE( cB.chunkType == 0x004E4942);
-                    REQUIRE( cB.chunkLength == 491144-27708-3*sizeof(uint32_t)-4*sizeof(uint32_t));
+                    REQUIRE( cB.chunkLength == MODEL_SIZE-JSON_SIZE-3*sizeof(uint32_t)-4*sizeof(uint32_t));
                     REQUIRE( cB.chunkData.size() == cB.chunkLength);
                 }
             }
@@ -151,14 +153,14 @@ SCENARIO( "Extracting Buffers" )
 
             REQUIRE( h.version == 2);
             REQUIRE( h.magic   == 0x46546C67);
-            REQUIRE( h.length  == 491144);
+            REQUIRE( h.length  == MODEL_SIZE);
 
             THEN("We can read and parse the JSON chunk")
             {
                 auto cJ = M._readChunk(in);
 
                 REQUIRE( cJ.chunkType == 0x4E4F534A);
-                REQUIRE( cJ.chunkLength == 27708);
+                REQUIRE( cJ.chunkLength == JSON_SIZE);
                 REQUIRE( cJ.chunkData.size() == cJ.chunkLength);
 
 

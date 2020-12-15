@@ -1633,6 +1633,28 @@ public:
     uint32_t       material = std::numeric_limits<uint32_t>::max();
     PrimitiveMode  mode     = PrimitiveMode::TRIANGLES;
 
+    /**
+     * @brief refersToSame
+     * @param P
+     * @return
+     *
+     * Returns true if the two primitives share the same values, except for the
+     * material property
+     */
+    bool refersToSame(Primitive const & P) const
+    {
+        return
+        indices                  == P.indices
+        && mode                  == P.mode
+        && attributes.POSITION   == P.attributes.POSITION
+        && attributes.NORMAL     == P.attributes.NORMAL
+        && attributes.TANGENT    == P.attributes.TANGENT
+        && attributes.TEXCOORD_0 == P.attributes.TEXCOORD_0
+        && attributes.TEXCOORD_1 == P.attributes.TEXCOORD_1
+        && attributes.COLOR_0    == P.attributes.COLOR_0
+        && attributes.JOINTS_0   == P.attributes.JOINTS_0
+        && attributes.WEIGHTS_0  == P.attributes.WEIGHTS_0;
+    }
 
     template <class T>
     static inline void hash_combine(std::size_t& seed, const T& v)
@@ -2706,10 +2728,17 @@ inline void from_json(const json & j, Material & B)
 
 }
 
+template<typename T>
+struct ImageAdaptor;
+
+
 
 class GLTFModel
 {
 public:
+    using ImgType = int;
+    using image_adaptor_type = ImageAdaptor<ImgType>;
+
     struct header_t
     {
         uint32_t magic   = 0x46546C67;
@@ -3917,20 +3946,6 @@ inline void Accessor::copyDataFrom(Accessor const & A)
     if( count < A.count)
         throw std::runtime_error( std::string("Not enough room in source accessor to copy data. Requires: " + std::to_string(A.count) + ", available: " + std::to_string(count)) );
 
-    size_t srcStride=0;
-    // byte stride has not been set by the bufferView, so
-    // to get to the next element,
-    if( A.getBufferView().byteStride == 0)
-    {
-        srcStride = A.accessorSize();
-    }
-    else
-    {
-        if( A.getBufferView().byteStride % A.accessorSize() != 0)
-        {
-            throw std::runtime_error("The byteStride for the bufferView is not a multiple of the AccessorSize!");
-        }
-    }
 
     auto count = A.count;
     auto elmentSize = A.accessorSize();
@@ -3939,25 +3954,10 @@ inline void Accessor::copyDataFrom(Accessor const & A)
     {
         std::memcpy( _getData(i), A._getData(i), elmentSize);;
     }
-    calculateMinMax();
-return;
-    // get the byte offset;
-    uint8_t * dst       = static_cast<uint8_t*>( getBufferView().data() ) + byteOffset;
-    uint8_t const * src = static_cast<uint8_t const*>( A.getBufferView().data() ) + A.byteOffset;
-    auto dstStride      = elmentSize;
-
-    while(count--)
-    {
-//        TRACE("Copying src[{}] to dst[{}]", std::distance(srcStart,src), std::distance(dstStart,dst));
-        std::memcpy( dst, src, elmentSize);
-
-        dst += dstStride;
-        src += srcStride;
-
-    }
-
-    calculateMinMax();
-
+    count         = A.count        ;
+    normalized    = A.normalized   ;
+    min           = A.min          ;
+    max           = A.max          ;
 }
 
 inline size_t Buffer::createNewAccessor(size_t count,  BufferViewTarget target, uint32_t bufferViewStride, uint32_t bufferViewAlignment,AccessorType type, ComponentType comp)
@@ -4094,7 +4094,7 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
             newAcc.copyDataFrom(acc);
 
             inputAccessors[S.input] = newAcc_index;
-            M1.accessors.back().calculateMinMax();
+            //M1.accessors.back().calculateMinMax();
         }
 
         if( inputAccessors.count(S.output) == 0)

@@ -89,15 +89,15 @@ int printInfo(std::string const & filename,
         std::cout << "Nodes: " << M.nodes.size() << std::endl;
 
 
-       // if( M.scenes.size())
-       // {
-       //     std::cout << "Root Nodes: " ;
-       //     for(auto & r : M.scenes[0].nodes)
-       //     {
-       //         std::cout << " " << r;
-       //     }
-       //     std::cout << std::endl;
-       // }
+        for(auto & s : M.scenes)
+        {
+            std::cout << "Root Nodes: " ;
+            for(auto & r : s.nodes)
+            {
+                std::cout << " " << r;
+            }
+            std::cout << std::endl;
+        }
 
         for(auto & s : M.scenes)
         {
