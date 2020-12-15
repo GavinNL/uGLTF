@@ -420,7 +420,7 @@ int main(int argc, char ** argv)
 
         exit(1);
     }
-    if (show_help or !result)
+    if (show_help || !result)
     {
         std::cout << cli << "\n";
         return 0;
