@@ -10,7 +10,7 @@ target_compile_features(${PROJECT_NAME}-catchmain PUBLIC cxx_std_11)
 
 
 set(TESTCASE_PREFIX        "test-${PROJECT_NAME}")
-set(UNIT_TEST_LINK_TARGETS "${PROJECT_NAME}" )
+set(UNIT_TEST_LINK_TARGETS "${PROJECT_NAME}" CONAN_PKG::spdlog CONAN_PKG::stb )
 
 
 get_filename_component(folder_name ${CMAKE_CURRENT_SOURCE_DIR} NAME)

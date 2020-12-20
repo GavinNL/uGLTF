@@ -154,7 +154,8 @@ FOREACH(subdir ${BIN_FOLDERS})
                             PRIVATE
                                     ${PROJECT_NAME}::${PROJECT_NAME}
                                     CONAN_PKG::lyra
-                                    CONAN_PKG::stb )
+                                    CONAN_PKG::stb
+                                    CONAN_PKG::spdlog)
 
     install(
        TARGETS

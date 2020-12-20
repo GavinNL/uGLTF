@@ -2,6 +2,10 @@
 nlohmann_json/3.7.3
 lyra/1.4.0
 stb/20200203
+spdlog/1.8.2
+
+[options]
+spdlog:header_only=True
 
 [generators]
 cmake
