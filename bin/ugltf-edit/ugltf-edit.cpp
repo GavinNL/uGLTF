@@ -218,7 +218,6 @@ int main(int argc, char **argv)
     bool show_help=false;
     std::vector<std::string> inputs;
     std::string output;
-    std::string input;
 
     bool stripAnimations=false;
     bool mergeAnimations=false;
@@ -262,7 +261,13 @@ int main(int argc, char **argv)
 
     if( stripAnimations)
     {
-        return stripAnimation( input, output);
+        if( inputs.size() == 1)
+            return stripAnimation( inputs.front(), output);
+        else
+        {
+            spdlog::error("To strip animations, only 1 input file must be listed");
+            exit(1);
+        }
     }
 
 
@@ -270,23 +275,31 @@ int main(int argc, char **argv)
     {
         uGLTF::GLTFModel M_in1;
 
+        spdlog::info("reading");
+        inputs.clear();
+        for (std::string i1; std::getline(std::cin, i1);)
+        {
+            std::cout << i1 << std::endl;
+            spdlog::info(i1);
+            inputs.push_back(i1);
+        }
         std::reverse( inputs.begin(), inputs.end());
 
         {
             std::ifstream in1( inputs.back() );
             M_in1.load(in1);
             inputs.pop_back();
-            spdlog::info("Total Buffers: {}", M_in1.buffers.size());
         }
+
+
 
         while(inputs.size())
         {
-            auto i1 = inputs.back();
-            inputs.pop_back();
+            std::string i1 = inputs.back();
+
             uGLTF::GLTFModel M_in2;
             std::ifstream in2( i1 );
             M_in2.load(in2);
-
             if( checkAnimations(M_in1, M_in2) )
             {
                 uint32_t i=0;
@@ -297,8 +310,8 @@ int main(int argc, char **argv)
                     assert(&A);
                 }
             }
+            inputs.pop_back();
         }
-
 
         std::ofstream fout( output );
         M_in1.writeGLB( fout);
