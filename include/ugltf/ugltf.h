@@ -262,6 +262,16 @@ enum class AccessorType : int32_t
     MAT4
 };
 
+NLOHMANN_JSON_SERIALIZE_ENUM( AccessorType, {
+    {AccessorType::SCALAR, "SCALAR"},
+  {AccessorType::VEC2, "VEC2"},
+  {AccessorType::VEC3, "VEC3"},
+  {AccessorType::VEC4, "VEC4"},
+  {AccessorType::MAT2, "MAT2"},
+  {AccessorType::MAT3, "MAT3"},
+  {AccessorType::MAT4, "MAT4"}
+})
+
 enum class ComponentType : int32_t
 {
     BYTE            = 5120,
@@ -273,6 +283,16 @@ enum class ComponentType : int32_t
     FLOAT           = 5126,
     DOUBLE          = 5130
 };
+inline void to_json(json& j, const ComponentType & p)
+{
+   j = static_cast<int32_t>(p);
+}
+
+inline void from_json(const json & j, ComponentType & B)
+{
+    int e = j.get<int>();
+    B = static_cast<ComponentType>(e);
+}
 
 template<typename T>
 inline ComponentType getComponentType()
@@ -1751,6 +1771,13 @@ enum class AnimationInterpolation : int32_t
     LINEAR,
     CUBICSPLINE
 };
+
+NLOHMANN_JSON_SERIALIZE_ENUM( AnimationInterpolation, {
+    {AnimationInterpolation::STEP, "STEP"},
+  {AnimationInterpolation::LINEAR, "LINEAR"},
+  {AnimationInterpolation::CUBICSPLINE, "CUBICSPLINE"}
+})
+
 inline std::string to_string(const AnimationInterpolation & p)
 {
     switch(p)
@@ -1768,6 +1795,13 @@ enum class AnimationPath
     SCALE,
     WEIGHTS
 };
+
+NLOHMANN_JSON_SERIALIZE_ENUM( AnimationPath, {
+    {AnimationPath::TRANSLATION, "translation"},
+  {AnimationPath::ROTATION, "rotation"},
+  {AnimationPath::SCALE, "scale"},
+    {AnimationPath::WEIGHTS, "weights"}
+})
 
 inline std::string to_string(const AnimationPath & p)
 {
@@ -2171,6 +2205,11 @@ enum class MaterialAlphaMode
     MASK,
     BLEND
 };
+NLOHMANN_JSON_SERIALIZE_ENUM( MaterialAlphaMode, {
+    {MaterialAlphaMode::OPAQUE, "OPAQUE"},
+  {MaterialAlphaMode::MASK, "MASK"},
+  {MaterialAlphaMode::BLEND, "BLEND"}
+})
 
 inline std::string to_string(MaterialAlphaMode d)
 {
@@ -3715,472 +3754,6 @@ inline void copyAnimation(GLTFModel & M1, GLTFModel const & M2, uint32_t animati
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-using AccessorIndex = uint32_t;
-
-template<typename T>
-void readKey( json const & Obj, std::string key, T & required)
-{
-    required = Obj.find(key)->get<T>();
-}
-template<typename T>
-void readKey( json const & Obj, std::string key, T & required, T const & defaultV)
-{
-    auto it = Obj.find(key);
-    if( it == Obj.end() )
-    {
-        required = defaultV;
-    }
-    else
-    {
-        required = it->get<T>();
-    }
-}
-
-template<typename T>
-void readKey( json const & Obj, std::string const& key, std::optional<T> & opt)
-{
-    auto it = Obj.find(key);
-    if( it == Obj.end() )
-    {
-        opt.reset();
-    }
-    else
-    {
-        opt = it->get<T>();
-    }
-}
-
-template<typename T>
-void readKey( json const & Obj, std::string const& key, std::vector<T> & opt)
-{
-    auto it = Obj.find(key);
-    if( it == Obj.end() )
-    {
-        opt.clear();
-    }
-    else
-    {
-        opt = it->get< std::vector<T> >();
-    }
-}
-
-template<typename T>
-void writeKey( json & Obj, std::string const& key, T const & required)
-{
-    Obj[key] = required;
-}
-
-template<typename T>
-void writeKey( json & Obj, std::string const& key, std::optional<T> const & opt)
-{
-    if( opt.has_value() )
-    {
-        Obj[key] = *opt;
-    }
-}
-
-template<typename T>
-void writeKey( json & Obj, std::string const& key, std::vector<T> const & opt)
-{
-    if( opt.size() )
-    {
-        Obj[key] = opt;
-    }
-}
-
-
-/**
- * @brief The BufferView2 struct
- *
- */
-struct BufferView2
-{
-    std::vector<uint8_t> data;
-    uint32_t             byteStride = 0;
-    BufferViewTarget     target;
-};
-
-struct Accessor2
-{
-    uint32_t       bufferView=std::numeric_limits<uint32_t>::max();
-    uint32_t       byteOffset=0;
-    uint32_t       count=0;
-    ComponentType  componentType;
-    AccessorType   type;
-    bool           normalized = false;
-
-    std::vector<double> min;
-    std::vector<double> max;
-};
-
-inline void to_json(json& j, const Accessor2 & p)
-{
-    writeKey(j, "bufferView", p.bufferView);
-    writeKey(j, "byteOffset", p.byteOffset);
-    writeKey(j, "count"     , p.count);
-    writeKey(j, "normalized", p.normalized);
-    writeKey(j, "min"       , p.min);
-    writeKey(j, "max"       , p.max);
-}
-
-inline void from_json(const json & j, Accessor2 & p)
-{
-    readKey(j, "bufferView", p.bufferView);
-    readKey(j, "byteOffset", p.byteOffset);
-    readKey(j, "count"     , p.count);
-    readKey(j, "normalized", p.normalized);
-    readKey(j, "min"       , p.min);
-    readKey(j, "max"       , p.max);
-}
-
-
-class Image2
-{
-public:
-    // MimeType	string	The image's MIME type.	No
-    // bufferView	integer	The index of the bufferView that contains the image. Use this instead of the image's uri property.	No
-    std::vector<uint8_t> data; // if bufferView is not given
-    std::string mimeType;
-};
-
-
-
-class AnimationChannel2
-{
-public:
-    uint32_t       samplerIndex = std::numeric_limits<uint32_t>::max();
-
-    struct
-    {
-        uint32_t      node = std::numeric_limits<uint32_t>::max();
-        AnimationPath path;
-    } target;
-};
-
-inline void to_json(json& j, const AnimationChannel2 & p)
-{
-    writeKey(j, "sampler", p.samplerIndex);
-    writeKey(j.at("target"), "node", p.target.node);
-    writeKey(j.at("target"), "path", p.target.path);
-}
-
-inline void from_json(const json & j, AnimationChannel2 & p)
-{
-    readKey(j, "sampler", p.samplerIndex);
-    readKey(j.at("target"), "node", p.target.node);
-    readKey(j.at("target"), "path", p.target.path);
-}
-
-class AnimationSampler2 : public BaseObject
-{
-public:
-    AccessorIndex          input  = std::numeric_limits<uint32_t>::max();
-    AccessorIndex          output = std::numeric_limits<uint32_t>::max();
-    AnimationInterpolation interpolation = AnimationInterpolation::LINEAR;
-};
-
-inline void to_json(json& j, const AnimationSampler2 & p)
-{
-    writeKey(j, "input", p.input);
-    writeKey(j, "output", p.output);
-    writeKey(j, "interpolation", p.interpolation);
-}
-
-inline void from_json(const json & j, AnimationSampler2 & p)
-{
-    readKey(j, "input", p.input);
-    readKey(j, "output", p.output);
-
-    p.interpolation = AnimationInterpolation::LINEAR;
-    std::optional<AnimationInterpolation> intrp;
-    readKey(j, "interpolation", intrp);
-
-    if( intrp.has_value())
-        p.interpolation = *intrp;
-}
-
-
-class Animation2
-{
-public:
-    std::vector<AnimationChannel> channels;
-    std::vector<AnimationSampler2> samplers;
-};
-
-inline void to_json(json& j, const Animation2 & p)
-{
-    writeKey(j, "channels", p.channels);
-    writeKey(j, "samplers", p.samplers);
-}
-
-inline void from_json(const json & j, Animation2 & p)
-{
-    readKey(j, "channels", p.channels);
-    readKey(j, "samplers", p.samplers);
-}
-
-
-class Node2
-{
-public:
-    std::optional<uint32_t> mesh  ;
-    std::optional<uint32_t> camera;
-    std::optional<uint32_t> skin  ;
-
-    std::optional< std::array<float,16> > matrix     ;// = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-    std::optional< std::array<float,3>  > scale      ;// = {1,1,1};
-    std::optional< std::array<float,4>  > rotation   ;// = {0,0,0,1};
-    std::optional< std::array<float,3>  > translation;// = {0,0,0};
-
-    std::vector<uint32_t> children;
-
-    std::vector<float> weights;
-};
-
-inline void to_json(json& j, const Node2 & p)
-{
-    writeKey( j, "mesh"       , p.mesh        );
-    writeKey( j, "camera"     , p.camera      );
-    writeKey( j, "skin"       , p.skin        );
-    writeKey( j, "matrix"     , p.matrix      );// = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-    writeKey( j, "scale"      , p.scale       );// = {1,1,1};
-    writeKey( j, "rotation"   , p.rotation    );// = {0,0,0,1};
-    writeKey( j, "translation", p.translation );// = {0,0,0};
-    writeKey( j, "children"   , p.children    );
-    writeKey( j, "weights"    , p.weights     );
-}
-
-inline void from_json(const json & j, Node2 & p)
-{
-    readKey( j, "mesh"       , p.mesh        );
-    readKey( j, "camera"     , p.camera      );
-    readKey( j, "skin"       , p.skin        );
-    readKey( j, "matrix"     , p.matrix      );// = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-    readKey( j, "scale"      , p.scale       );// = {1,1,1};
-    readKey( j, "rotation"   , p.rotation    );// = {0,0,0,1};
-    readKey( j, "translation", p.translation );// = {0,0,0};
-    readKey( j, "children"   , p.children    );
-    readKey( j, "weights"    , p.weights     );
-}
-
-class Primitive2
-{
-public:
-    struct
-    {
-        // node these must be in this order otherwise the has() method wont work
-        std::optional<AccessorIndex> POSITION   ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> NORMAL     ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> TANGENT	 ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> TEXCOORD_0 ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> TEXCOORD_1 ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> COLOR_0	 ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> JOINTS_0   ;//= std::numeric_limits<uint32_t>::max();//-1;
-        std::optional<AccessorIndex> WEIGHTS_0  ;//= std::numeric_limits<uint32_t>::max();//-1;
-    } attributes;
-
-    std::optional<AccessorIndex>    indices;
-    std::optional<uint32_t>         material;
-    PrimitiveMode                   mode     = PrimitiveMode::TRIANGLES;
-};
-
-inline void to_json(json& j, const Primitive2 & p)
-{
-    writeKey( j.at("attributes") , "POSITION"  , p.attributes.POSITION        );
-    writeKey( j.at("attributes") , "NORMAL"    , p.attributes.NORMAL      );
-    writeKey( j.at("attributes") , "TANGENT"   , p.attributes.TANGENT        );
-    writeKey( j.at("attributes") , "TEXCOORD_0", p.attributes.TEXCOORD_0      );// = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-    writeKey( j.at("attributes") , "TEXCOORD_1", p.attributes.TEXCOORD_1       );// = {1,1,1};
-    writeKey( j.at("attributes") , "COLOR_0"   , p.attributes.COLOR_0    );// = {0,0,0,1};
-    writeKey( j.at("attributes") , "JOINTS_0"  , p.attributes.JOINTS_0 );// = {0,0,0};
-    writeKey( j.at("attributes") , "WEIGHTS_0" , p.attributes.WEIGHTS_0    );
-
-    writeKey( j.at("attributes") , "indices"  , p.indices );
-    writeKey( j.at("attributes") , "material" , p.material);
-    writeKey( j.at("attributes") , "mode"     , p.mode    );
-}
-
-inline void from_json(const json & j, Primitive2 & p)
-{
-    readKey( j.at("attributes") , "POSITION"  , p.attributes.POSITION        );
-    readKey( j.at("attributes") , "NORMAL"    , p.attributes.NORMAL      );
-    readKey( j.at("attributes") , "TANGENT"   , p.attributes.TANGENT        );
-    readKey( j.at("attributes") , "TEXCOORD_0", p.attributes.TEXCOORD_0      );// = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-    readKey( j.at("attributes") , "TEXCOORD_1", p.attributes.TEXCOORD_1       );// = {1,1,1};
-    readKey( j.at("attributes") , "COLOR_0"   , p.attributes.COLOR_0    );// = {0,0,0,1};
-    readKey( j.at("attributes") , "JOINTS_0"  , p.attributes.JOINTS_0 );// = {0,0,0};
-    readKey( j.at("attributes") , "WEIGHTS_0" , p.attributes.WEIGHTS_0    );
-
-    readKey( j.at("attributes") , "indices"  , p.indices );
-    readKey( j.at("attributes") , "material" , p.material);
-    readKey( j.at("attributes") , "mode"     , p.mode    , PrimitiveMode::TRIANGLES);
-}
-
-class Mesh2
-{
-public:
-    std::vector<Primitive2> primitives;
-    std::vector<float>      weights;
-};
-
-inline void to_json(json& j, const Mesh2 & p)
-{
-    writeKey( j, "primitives"       , p.primitives        );
-    writeKey( j, "weights"     , p.weights      );
-}
-
-inline void from_json(const json & j, Mesh2 & p)
-{
-    readKey( j, "primitives"       , p.primitives        );
-    readKey( j, "weights"     , p.weights      );
-}
-
-
-class Skin2
-{
-public:
-    std::optional<AccessorIndex>     inverseBindMatrices = std::numeric_limits<uint32_t>::max();
-    std::vector<uint32_t>            joints;	//integer [1-*]	The indices of each root node.	No
-    std::optional<int32_t>           skeleton;
-};
-
-inline void to_json(json& j, const Skin2 & p)
-{
-    writeKey( j, "inverseBindMatrices"       , p.inverseBindMatrices        );
-    writeKey( j, "joints"     , p.joints      );
-    writeKey( j, "skeleton"     , p.skeleton      );
-}
-
-inline void from_json(const json & j, Skin2 & p)
-{
-    readKey( j, "inverseBindMatrices"       , p.inverseBindMatrices        );
-    readKey( j, "joints"     , p.joints      );
-    readKey( j, "skeleton"     , p.skeleton      );
-}
-
-class Sampler2
-{
-public:
-    Filter   magFilter;
-    Filter   minFilter;
-    WrapMode wrapS;
-    WrapMode wrapT;
-
-};
-
-inline void to_json(json& j, const Sampler2 & p)
-{
-    writeKey( j, "magFilter"       , p.magFilter        );
-    writeKey( j, "minFilter"     , p.minFilter      );
-    writeKey( j, "wrapS"     , p.wrapS      );
-    writeKey( j, "wrapT"     , p.wrapT      );
-}
-
-inline void from_json(const json & j, Sampler2 & p)
-{
-    readKey( j, "magFilter"       , p.magFilter        );
-    readKey( j, "minFilter"     , p.minFilter      );
-    readKey( j, "wrapS"     , p.wrapS      );
-    readKey( j, "wrapT"     , p.wrapT      );
-}
-
-class Texture2
-{
-public:
-    std::optional<uint32_t>   samplerIndex;   // "sampler"
-    std::optional<uint32_t>   sourceTexture ; // "source"
-};
-
-inline void to_json(json& j, const Texture2 & p)
-{
-    writeKey( j, "samplerIndex"  , p.samplerIndex        );
-    writeKey( j, "sourceTexture" , p.sourceTexture      );
-}
-
-inline void from_json(const json & j, Texture2 & p)
-{
-    readKey( j, "samplerIndex"       , p.samplerIndex        );
-    readKey( j, "sourceTexture"     , p.sourceTexture      );
-}
-
-class Scene2
-{
-public:
-    std::vector<uint32_t> nodes;	//integer [1-*]	The indices of each root node.	No
-};
-
-inline void to_json(json& j, const Scene2 & p)
-{
-    writeKey( j, "nodes"  , p.nodes        );
-}
-
-inline void from_json(const json & j, Scene2 & p)
-{
-    readKey( j, "nodes"       , p.nodes        );
-}
-
-
-class GLTFModel2
-{
-public:
-    struct header_t
-    {
-        uint32_t magic   = 0x46546C67;
-        uint32_t version = 2;
-        uint32_t length  = 12;
-    };
-
-    GLTFModel2()
-    {
-    }
-
-
-
-public:
-    Asset                   asset;
-
-    std::vector<BufferView2> bufferViews;
-    std::vector<Accessor2>   accessors;
-    std::vector<Node2>       nodes;
-    std::vector<Mesh2>       meshes;
-    std::vector<Scene2>      scenes;
-    std::vector<Skin2>       skins;
-    std::vector<Animation2> animations;
-    std::vector<Image2>      images;
-    std::vector<Texture2>    textures;
-    std::vector<Sampler2>    samplers;
-    std::vector<Camera>     cameras;
-    std::vector<Material>   materials;
-    json                    extensions;
-    json                    extra;
-    json                    _json;
-};
 
 
 }

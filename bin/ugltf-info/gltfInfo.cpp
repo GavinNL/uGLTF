@@ -132,9 +132,6 @@ int printInfo(std::string const & filename,
             std::cout << INDENT << "NODE TRANSLATION: " << to_string(m.translation) << '\n';
             std::cout << INDENT << "NODE ROTATION   : " << to_string(m.rotation) << '\n';
             std::cout << INDENT << "NODE SCALE      : " << to_string(m.scale) << '\n';
-
-
-
         }
 
         std::cout << "Meshs: " << M.meshes.size() << std::endl;
