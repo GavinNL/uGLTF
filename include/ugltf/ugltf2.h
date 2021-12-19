@@ -241,6 +241,39 @@ struct Accessor : public Base_J
 
     std::vector<double> min;
     std::vector<double> max;
+
+    size_t attributeSize() const
+    {
+        size_t c = 0;
+        switch(type)
+        {
+            case AccessorType::SCALAR: c = 1; break;
+            case AccessorType::VEC2:   c = 2; break;
+            case AccessorType::VEC3:   c = 3; break;
+            case AccessorType::VEC4:   c = 4; break;
+            case AccessorType::MAT2:   c = 4; break;
+            case AccessorType::MAT3:   c = 9; break;
+            case AccessorType::MAT4:   c = 16; break;
+            case AccessorType::UNKNOWN:
+                c = 1; break;
+        }
+
+        switch(componentType)
+        {
+            case ComponentType::BYTE:
+            case ComponentType::UNSIGNED_BYTE:
+                return c*1;
+            case ComponentType::SHORT:
+            case ComponentType::UNSIGNED_SHORT:
+                return c*2;
+            case ComponentType::INT:
+            case ComponentType::UNSIGNED_INT:
+            case ComponentType::FLOAT:
+                return c*4;
+            case ComponentType::DOUBLE:
+                return c*8;
+        }
+    }
 };
 
 inline void to_json(json& j, const Accessor & p)
@@ -607,8 +640,8 @@ inline void to_json(json& j, const Sampler & p)
 
 inline void from_json(const json & j, Sampler & p)
 {
-    readKey( j, "magFilter" , p.magFilter  );
-    readKey( j, "minFilter" , p.minFilter  );
+    readKey( j, "magFilter" , p.magFilter  , Filter::LINEAR);
+    readKey( j, "minFilter" , p.minFilter  , Filter::LINEAR);
     readKey( j, "wrapS"     , p.wrapS      , WrapMode::REPEAT);
     readKey( j, "wrapT"     , p.wrapT      , WrapMode::REPEAT);
 }
